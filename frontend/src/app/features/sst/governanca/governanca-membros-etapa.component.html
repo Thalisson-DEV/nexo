@@ -1,0 +1,264 @@
+@if (detalheAtual(); as detalhe) {
+  <div class="mt-6 flex flex-col gap-5">
+    <div class="flex flex-col justify-between gap-3 rounded-xl border border-primary-100 dark:border-blue-900/40 bg-primary-50/40 dark:bg-blue-950/30 px-4 py-3 sm:flex-row sm:items-center">
+      <div class="flex items-start gap-3">
+        <i class="pi pi-check-circle mt-0.5 text-primary-700 dark:text-primary-400"></i>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-wider text-primary-700 dark:text-primary-400">{{ tipo === 'CIPA' ? 'Composição salva' : 'Equipe salva' }}</p>
+          <p class="mt-1 text-[10px] text-primary-700 dark:text-primary-400">{{ detalhe.corpo.nome }} · {{ detalhe.corpo.baseNome }} · {{ detalhe.corpo.uf }}</p>
+        </div>
+      </div>
+      @if (podeAtivar()) {
+        <p-button label="ATIVAR FORMAÇÃO" icon="pi pi-check-circle" [outlined]="true" [disabled]="membrosAtivos().length === 0" [loading]="processando()" pTooltip="Inclua os integrantes necessários antes de ativar" (onClick)="ativarCorpo()" styleClass="!text-[9px] !font-bold" />
+      }
+    </div>
+
+    <div class="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-4 sm:grid-cols-3">
+      <div class="flex flex-col gap-1">
+        <span class="text-[9px] font-bold uppercase text-slate-400">Período</span>
+        <strong class="text-[10px] font-medium text-slate-700 dark:text-white">{{ detalhe.corpo.inicioPeriodo | date:'dd/MM/yyyy' }} a {{ detalhe.corpo.fimPeriodo | date:'dd/MM/yyyy' }}</strong>
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="text-[9px] font-bold uppercase text-slate-400">Unidade</span>
+        <strong class="text-[10px] font-medium text-slate-700 dark:text-white">{{ detalhe.corpo.unidadeGovernanca }}</strong>
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="text-[9px] font-bold uppercase text-slate-400">Quadro atual</span>
+        <strong class="text-[10px] font-bold text-primary-700 dark:text-primary-400">{{ membrosAtivos().length }} {{ membrosAtivos().length === 1 ? 'integrante' : 'integrantes' }}</strong>
+      </div>
+    </div>
+
+    <section>
+      <div class="mb-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div class="section-marker !mb-0"><span>Integrantes da formação</span></div>
+        <div class="flex flex-wrap items-center gap-2">
+          @if (membrosHistoricos().length) {
+            <p-button
+              [label]="exibirHistorico() ? 'OCULTAR HISTÓRICO' : 'VER HISTÓRICO (' + membrosHistoricos().length + ')'"
+              icon="pi pi-history"
+              [text]="true"
+              severity="secondary"
+              (onClick)="exibirHistorico.set(!exibirHistorico())"
+              styleClass="!text-[9px] !font-bold"
+            />
+          }
+          @if (podeGerenciar() && modo() === null) {
+            <p-button label="ADICIONAR INTEGRANTE" icon="pi pi-plus" (onClick)="prepararAdicao()" styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-600 !border-primary-700 dark:!border-primary-600 !text-[9px] !font-bold" />
+          }
+        </div>
+      </div>
+
+      <p-table [value]="membrosExibidos()" dataKey="id" styleClass="p-datatable-sm minimalist-table governance-table table-members" [rowHover]="true" [scrollable]="true" scrollHeight="360px">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Colaborador</th>
+            <th>Papel na formação</th>
+            <th>Participação</th>
+            <th>Situação</th>
+            <th class="table-actions">Ações</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-membro>
+          <tr [class.active-action-row]="membroSelecionado()?.id === membro.id">
+            <td>
+              <span class="table-primary">{{ membro.nomeSnapshot }}</span>
+              <span class="table-secondary">{{ membro.funcaoSnapshot || 'Função não informada' }} · {{ membro.baseSnapshot }}</span>
+            </td>
+            <td>
+              <span class="table-primary">{{ rotulo(membro.papel) }}</span>
+              @if (tipo === 'CIPA') { <span class="table-secondary">{{ rotulo(membro.representacao) }} · {{ rotulo(membro.titularidade || membro.origem) }}</span> }
+            </td>
+            <td>
+              <span class="table-primary table-mono">Desde {{ membro.inicioParticipacao | date:'dd/MM/yyyy' }}</span>
+              @if (membro.fimParticipacao) { <span class="table-secondary">Encerrado em {{ membro.fimParticipacao | date:'dd/MM/yyyy' }}</span> }
+            </td>
+            <td><p-tag [value]="membro.fimParticipacao ? 'Histórico' : 'Ativo'" [severity]="membro.fimParticipacao ? 'secondary' : 'success'" /></td>
+            <td class="table-actions">
+              @if (podeGerenciar() && !membro.fimParticipacao) {
+                <p-button icon="pi pi-sync" [rounded]="true" [text]="true" pTooltip="Substituir integrante" (onClick)="prepararSubstituicao(membro)" styleClass="table-action-button !text-primary-700 dark:!text-primary-400" />
+                <p-button icon="pi pi-sign-out" [rounded]="true" [text]="true" severity="danger" pTooltip="Retirar integrante" (onClick)="prepararSaida(membro)" styleClass="table-action-button" />
+              } @else {
+                <span class="text-[9px] text-slate-300 dark:text-slate-600">—</span>
+              }
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="5">
+              <div class="table-empty-state">
+                <i class="pi pi-users"></i>
+                <strong>Nenhum integrante ativo</strong>
+                <span>{{ modo() === 'ADICIONAR' ? 'Preencha o formulário abaixo para iniciar a formação.' : 'Use “Adicionar integrante” para iniciar a formação.' }}</span>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </section>
+
+    @if (!podeGerenciar()) {
+      <div class="flex items-start gap-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-3">
+        <i class="pi pi-lock mt-0.5 text-xs text-slate-400"></i>
+        <p class="text-[10px] text-slate-500 dark:text-slate-300">A formação está encerrada ou seu perfil não possui permissão para alterar integrantes.</p>
+      </div>
+    } @else if (modo() === 'SAIDA') {
+      <section class="action-panel action-panel-danger" [formGroup]="formMovimentacao">
+        <div class="action-heading">
+          <div class="flex items-start gap-3">
+            <span class="action-icon action-icon-danger"><i class="pi pi-sign-out"></i></span>
+            <div>
+              <span class="action-kicker text-red-500">Retirada da formação</span>
+              <h3>Retirar {{ membroSelecionado()?.nomeSnapshot }}</h3>
+              <p>O integrante deixará o quadro ativo na data informada. O registro continuará disponível no histórico.</p>
+            </div>
+          </div>
+          <p-button label="CANCELAR" icon="pi pi-times" [text]="true" severity="secondary" [disabled]="processando()" (onClick)="fecharEditor()" styleClass="!text-[9px] !font-bold" />
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="form-field">
+            <label for="dataSaida">Data da retirada *</label>
+            <p-datepicker dateMask inputId="dataSaida" formControlName="dataEfeito" dateFormat="dd/mm/yy" [showIcon]="true" [minDate]="dataMinima()" [maxDate]="dataMaxima()" size="small" appendTo="body" />
+            @if (movimentacaoInvalida('dataEfeito')) { <small class="field-error">Informe a data da retirada.</small> }
+          </div>
+          <div class="form-field">
+            <label for="motivoSaida">Motivo *</label>
+            <textarea id="motivoSaida" pTextarea formControlName="motivo" rows="3" maxlength="500" placeholder="Ex.: mudança de unidade, desligamento ou fim da designação"></textarea>
+            @if (movimentacaoInvalida('motivo')) { <small class="field-error">Informe o motivo da retirada.</small> }
+          </div>
+        </div>
+        <div class="mt-5 flex justify-end">
+          <p-button label="CONFIRMAR RETIRADA" icon="pi pi-sign-out" severity="danger" [loading]="processando()" (onClick)="salvarManutencao()" styleClass="!rounded-lg !py-2.5 !px-6 !font-bold !text-[10px]" />
+        </div>
+      </section>
+    } @else if (modo() === 'ADICIONAR' || modo() === 'SUBSTITUIR') {
+      <section class="action-panel">
+        <div class="action-heading">
+          <div class="flex items-start gap-3">
+            <span class="action-icon"><i [class]="modo() === 'SUBSTITUIR' ? 'pi pi-sync' : 'pi pi-user-plus'"></i></span>
+            <div>
+              <span class="action-kicker">{{ modo() === 'SUBSTITUIR' ? 'Alteração do quadro' : 'Novo vínculo' }}</span>
+              <h3>{{ tituloFormulario() }}</h3>
+              <p>{{ modo() === 'SUBSTITUIR' ? 'Registre o encerramento do vínculo atual e escolha quem assumirá a vaga.' : 'Escolha uma pessoa das bases abrangidas e defina seu vínculo nesta formação.' }}</p>
+            </div>
+          </div>
+          @if (membrosAtivos().length > 0) {
+            <p-button label="CANCELAR" icon="pi pi-times" [text]="true" severity="secondary" [disabled]="processando()" (onClick)="fecharEditor()" styleClass="!text-[9px] !font-bold" />
+          }
+        </div>
+
+        @if (modo() === 'SUBSTITUIR') {
+          <div class="form-section" [formGroup]="formMovimentacao">
+            <div class="form-section-title"><span>1</span><div><strong>Encerramento do vínculo atual</strong><small>{{ membroSelecionado()?.nomeSnapshot }} · {{ rotulo(membroSelecionado()?.papel) }}</small></div></div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div class="form-field">
+                <label for="dataSubstituicao">Data da substituição *</label>
+                <p-datepicker dateMask inputId="dataSubstituicao" formControlName="dataEfeito" dateFormat="dd/mm/yy" [showIcon]="true" [minDate]="dataMinima()" [maxDate]="dataMaxima()" size="small" appendTo="body" (onSelect)="aoAlterarDataEfeito()" />
+                @if (movimentacaoInvalida('dataEfeito')) { <small class="field-error">Informe a data da substituição.</small> }
+              </div>
+              <div class="form-field">
+                <label for="motivoSubstituicao">Motivo da saída *</label>
+                <textarea id="motivoSubstituicao" pTextarea formControlName="motivo" rows="3" maxlength="500" placeholder="Por que o integrante atual será substituído?"></textarea>
+                @if (movimentacaoInvalida('motivo')) { <small class="field-error">Informe o motivo da saída.</small> }
+              </div>
+              <div class="form-field md:col-span-2">
+                <label for="fundamentoSubstituicao">Fundamento da substituição *</label>
+                <textarea id="fundamentoSubstituicao" pTextarea formControlName="fundamento" rows="3" maxlength="500" placeholder="Informe a decisão, documento ou procedimento que fundamenta a substituição"></textarea>
+                @if (movimentacaoInvalida('fundamento')) { <small class="field-error">Informe o fundamento da substituição.</small> }
+              </div>
+            </div>
+          </div>
+        }
+
+        <div class="form-section" [formGroup]="formMembro">
+          <div class="form-section-title">
+            <span>{{ modo() === 'SUBSTITUIR' ? '2' : '1' }}</span>
+            <div><strong>{{ modo() === 'SUBSTITUIR' ? 'Novo integrante' : 'Escolha o colaborador' }}</strong><small>Somente pessoas das bases atendidas por esta formação aparecem na busca.</small></div>
+          </div>
+          <div class="form-field">
+            <label for="colaborador">Colaborador *</label>
+            <p-select inputId="colaborador" formControlName="idColaborador" [options]="colaboradoresDisponiveis()" optionLabel="nomeCompleto" optionValue="id" [filter]="true" filterBy="nomeCompleto" [loading]="carregandoColaboradores()" [showClear]="true" [virtualScroll]="true" [virtualScrollItemSize]="38" [lazy]="true" placeholder="Digite o nome do colaborador" class="w-full" size="small" appendTo="body" (onFilter)="pesquisarColaboradores($event)" (onLazyLoad)="carregarMaisColaboradores()">
+              <ng-template #item let-colaborador><div class="flex flex-col py-1"><span class="text-[10px] font-medium text-slate-700">{{ colaborador.nomeCompleto }}</span><span class="text-[9px] text-slate-400">{{ colaborador.funcao?.nome || 'Função não informada' }} · {{ colaborador.baseOperacional?.nome }}</span></div></ng-template>
+            </p-select>
+            @if (campoInvalido('idColaborador')) { <small class="field-error">Selecione um colaborador.</small> }
+          </div>
+
+          @if (colaboradorSelecionado(); as colaborador) {
+            <div class="selected-person">
+              <span class="selected-person-icon"><i class="pi pi-user"></i></span>
+              <div><strong>{{ colaborador.nomeCompleto }}</strong><small>{{ colaborador.funcao.nome || 'Função não informada' }} · {{ colaborador.baseOperacional.nome }}</small></div>
+              <i class="pi pi-check-circle text-primary-700"></i>
+            </div>
+          }
+        </div>
+
+        @if (colaboradorSelecionado()) {
+          <div class="form-section" [formGroup]="formMembro">
+            <div class="form-section-title">
+              <span>{{ modo() === 'SUBSTITUIR' ? '3' : '2' }}</span>
+              <div><strong>Vínculo na formação</strong><small>{{ orientacaoVinculo() }}</small></div>
+            </div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div class="form-field">
+                <label for="papel">Papel *</label>
+                <p-select inputId="papel" formControlName="papel" [options]="papeisOptions()" optionLabel="label" optionValue="value" [readonly]="modo() === 'SUBSTITUIR' || corpo()?.regimeComposicao === 'REPRESENTANTE_NOMEADO'" class="w-full" size="small" appendTo="body" />
+                @if (campoInvalido('papel')) { <small class="field-error">Selecione o papel.</small> }
+              </div>
+              @if (modo() !== 'SUBSTITUIR') {
+                <div class="form-field">
+                  <label for="inicioParticipacao">Início da participação *</label>
+                  <p-datepicker dateMask inputId="inicioParticipacao" formControlName="inicioParticipacao" dateFormat="dd/mm/yy" [showIcon]="true" [minDate]="dataMinima()" [maxDate]="dataMaxima()" class="w-full" size="small" appendTo="body" />
+                  @if (campoInvalido('inicioParticipacao')) { <small class="field-error">Informe o início da participação.</small> }
+                </div>
+              }
+              <div class="form-field" [class.md:col-span-2]="modo() === 'SUBSTITUIR'">
+                <label for="turno">Turno disponível</label>
+                <input id="turno" pInputText formControlName="turnoDisponivel" maxlength="80" class="w-full !text-[10px]" placeholder="Ex.: Administrativo" />
+              </div>
+              @if (tipo === 'CIPA' && corpo()?.regimeComposicao !== 'REPRESENTANTE_NOMEADO') {
+                <div class="form-field">
+                  <label for="representacao">Representa quem? *</label>
+                  <p-select inputId="representacao" formControlName="representacao" [options]="representacaoOptions" optionLabel="label" optionValue="value" [readonly]="modo() === 'SUBSTITUIR'" class="w-full" size="small" appendTo="body" (onChange)="aoAlterarRepresentacao()" />
+                  @if (campoInvalido('representacao')) { <small class="field-error">Informe a representação.</small> }
+                </div>
+                <div class="form-field">
+                  <label for="titularidade">Tipo de vaga *</label>
+                  <p-select inputId="titularidade" formControlName="titularidade" [options]="titularidadeOptions" optionLabel="label" optionValue="value" [readonly]="modo() === 'SUBSTITUIR'" class="w-full" size="small" appendTo="body" />
+                  @if (campoInvalido('titularidade')) { <small class="field-error">Informe se a vaga é titular ou suplente.</small> }
+                </div>
+              }
+              @if (origemEleita()) {
+                <div class="form-field">
+                  <label for="cicloEleitoral">Ciclo eleitoral *</label>
+                  <input id="cicloEleitoral" pInputText formControlName="cicloEleitoral" maxlength="120" class="w-full !text-[10px]" placeholder="Ex.: Eleição 2026/2027" />
+                  @if (formularioTentado() && !formMembro.controls.cicloEleitoral.value.trim()) { <small class="field-error">Informe o ciclo eleitoral.</small> }
+                </div>
+                <div class="form-field">
+                  <label for="classificacao">Classificação na eleição *</label>
+                  <input id="classificacao" pInputText type="number" min="1" formControlName="classificacaoEleitoral" class="w-full !text-[10px]" />
+                  @if (formularioTentado() && !formMembro.controls.classificacaoEleitoral.value) { <small class="field-error">Informe a classificação.</small> }
+                </div>
+                <label class="flex items-center gap-2 text-[10px] text-slate-500 md:col-span-2"><p-checkbox formControlName="reeleito" [binary]="true" /><span>Este integrante foi reeleito</span></label>
+              } @else if (exigeAtoDesignacao()) {
+                <div class="form-field md:col-span-2">
+                  <label for="atoDesignacao">Ato de designação *</label>
+                  <input id="atoDesignacao" pInputText formControlName="atoDesignacao" maxlength="180" class="w-full !text-[10px]" placeholder="Informe o documento ou ato de designação" />
+                  @if (formularioTentado() && !formMembro.controls.atoDesignacao.value.trim()) { <small class="field-error">Informe o ato de designação.</small> }
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (formularioTentado() && !formularioMembroValido()) {
+            <div class="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/40 p-3"><i class="pi pi-exclamation-circle mt-0.5 text-amber-600 dark:text-amber-400"></i><p class="text-[9px] text-amber-700 dark:text-amber-300">Revise os campos indicados antes de confirmar.</p></div>
+          }
+
+          <div class="flex justify-end">
+            <p-button [label]="modo() === 'SUBSTITUIR' ? 'CONFIRMAR SUBSTITUIÇÃO' : 'ADICIONAR À FORMAÇÃO'" [icon]="modo() === 'SUBSTITUIR' ? 'pi pi-sync' : 'pi pi-user-plus'" [loading]="processando()" (onClick)="salvarManutencao()" styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-600 !border-primary-700 dark:!border-primary-600 !py-2.5 !px-6 !font-bold !text-[10px]" />
+          </div>
+        }
+      </section>
+    }
+  </div>
+}

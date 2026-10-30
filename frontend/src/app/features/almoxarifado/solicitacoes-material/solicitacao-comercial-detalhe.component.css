@@ -1,0 +1,601 @@
+.dd {
+  display: grid;
+  gap: 1.125rem;
+  color: var(--ces-foreground);
+}
+
+.dd-label {
+  display: block;
+  font-size: var(--ces-font-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ces-foreground-muted);
+}
+
+.dd-muted {
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-muted);
+}
+
+.dd-forte {
+  color: var(--ces-foreground);
+  font-weight: 700;
+}
+
+.dd-texto-alerta {
+  color: var(--ces-danger-text);
+}
+
+.dd-texto-aviso {
+  color: var(--ces-warning-text);
+  font-weight: 700;
+}
+
+.dd-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Abertura: status, rota e quem pediu, no tom do status */
+[data-tone='warning'] {
+  --dd-tone: var(--ces-warning);
+}
+
+[data-tone='info'] {
+  --dd-tone: var(--ces-info);
+}
+
+[data-tone='success'] {
+  --dd-tone: var(--ces-success);
+}
+
+[data-tone='danger'] {
+  --dd-tone: var(--ces-danger);
+}
+
+[data-tone='neutral'] {
+  --dd-tone: var(--ces-foreground-subtle);
+}
+
+.dd-hero {
+  display: grid;
+  gap: 0.625rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid color-mix(in srgb, var(--dd-tone) 30%, var(--ces-border));
+  border-radius: var(--ces-radius-lg);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--dd-tone) 14%, transparent), transparent 65%),
+    var(--ces-surface);
+}
+
+.dd-hero__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.dd-hero__fim {
+  margin-left: auto;
+}
+
+.dd-hero__rota {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  font-size: var(--ces-font-control);
+}
+
+.dd-hero__rota strong {
+  color: var(--ces-foreground);
+  font-weight: 700;
+}
+
+.dd-hero__rota .pi {
+  font-size: 0.75rem;
+}
+
+.dd-hero__seta {
+  color: var(--dd-tone);
+}
+
+.dd-hero__tipo {
+  padding: 0.0625rem 0.45rem;
+  border: 1px solid var(--ces-border);
+  border-radius: 999px;
+  font-size: var(--ces-font-caption);
+}
+
+.dd-hero__meta {
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  font-size: var(--ces-font-caption);
+}
+
+.dd-hero__id {
+  color: var(--ces-foreground);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dd-hero__meta strong {
+  color: var(--ces-foreground);
+  font-weight: 600;
+}
+
+.dd-titulo-secao {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--ces-foreground);
+  font-size: var(--ces-font-body);
+  font-weight: 700;
+}
+
+.dd-titulo-secao .pi {
+  color: var(--ces-brand);
+}
+
+/* Entrada em cascata das seções */
+.dd > * {
+  animation: dd-entra 320ms var(--ces-ease-standard) both;
+}
+
+.dd > :nth-child(2) { animation-delay: 40ms; }
+.dd > :nth-child(3) { animation-delay: 80ms; }
+.dd > :nth-child(4) { animation-delay: 120ms; }
+.dd > :nth-child(5) { animation-delay: 160ms; }
+.dd > :nth-child(n + 6) { animation-delay: 200ms; }
+
+@keyframes dd-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Linha do tempo do fluxo: etapas em colunas iguais, centralizadas; o filete liga o centro de cada marcador ao próximo. */
+.dd-fluxo {
+  --dd-marca: 1.875rem;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dd-fluxo__etapa {
+  position: relative;
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  justify-items: center;
+  padding: 0 0.25rem;
+  text-align: center;
+}
+
+.dd-fluxo__etapa:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--dd-marca) / 2 - 1px);
+  left: calc(50% + var(--dd-marca) / 2 + 0.375rem);
+  right: calc(-50% + var(--dd-marca) / 2 + 0.375rem);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ces-border);
+}
+
+.dd-fluxo__etapa[data-estado='feito']:not(:last-child)::after {
+  background: var(--ces-success);
+}
+
+.dd-fluxo__marca {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dd-marca);
+  height: var(--dd-marca);
+  border: 2px solid var(--ces-border);
+  border-radius: 999px;
+  background: var(--ces-surface);
+  color: var(--ces-foreground-subtle);
+  font-size: 0.75rem;
+}
+
+.dd-fluxo__etapa[data-estado='feito'] .dd-fluxo__marca {
+  border-color: var(--ces-success);
+  background: var(--ces-success);
+  color: var(--ces-surface);
+}
+
+.dd-fluxo__etapa[data-estado='atual'] .dd-fluxo__marca {
+  border-color: var(--ces-brand);
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+  box-shadow: 0 0 0 4px var(--ces-brand-soft);
+}
+
+.dd-fluxo__etapa[data-estado='interrompido'] .dd-fluxo__marca {
+  border-color: var(--ces-danger);
+  background: var(--ces-danger);
+  color: var(--ces-surface);
+}
+
+.dd-fluxo__texto {
+  display: grid;
+  gap: 0.0625rem;
+  justify-items: center;
+  width: 100%;
+  min-width: 0;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-muted);
+}
+
+.dd-fluxo__texto strong {
+  font-size: var(--ces-font-control);
+  color: var(--ces-foreground);
+}
+
+.dd-fluxo__etapa[data-estado='futuro'] .dd-fluxo__texto strong {
+  color: var(--ces-foreground-muted);
+}
+
+.dd-fluxo__texto span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Prazo, responsável e progresso */
+.dd-fatos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dd-fato {
+  display: grid;
+  gap: 0.25rem;
+  align-content: start;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-surface);
+}
+
+.dd-fato strong {
+  font-size: var(--ces-font-body);
+}
+
+.dd-fato--largo {
+  grid-column: 1 / -1;
+}
+
+.dd-progresso {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ces-surface-muted);
+}
+
+.dd-progresso span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ces-success);
+  transition: width var(--ces-duration-normal) var(--ces-ease-standard);
+}
+
+.dd-callout-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dd-obs {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.75rem 0.875rem;
+  border-left: 3px solid var(--ces-border-strong);
+  border-radius: 0 var(--ces-radius-md) var(--ces-radius-md) 0;
+  background: var(--ces-surface-subtle);
+  font-size: var(--ces-font-control);
+  white-space: pre-line;
+}
+
+/* Abas */
+.dd-secao-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.dd-linha-botoes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.dd-tabela {
+  overflow: hidden;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-lg);
+}
+
+.dd-tabela__linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.5rem 4.5rem 4.5rem 2.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  font-size: var(--ces-font-control);
+}
+
+.dd-reserva {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.625rem;
+}
+
+.dd-reserva__botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ces-font-caption);
+  font-weight: 600;
+  color: var(--ces-brand);
+  cursor: pointer;
+}
+
+.dd-reserva__botao i {
+  font-size: 0.65rem;
+}
+
+.dd-reserva__botao:hover {
+  text-decoration: underline;
+}
+
+.dd-reserva__botao:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--ces-radius-sm);
+}
+
+.dd-reserva__painel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dd-reserva__texto {
+  margin: 0;
+  font-size: var(--ces-font-caption);
+}
+
+.dd-reserva__acoes {
+  justify-content: flex-end;
+}
+
+.dd-entrega__series {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.dd-consumo-ops {
+  grid-column: 1 / -1;
+  padding: 0.75rem;
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-surface-subtle);
+}
+
+.dd-tabela__linha + .dd-tabela__linha {
+  border-top: 1px solid var(--ces-border);
+}
+
+.dd-tabela__cab {
+  background: var(--ces-surface-subtle);
+  font-size: var(--ces-font-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ces-foreground-muted);
+}
+
+.dd-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dd-acao {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dd-material {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+.dd-material strong {
+  font-weight: 600;
+}
+
+/* Registro de entrega */
+.dd-entrega {
+  display: grid;
+  gap: 0.25rem;
+  padding-top: 0.75rem;
+}
+
+.dd-entrega__quem {
+  display: grid;
+  gap: 0.875rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-lg);
+  background: var(--ces-surface-subtle);
+}
+
+.dd-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dd-assinaturas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px dashed var(--ces-border);
+}
+
+.dd-entrega__lista {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dd-entrega__item {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-surface);
+}
+
+.dd-entrega__item--ok {
+  background: var(--ces-surface-subtle);
+}
+
+.dd-entrega__campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+/* Rodapé */
+.dd-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* Carregando */
+.dd-skeleton {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dd-skeleton span {
+  height: 3.5rem;
+  border-radius: var(--ces-radius-md);
+  background: linear-gradient(90deg, var(--ces-surface-muted), var(--ces-surface-subtle), var(--ces-surface-muted));
+  background-size: 200% 100%;
+  animation: dd-brilho 1.2s ease-in-out infinite;
+}
+
+.dd-skeleton span:first-child {
+  height: 1.75rem;
+  width: 60%;
+}
+
+@keyframes dd-brilho {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 40rem) {
+  .dd {
+    gap: 0.875rem;
+  }
+
+  .dd-hero {
+    padding: 0.875rem;
+  }
+
+  /* Linha do tempo continua horizontal e centralizada, só mais compacta. */
+  .dd-fluxo {
+    --dd-marca: 1.625rem;
+  }
+
+  .dd-fluxo__marca {
+    font-size: 0.6875rem;
+  }
+
+  .dd-fluxo__texto {
+    font-size: 0.6875rem;
+  }
+
+  .dd-fluxo__texto strong {
+    font-size: var(--ces-font-caption);
+    white-space: normal;
+  }
+
+  .dd-fato {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .dd-grid-2,
+  .dd-assinaturas,
+  .dd-entrega__campos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dd-tabela__linha {
+    grid-template-columns: minmax(0, 1fr) 3.25rem 3.25rem 2.25rem;
+    padding: 0.625rem;
+  }
+
+  .dd-tabela__linha > :nth-child(3) {
+    display: none;
+  }
+
+  .dd-rodape {
+    gap: 0.375rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dd > * {
+    animation: none;
+  }
+
+  .dd-skeleton span {
+    animation: none;
+  }
+
+  .dd-progresso span {
+    transition: none;
+  }
+}

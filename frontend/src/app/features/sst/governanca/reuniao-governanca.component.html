@@ -1,0 +1,216 @@
+<p-toast />
+<div class="flex flex-col gap-4 pb-32">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <p-breadcrumb [model]="[{label:'Segurança'},{label:reuniao()?.tipoCorpo === 'CIPA' ? 'CIPA' : 'Brigada de Incêndio'},{label:'Reuniões e atas'}]" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button icon="pi pi-arrow-left" label="Voltar" [text]="true" severity="secondary" (onClick)="voltar()" styleClass="!text-slate-400 !text-[10px] !font-medium" />
+  </div>
+
+  @if (carregando()) {
+    <p-skeleton height="36rem" styleClass="!rounded-2xl" />
+  } @else if (erro()) {
+    <section class="error-state"><i class="pi pi-exclamation-circle"></i><h2>Não foi possível abrir a reunião</h2><p>{{ erro() }}</p><p-button label="Tentar novamente" icon="pi pi-refresh" (onClick)="carregar()" /></section>
+  } @else {
+    <section class="wizard-shell">
+      <header class="wizard-header">
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-2"><i [class]="reuniao()!.tipoCorpo === 'CIPA' ? 'pi pi-users text-primary-700 text-xs' : 'pi pi-shield text-primary-700 text-xs'"></i><span class="eyebrow">{{ reuniao()!.tipoCorpo === 'CIPA' ? 'Reunião da CIPA' : 'Reunião da Brigada' }}</span></div>
+          <p-tag [value]="rotulo(reuniao()!.status)" [severity]="reuniao()!.status === 'FINALIZADA' ? 'success' : 'info'" />
+        </div>
+        <h1>{{ reuniao()!.tipo }} · {{ reuniao()!.dataHora | date:'dd/MM/yyyy HH:mm' }}</h1>
+        <p>{{ reuniao()!.localOuMeio }} · duração prevista de {{ reuniao()!.duracaoMinutos }} minutos</p>
+      </header>
+
+      <div class="wizard-body">
+        <p-stepper [(value)]="activeStep">
+          <p-step-list>
+            @for (s of [{n:1,i:'pi pi-calendar',l:'Preparação'},{n:2,i:'pi pi-users',l:'Presenças'},{n:3,i:'pi pi-microphone',l:'Transcrição'},{n:4,i:'pi pi-file-edit',l:'Ata'},{n:5,i:'pi pi-check-circle',l:'Assinatura'}]; track s.n) {
+              <p-step [value]="s.n" class="flex flex-row flex-auto gap-2"><ng-template #content let-value="value"><button type="button" class="step-button" [disabled]="s.n > etapaAtual()" (click)="irParaEtapa(s.n)"><span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i [class]="s.i"></i></span><span class="step-copy"><strong>{{ s.l }}</strong></span></button></ng-template></p-step>
+            }
+          </p-step-list>
+
+          <p-step-panels>
+            <p-step-panel [value]="1"><ng-template #content>
+              <div class="step-panel">
+                <div class="step-intro"><span>Antes de começar</span><h2>Confira os dados da reunião</h2><p>Garanta que a pauta, o horário e o grupo selecionado estão corretos.</p></div>
+                <div class="review-grid no-indent">
+                  <div class="review-card"><span>Grupo</span><strong>{{ reuniao()!.tipoCorpo === 'CIPA' ? 'CIPA' : 'Brigada de incêndio' }}</strong></div>
+                  <div class="review-card"><span>Tipo</span><strong>{{ reuniao()!.tipo }}</strong></div>
+                  <div class="review-card"><span>Data e hora</span><strong>{{ reuniao()!.dataHora | date:'dd/MM/yyyy HH:mm' }}</strong></div>
+                  <div class="review-card"><span>Local / meio</span><strong>{{ reuniao()!.localOuMeio }}</strong></div>
+                  <div class="review-card wide"><span>Pauta</span><p>{{ reuniao()!.pauta }}</p></div>
+                </div>
+                <div class="context-note"><i class="pi pi-info-circle"></i><p><strong>Separação preservada:</strong> esta reunião pertence somente à {{ reuniao()!.tipoCorpo === 'CIPA' ? 'CIPA' : 'Brigada' }} selecionada e não aparece no outro grupo.</p></div>
+                <div class="panel-actions"><span></span>@if(reuniao()!.status === 'AGENDADA'){<p-button label="Iniciar reunião" icon="pi pi-play" [loading]="processando()==='inicio'" (onClick)="iniciar()"/>}@else{<p-button label="Ir para presenças" icon="pi pi-arrow-right" iconPos="right" (onClick)="activeStep.set(2)"/>}</div>
+              </div>
+            </ng-template></p-step-panel>
+
+            <p-step-panel [value]="2"><ng-template #content>
+              <div class="step-panel w-full min-w-0 max-w-full overflow-hidden">
+                <div class="step-intro"><span>Participantes</span><h2>Quem esteve presente?</h2><p>Marque cada integrante e informe o motivo somente quando houver ausência.</p></div>
+                <p-table [value]="participantes()" styleClass="p-datatable-sm custom-table governance-table table-attendance" [scrollable]="true" scrollHeight="400px">
+                  <ng-template #header><tr><th>Integrante</th><th>Presença</th><th>Motivo da ausência</th><th class="table-actions">Secretaria</th></tr></ng-template>
+                    <ng-template #body let-item>
+                      <tr>
+                        <td class="col-integrante">
+                          <div class="integrante-info">
+                            <div class="avatar"><i class="pi pi-user"></i></div>
+                            <div class="details"><span class="table-primary">{{item.nome}}</span><span class="table-secondary">{{item.papel}}{{item.funcao?' · '+item.funcao:''}}</span></div>
+                          </div>
+                        </td>
+                        <td class="col-presenca">
+                          <span class="mobile-label">Presença</span>
+                          <p-select size="small" [(ngModel)]="item.presenca" [options]="presencas" optionLabel="label" optionValue="value" appendTo="body" (onChange)="item.presenca==='PRESENTE'&&salvarPresenca(item)" [disabled]="!podeEditar()" styleClass="min-w-0 w-full max-w-[150px]"/>
+                        </td>
+                        <td class="col-motivo" [class.is-absent]="item.presenca.includes('AUSENTE')">
+                          @if(item.presenca.includes('AUSENTE')){
+                            <span class="mobile-label">Motivo da ausência</span>
+                            <div class="flex items-center gap-2 w-full"><input pInputText [(ngModel)]="item.justificativaAusencia" placeholder="Informe o motivo" [disabled]="!podeEditar()" class="w-full min-w-[140px]"/>@if(podeEditar()){<p-button icon="pi pi-check" [rounded]="true" [text]="true" severity="success" [loading]="processando()==='presenca-'+item.id" pTooltip="Salvar presença" styleClass="table-action-button shrink-0" (onClick)="salvarPresenca(item)"/>}</div>
+                          } @else {
+                            <span class="muted desktop-only">Não se aplica</span>
+                          }
+                        </td>
+                        <td class="col-acoes table-actions">
+                          @if(podeEditar()){
+                            <p-button icon="pi pi-pen-to-square" [rounded]="true" [text]="true" [severity]="secretariaSelecionada===item.id?'primary':'secondary'" pTooltip="Designar secretário(a)" styleClass="table-action-button" (onClick)="designarSecretaria(item)"/>
+                          } @else if(secretariaSelecionada===item.id) {
+                            <i class="pi pi-pen-to-square text-primary-700" pTooltip="Secretário(a) da reunião"></i>
+                          }
+                        </td>
+                      </tr>
+                    </ng-template>
+                    <ng-template #emptymessage><tr><td colspan="4"><div class="table-empty-state"><i class="pi pi-users"></i><strong>Nenhum integrante convocado</strong><span>Confira a composição ativa desta formação.</span></div></td></tr></ng-template>
+                  </p-table>
+                <div class="subsection">
+                  <div class="subsection-head"><div class="subsection-title"><i class="pi pi-camera"></i>Evidências fotográficas <b>{{fotos().length}}</b></div><span class="optional">Opcional</span></div>
+                  <div class="file-list w-full min-w-0 max-w-full flex flex-col gap-2">
+                    @for(foto of fotos();track foto.id){
+                      <div class="flex flex-row items-center gap-2 border border-slate-200 dark:border-slate-800 rounded-lg p-2 w-full min-w-0 max-w-full bg-white dark:bg-slate-900 overflow-hidden">
+                        <i class="pi pi-image text-primary-700 dark:text-primary-400 shrink-0"></i>
+                        <div class="flex-1 min-w-0 w-0 overflow-hidden flex flex-col">
+                          <b class="truncate block text-[10px] text-slate-700 dark:text-white">{{foto.nomeArquivo}}</b>
+                          <small class="truncate block text-[9px] text-slate-500 dark:text-slate-400">{{foto.legenda||'Sem legenda'}}</small>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                          <p-button icon="pi pi-download" [text]="true" [rounded]="true" pTooltip="Baixar" (onClick)="baixarFoto(foto)" class="shrink-0" styleClass="!w-8 !h-8 !p-0 shrink-0"/>
+                          @if(podeEditar()){
+                            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" pTooltip="Remover" (onClick)="removerFoto(foto)" class="shrink-0" styleClass="!w-8 !h-8 !p-0 shrink-0 text-red-500"/>
+                          }
+                        </div>
+                      </div>
+                    }
+                    @empty{
+                      <div class="table-empty small">Nenhuma foto anexada. Você pode continuar normalmente.</div>
+                    }
+                  </div>
+                  @if(reuniao()!.status!=='FINALIZADA' && podeEditar()){
+                    <div class="w-full min-w-0 flex mt-3">
+                      <div class="upload-btn-full w-full min-w-0 max-w-[280px]">
+                        <p-fileupload mode="basic" chooseLabel="ANEXAR NOVA FOTO" chooseIcon="pi pi-upload" name="file" accept="image/*" [maxFileSize]="5000000" [auto]="true" [customUpload]="true" (uploadHandler)="enviarFoto($event)" [disabled]="processando()==='foto' || !legendaFoto.trim()" styleClass="w-full"/>
+                      </div>
+                      <div class="flex-1 min-w-0 ml-3">
+                        <input pInputText [(ngModel)]="legendaFoto" placeholder="Digite uma legenda para habilitar o anexo" class="w-full !text-[10px]" maxlength="150" />
+                      </div>
+                    </div>
+                  }
+                </div>
+                <div class="panel-actions w-full min-w-0"><p-button label="Voltar" icon="pi pi-arrow-left" [outlined]="true" severity="secondary" (onClick)="activeStep.set(1)"/><span></span>@if(reuniao()!.status==='EM_REALIZACAO'){<p-button label="Concluir presenças" icon="pi pi-check" [loading]="processando()==='presencas'" (onClick)="concluirPresencas()"/>}@else{<p-button label="Ir para transcrição" icon="pi pi-arrow-right" iconPos="right" (onClick)="activeStep.set(3)"/>}</div>
+              </div>
+            </ng-template></p-step-panel>
+
+            <p-step-panel [value]="3"><ng-template #content>
+              <div class="step-panel">
+                <div class="step-intro"><span>Registro da conversa</span><h2>Transcreva o que foi discutido</h2><p>Digite, cole ou use o ditado. Um rascunho fica salvo neste navegador até você enviar.</p></div>
+                <div class="context-note"><i class="pi pi-shield"></i><p>Avise os participantes antes do ditado. Revise nomes, decisões e prazos; a IA apenas organiza o conteúdo.</p></div>
+                <div class="field"><label for="transcricao">Transcrição da reunião</label><textarea id="transcricao" pTextarea size="small" [(ngModel)]="transcricao" (ngModelChange)="alterarTranscricao()" rows="13" maxlength="60000" placeholder="Registre aqui o que foi comentado na reunião..." [disabled]="!podeEditar()"></textarea><div class="field-meta"><span>Rascunho local automático</span><span>{{transcricao.length}}/60000</span></div></div>
+                @if(podeEditar()){
+                  <div class="flex flex-wrap items-center gap-2"><p-button [label]="gravando()?'Parar ditado':'Ditar reunião'" [icon]="gravando()?'pi pi-stop-circle':'pi pi-microphone'" severity="secondary" [outlined]="true" (onClick)="ditar()"/><span class="flex-1"></span><p-button label="Salvar nova revisão" icon="pi pi-save" [disabled]="!transcricao.trim()" [loading]="processando()==='transcricao'" (onClick)="salvarTranscricao()"/></div>
+                }
+                @if(transcricoes().length){<div class="subsection"><div class="subsection-title"><i class="pi pi-history"></i>Revisões salvas <b>{{transcricoes().length}}</b></div><div class="revision-list">@for(item of transcricoes();track item.id){<div><span><b>Revisão {{item.numero}}</b><small>{{item.dataCriacao|date:'dd/MM/yyyy HH:mm'}} · {{item.origem}}</small></span>@if(item.confirmada){<p-tag value="Confirmada" severity="success"/>}@else if(podeEditar()){<p-button label="Confirmar texto" icon="pi pi-check" [text]="true" size="small" (onClick)="confirmarTranscricao(item)"/>}</div>}</div></div>}
+                @if(capabilities().normalizacaoIaDisponivel){
+                  <div class="subsection"><div class="subsection-head"><div><div class="subsection-title"><i class="pi pi-sparkles"></i>Organização assistida</div><p class="help">Separa tópicos, decisões, ações candidatas e dúvidas sem produzir a ata final.</p></div>@if(podeEditar()){<p-button label="Organizar transcrição" icon="pi pi-sparkles" [loading]="processando()==='normalizar'" (onClick)="normalizar()"/>}</div>
+                    @for(item of normalizacoes();track item.id){
+                      <div class="flex flex-col gap-1">
+                        <div class="normalization-row">
+                          <p-button [icon]="expandedNormalizacao() === item.id ? 'pi pi-eye-slash' : 'pi pi-eye'" [text]="true" [rounded]="true" (onClick)="toggleNormalizacao(item.id)" pTooltip="Ver detalhes" styleClass="shrink-0" />
+                          <span><b>Normalização {{item.numero}}</b>@if(item.conteudo){<small>{{item.conteudo.topicos.length}} tópicos · {{item.conteudo.decisoesCandidatas.length}} decisões · {{item.conteudo.incertezas.length}} pontos a conferir</small>}</span><p-tag [value]="rotulo(item.status)" [severity]="item.status==='CONFIRMADA'?'success':item.status==='FALHA'?'danger':'info'"/>
+                        @if(item.status==='RASCUNHO' && podeEditar()){<p-button label="Conferi" icon="pi pi-check" [text]="true" (onClick)="confirmarNormalizacao(item)"/>}</div>
+                        @if(expandedNormalizacao() === item.id && item.conteudo){
+                          <div class="border border-slate-200 dark:border-slate-800 rounded-lg p-3 bg-slate-50 dark:bg-slate-900 text-xs">
+                            <h4 class="font-bold text-slate-700 dark:text-white mb-2">Tópicos Identificados</h4>
+                            <ul class="list-disc pl-4 mb-3 text-slate-600 dark:text-slate-300">@for(t of item.conteudo.topicos; track t.texto){ <li class="mb-1">{{t.texto}}</li> }</ul>
+                            @if(item.conteudo.decisoesCandidatas.length > 0){
+                              <h4 class="font-bold text-slate-700 dark:text-white mb-2 mt-3">Decisões</h4>
+                              <ul class="list-disc pl-4 mb-3 text-slate-600 dark:text-slate-300">@for(d of item.conteudo.decisoesCandidatas; track d.texto){ <li class="mb-1">{{d.texto}}</li> }</ul>
+                            }
+                            @if(item.conteudo.acoesCandidatas.length > 0){
+                              <h4 class="font-bold text-slate-700 dark:text-white mb-2 mt-3">Ações e Prazos</h4>
+                              <ul class="list-disc pl-4 mb-3 text-slate-600 dark:text-slate-300">@for(a of item.conteudo.acoesCandidatas; track a.texto){ <li class="mb-1">{{a.texto}}</li> }</ul>
+                            }
+                            @if(item.conteudo.incertezas.length > 0){
+                              <h4 class="font-bold text-amber-700 dark:text-amber-400 mb-2 mt-3">Incertezas / Atenção</h4>
+                              <ul class="list-disc pl-4 mb-2 text-slate-600 dark:text-slate-300">@for(i of item.conteudo.incertezas; track i.texto){ <li class="mb-1">{{i.texto}}</li> }</ul>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+                <div class="panel-actions"><p-button label="Voltar" icon="pi pi-arrow-left" [outlined]="true" severity="secondary" (onClick)="activeStep.set(2)"/><span></span><p-button label="Ir para a ata" icon="pi pi-arrow-right" iconPos="right" [disabled]="!transcricoes().length" (onClick)="activeStep.set(4)"/></div>
+              </div>
+            </ng-template></p-step-panel>
+
+            <p-step-panel [value]="4"><ng-template #content>
+              <div class="step-panel">
+                <div class="step-intro">
+                  <span>Revisão humana obrigatória</span>
+                  <h2>Gere a ata com o Copiloto (IA)</h2>
+                  <p>Nosso assistente virtual gerará o texto da ata automaticamente lendo as transcrições. Você pode editar o texto gerado manualmente abaixo, ou descrever uma correção para o Copiloto reescrever.</p>
+                </div>
+                @if(atas().length){<div class="field"><label>Versão em revisão</label><p-select size="small" [(ngModel)]="ataSelecionada" (ngModelChange)="aoSelecionarAta()" [options]="atas()" optionLabel="numero" optionValue="id" appendTo="body"><ng-template #selectedItem let-item>Versão {{item.numero}} · {{rotulo(item.origem)}} · {{rotulo(item.status)}}</ng-template><ng-template #item let-item>Versão {{item.numero}} · {{rotulo(item.origem)}} · {{rotulo(item.status)}}</ng-template></p-select></div>}
+
+                @if (capabilities().geracaoIaDisponivel && podeEditar()) {
+                  @if (atas().length) {
+                    <div class="field"><label for="correcao">O que precisa ser corrigido pela IA? <span class="optional">Opcional</span></label><textarea id="correcao" pTextarea size="small" [(ngModel)]="instrucaoCorrecao" rows="2" maxlength="4000" placeholder="Ex.: Copiloto, corrija o nome do responsável." [disabled]="!podeEditar()"></textarea></div>
+                  }
+                  <div class="flex flex-wrap gap-2 mb-4 mt-2">
+                    <p-button [label]="atas().length?'Pedir nova versão ao Copiloto':'Gerar ATA com o Copiloto'" icon="pi pi-sparkles" [loading]="processando()==='gerar-ata'" (onClick)="gerarAta()"/>
+                  </div>
+                }
+
+                <div class="field"><label for="conteudoManual">Texto da ata</label>
+                  @if (processando() === 'gerar-ata') {
+                    <div class="ai-loading-container">
+                      <img src="icons/copiloto-1.png" alt="Copiloto" class="ai-avatar" />
+                      <div class="ai-loading-text">
+                        <strong>O Copiloto está elaborando a ata...</strong>
+                        <span>Isso pode levar alguns segundos dependendo do tamanho da reunião.</span>
+                        <div class="typing-indicator"><span></span><span></span><span></span></div>
+                      </div>
+                    </div>
+                  } @else {
+                    <textarea id="conteudoManual" pTextarea size="small" [(ngModel)]="conteudoManual" rows="12" placeholder="O texto da ata aparecerá aqui para você ler e editar..." [disabled]="!podeEditar()"></textarea>
+                  }
+                </div>
+                @if(podeEditar()){
+                  <div class="flex flex-wrap gap-2 mb-4"><p-button label="Salvar alterações manuais" icon="pi pi-save" [loading]="processando()==='gerar-ata-manual'" [disabled]="!conteudoManual.trim() || conteudoManual === selecionada()?.conteudo || processando() === 'gerar-ata'" (onClick)="gerarAtaManual()"/>@if(selecionada()?.status==='RASCUNHO'){<p-button label="Aprovar esta versão" icon="pi pi-check-circle" severity="success" [outlined]="true" [disabled]="processando() === 'gerar-ata'" (onClick)="aprovarAta()"/>}</div>
+                }
+
+                <div class="panel-actions"><p-button label="Voltar" icon="pi pi-arrow-left" [outlined]="true" severity="secondary" (onClick)="activeStep.set(3)"/><span></span><p-button label="Ir para assinatura" icon="pi pi-arrow-right" iconPos="right" [disabled]="selecionada()?.status!=='APROVADA'" (onClick)="activeStep.set(5)"/></div>
+              </div>
+            </ng-template></p-step-panel>
+
+            <p-step-panel [value]="5"><ng-template #content>
+              <div class="step-panel">
+                <div class="step-intro"><span>Documento final</span><h2>Baixe, assine e devolva a ata</h2><p>O sistema prepara o DOCX no modelo da empresa. A aprovação e as assinaturas permanecem humanas.</p></div>
+                <div class="finish-steps"><div><span>1</span><i class="pi pi-file-word"></i><b>Baixar DOCX</b><small>Pronto para impressão</small><p-button label="Baixar" icon="pi pi-download" [disabled]="selecionada()?.status!=='APROVADA'" [loading]="processando()==='docx'" (onClick)="gerarEBaixarDocx()"/></div><div><span>2</span><i class="pi pi-print"></i><b>Imprimir e assinar</b><small>Recolha as assinaturas necessárias</small></div><div><span>3</span><i class="pi pi-upload"></i><b>Anexar cópia assinada</b><small>PDF ou imagem</small><p-fileUpload mode="basic" chooseLabel="Selecionar" chooseIcon="pi pi-upload" accept="application/pdf,image/*" [auto]="true" [customUpload]="true" (uploadHandler)="enviarAssinada($event)"/></div></div>
+                <div class="context-note"><i class="pi pi-lock"></i><p>Ao finalizar, novos uploads e alterações ficam bloqueados. Fotos, versões e arquivos continuam disponíveis para consulta.</p></div>
+                <div class="panel-actions"><p-button label="Voltar" icon="pi pi-arrow-left" [outlined]="true" severity="secondary" (onClick)="activeStep.set(4)"/><span></span>@if(reuniao()!.status!=='FINALIZADA'){<p-button label="Finalizar reunião" icon="pi pi-lock" severity="success" [loading]="processando()==='finalizar'" (onClick)="finalizar()"/>}@else{<span class="complete"><i class="pi pi-verified"></i> Reunião finalizada</span>}</div>
+              </div>
+            </ng-template></p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </section>
+  }
+</div>

@@ -1,0 +1,290 @@
+<app-copiloto-area [contexto]="contextoCopiloto()">
+<main class="dash-page">
+  <div class="dash-shell">
+    <ces-page-header title="O que aconteceu, com quem e há quanto tempo" icon="pi pi-shield"
+      [breadcrumb]="[{ label: 'Segurança' }, { label: 'Painel de eventos' }]"
+      description="Do incidente sem lesão ao afastamento, na mesma série — com os desvios das inspeções sustentando a base. Eventos cancelados ficam de fora de todos os indicadores.">
+      <app-copiloto-gatilho actions></app-copiloto-gatilho>
+        @if (atualizadoEm()) { <span actions class="dash-updated">Atualizado às {{ atualizadoEm() | date: 'HH:mm' }}</span> }
+        <ces-button actions label="Atualizar" icon="pi pi-refresh"
+          [loading]="loading()" (pressed)="aplicar()"></ces-button>
+    </ces-page-header>
+
+    <ces-filter-panel storageKey="dash-sst-eventos" [activeCount]="chips().length" [summary]="chips()" [loading]="loading()"
+      (applied)="aplicar()" (cleared)="limpar()" (chipRemoved)="removerFiltro($event)">
+      <div class="ces-filter-grid">
+        <ces-datepicker label="Início" [(value)]="dataInicio" [clearable]="true"></ces-datepicker>
+        <ces-datepicker label="Fim" [(value)]="dataFim" [clearable]="true"></ces-datepicker>
+        <ces-multiselect label="Tipo" [options]="tipoOptions" [value]="$any(filter.tipo ?? [])" (valueChange)="filter.tipo = $event" [filter]="false" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Base operacional" [options]="opcoes.basesOperacionais()" [value]="$any(filter.idBaseOperacional ?? [])" (valueChange)="filter.idBaseOperacional = $event" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Centro de custo" [options]="opcoes.centrosCusto()" [value]="$any(filter.idCentroCusto ?? [])" (valueChange)="filter.idCentroCusto = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Equipe" [options]="opcoes.equipes()" [value]="$any(filter.idEquipe ?? [])" (valueChange)="filter.idEquipe = $event" placeholder="Todas" [loading]="equipesLoading()" (opened)="openEquipes()" (search)="searchEquipes({ filter: $event })"></ces-multiselect>
+        <ces-multiselect label="Processo" [options]="opcoes.processos()" [value]="$any(filter.idProcesso ?? [])" (valueChange)="filter.idProcesso = $event" placeholder="Todos"></ces-multiselect>
+        <ces-select label="Recorte da série" [options]="granularidadeOptions" [value]="filter.granularidade ?? null" (valueChange)="filter.granularidade = $any($event)"></ces-select>
+      </div>
+    </ces-filter-panel>
+
+    @if (loading()) {
+      <div class="dash-metrics">@for (item of [1,2,3,4,5]; track item) { <p-skeleton height="156px" borderRadius="16px" /> }</div>
+      <p-skeleton height="430px" borderRadius="16px" />
+    } @else if (data(); as d) {
+      @if (visaoGerencial(); as vg) {
+        <app-dashboard-visao-gerencial [veredito]="vg.veredito" [leituras]="vg.leituras" [copiloto]="copilotoDisponivel"
+          (abrir)="analisar($event.dimension, $event.value)" (perguntar)="perguntarVisao(vg.pergunta)" />
+      }
+      <section class="dash-metrics" aria-label="Indicadores principais">
+        <app-dashboard-metric-card label="Eventos no período" [value]="d.resumo.total" icon="pi-flag"
+          [detail]="comparacao(d.resumo.totalAnterior, d.resumo.variacaoPercentual)" tone="primary"
+          actionLabel="Analisar eventos" (activate)="analisar('kpi', 'eventos')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'total', rotulo: 'Eventos no período' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Dias sem eventos" [value]="d.resumo.diasSemEventos ?? '—'" icon="pi-calendar"
+          [detail]="d.resumo.diasSemEventos === null ? 'Ainda não há evento válido no histórico' : 'Desde o último evento válido · métrica global'" tone="green"
+          actionLabel="Ver por base" (activate)="analisar('kpi', 'dias-sem-eventos')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'diasSemEventos', rotulo: 'Dias sem eventos' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Eventos com lesão" [value]="d.resumo.comLesao" icon="pi-heart"
+          [detail]="comparacao(d.resumo.comLesaoAnterior, d.resumo.variacaoComLesao)" tone="red"
+          actionLabel="Analisar lesões" (activate)="analisar('kpi', 'lesao')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'comLesao', rotulo: 'Eventos com lesão' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Dias perdidos" [value]="d.resumo.diasPerdidos" icon="pi-calendar-minus"
+          [detail]="d.resumo.comLesao > 0 ? 'Somados nos eventos com lesão do período' : 'Sem lesões no período'" tone="amber"
+          actionLabel="Ver afastamentos" (activate)="analisar('kpi', 'dias-perdidos')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'diasPerdidos', rotulo: 'Dias perdidos' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Comunicações fora do prazo" [value]="d.resumo.comunicacoesAtrasadas" icon="pi-clock"
+          [detail]="(d.resumo.percentualAtrasadas | number:'1.0-2') + '% dos eventos · média de ' + (d.resumo.mediaHorasComunicacao | number:'1.0-1') + 'h para comunicar'"
+          tone="red" [progress]="d.resumo.percentualAtrasadas"
+          actionLabel="Analisar comunicação" (activate)="analisar('kpi', 'comunicacao')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'comunicacoesAtrasadas', rotulo: 'Comunicações fora do prazo' }" />
+        </app-dashboard-metric-card>
+      </section>
+
+      <!-- Evolução + Pirâmide -->
+      <section class="dash-grid dash-grid--overview">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Evolução</span>
+              <h2>Ocorrências ao longo do período</h2>
+              <p>As barras mostram o total de eventos e a linha vermelha destaca os que envolveram lesão, no recorte {{ d.granularidade | lowercase }}. Períodos sem evento aparecem zerados.</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'serie', rotulo: 'Ocorrências ao longo do período' }" />
+          </header>
+          @if (d.serie.length) {
+            <div class="dash-chart dash-chart--responsive dash-chart--drill"><p-chart type="bar" [data]="serieChartData" [options]="serieChartOptions" [responsive]="true"
+              ariaLabel="Ocorrências ao longo do período. Clique numa barra para analisar." (onDataSelect)="onSerieSelect($event)" /></div>
+            <p class="dash-drill-hint"><i class="pi pi-hand-pointer" aria-hidden="true"></i> Clique numa barra para ver os eventos daquele período</p>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-line"></i>Sem eventos no período selecionado.</div>
+          }
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Pirâmide de segurança</span>
+              <h2>Da prevenção à fatalidade</h2>
+              <p>Cinco níveis de severidade: desvios, incidentes, acidentes sem e com afastamento e fatalidades. A base reúne os <strong>desvios apontados nas inspeções</strong> do período.</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'piramide', rotulo: 'Pirâmide de segurança' }" />
+          </header>
+          <app-piramide-bird [itens]="d.piramide" />
+        </aside>
+      </section>
+
+      <!-- Composição por tipo + Dias sem acidente por base -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Quebra por tipo</span>
+              <h2>Composição do período</h2>
+              <p>Quantos eventos de cada natureza aconteceram. O percentual é sobre os <strong>eventos</strong>: os desvios que formam a base da pirâmide não entram nesta conta.</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'composicaoPorTipo', rotulo: 'Composição por tipo' }" />
+          </header>
+          <ces-data-table caption="Composição do período por tipo" [searchable]="false" exportFileName="eventos-por-tipo"
+            rowActionLabel="Analisar" rowActionIcon="pi pi-chart-bar" [columns]="colunasComposicao" [rows]="composicaoPorTipo(d)"
+            [rowKey]="chaveTipo" (rowActivate)="analisar('tipo', $event.tipo)"></ces-data-table>
+        </article>
+
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Sem acidente</span>
+              <h2>Dias sem evento com lesão por base</h2>
+              <p>Ignora o período do filtro de propósito — a pergunta é há quanto tempo não acontece —, mas respeita os demais recortes. Ordenado do menor intervalo para o maior: quem acabou de ter acidente aparece primeiro.</p>
+            </div>
+          </header>
+          @if (d.diasSemAcidente.length) {
+            <ces-data-table caption="Dias sem evento com lesão por base" storageKey="sst-dashboard-dias-sem" exportFileName="dias-sem-acidente-por-base"
+              searchPlaceholder="Buscar base" rowActionLabel="Analisar" rowActionIcon="pi pi-chart-bar"
+              [columns]="colunasDiasSem" [rows]="d.diasSemAcidente" [rowKey]="chaveBase" [rowLabel]="rotuloBase"
+              (rowActivate)="analisar('ranking', 'base~' + $event.idBaseOperacional)">
+              <ng-template cesCell="diasSemAcidente" let-item>
+                @if (item.diasSemAcidente === null) {
+                  <ces-status tone="success" icon="pi-check-circle">Sem ocorrência</ces-status>
+                } @else {
+                  <ces-status [tone]="item.diasSemAcidente < 30 ? 'danger' : 'neutral'">{{ item.diasSemAcidente }} dias</ces-status>
+                }
+              </ng-template>
+              <ng-template cesCell="comLesaoNoPeriodo" let-item>
+                @if (item.comLesaoNoPeriodo > 0) { <ces-status tone="danger" icon="pi-heart">{{ item.comLesaoNoPeriodo }}</ces-status> } @else { <span class="dash-zero">0</span> }
+              </ng-template>
+            </ces-data-table>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-check-circle"></i>Nenhuma base com evento no período.</div>
+          }
+        </article>
+      </section>
+
+      <!-- Backlog + Situação -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Situação</span>
+              <h2>Andamento e cobertura</h2>
+              <p>Quanto do período já foi tratado e quanta CAT foi emitida onde houve lesão.</p>
+            </div>
+            <ces-button size="sm" variant="outline" icon="pi pi-chart-bar" label="Analisar" (pressed)="analisar('kpi', 'cat')"></ces-button>
+          </header>
+          <div class="dash-summary">
+            <div class="dash-summary__items">
+              <div class="dash-summary__item"><i class="dash-summary__dot" style="background:var(--p-primary-400)"></i><span>Em aberto</span><strong>{{ d.resumo.abertos }}</strong></div>
+              <div class="dash-summary__item"><i class="dash-summary__dot" style="background:#2f8f5b"></i><span>Concluídos</span><strong>{{ d.resumo.concluidos }}</strong></div>
+              <div class="dash-summary__item"><i class="dash-summary__dot" style="background:#c57a16"></i><span>Sem lesão</span><strong>{{ d.resumo.semLesao }}</strong></div>
+              <div class="dash-summary__item"><i class="dash-summary__dot" style="background:#c2413b"></i><span>CAT emitida</span><strong>{{ d.resumo.comCat }}</strong></div>
+            </div>
+            <div class="mt-4">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="font-semibold text-slate-600">Cobertura de CAT nos eventos com lesão</span>
+                <strong>{{ d.resumo.coberturaCat | number:'1.0-2' }}%</strong>
+              </div>
+              <div class="dash-progress__track"><span [style.width.%]="barWidth(d.resumo.coberturaCat)"></span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Comunicação</span>
+              <h2>Prazo de comunicação ao SESMT</h2>
+              <p>O prazo legal é do tipo do evento: 24 h para acidentes e doença ocupacional, 72 h para os demais.</p>
+            </div>
+            <ces-button size="sm" variant="outline" icon="pi pi-chart-bar" label="Analisar" (pressed)="analisar('kpi', 'comunicacao')"></ces-button>
+          </header>
+          <div class="dash-summary">
+            <div class="dash-summary__total">
+              <strong>{{ d.resumo.mediaHorasComunicacao | number:'1.0-1' }} h</strong>
+              <span>tempo médio entre a ocorrência e a comunicação</span>
+            </div>
+            <div class="mt-4">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="font-semibold text-slate-600">Comunicações fora do prazo</span>
+                <strong>{{ d.resumo.percentualAtrasadas | number:'1.0-2' }}%</strong>
+              </div>
+              <div class="dash-progress__track"><span [style.width.%]="barWidth(d.resumo.percentualAtrasadas)"></span></div>
+              <span class="text-[10px] text-slate-400">{{ d.resumo.comunicacoesAtrasadas }} de {{ d.resumo.total }} eventos do período</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Tratativa em aberto -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-12">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Tratativa em aberto</span>
+              <h2>Eventos em aberto hoje</h2>
+              <p>Tudo que ainda não teve desfecho, ocorrido quando for — este painel também ignora o período, senão um acidente antigo sem tratativa sumiria do radar. A idade conta da ocorrência até hoje. Clique numa faixa para ver os eventos.</p>
+            </div>
+            <div class="dash-panel__tools">
+              <app-copiloto-perguntar [foco]="{ tipo: 'secao', id: 'backlog', rotulo: 'Eventos em aberto' }" />
+              <ces-button size="sm" variant="outline" icon="pi pi-chart-bar" label="Analisar" (pressed)="analisar('kpi', 'abertos')"></ces-button>
+            </div>
+          </header>
+          @if (totalEmAberto(d) > 0) {
+            <div class="backlog-grid">
+              @for (faixa of d.backlog; track faixa.faixa) {
+                <div class="backlog-card" [class.is-vazia]="faixa.total === 0">
+                  <button type="button" class="backlog-card__hit" (click)="analisar('faixa', faixa.faixa)" [disabled]="faixa.total === 0"
+                    [attr.aria-label]="'Ver eventos em aberto há ' + faixa.faixa + ': ' + faixa.total"></button>
+                  <div class="backlog-card__header">
+                    <span class="backlog-card__eyebrow">Em aberto há</span>
+                    <strong class="backlog-card__faixa">{{ faixa.faixa }}</strong>
+                  </div>
+                  <div class="backlog-card__body">
+                    <div class="backlog-card__status">
+                      <span><i class="pi pi-file"></i> {{ faixa.porStatus.REGISTRADO || 0 }} registrado(s)</span>
+                      <span><i class="pi pi-pencil"></i> {{ faixa.porStatus.EM_TRATATIVA || 0 }} em tratativa</span>
+                    </div>
+                    <strong class="backlog-card__total">{{ faixa.total }}</strong>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-check-circle"></i>Nenhum evento em aberto — toda ocorrência já teve desfecho.</div>
+          }
+        </article>
+      </section>
+
+      <!-- Concentração / Ranking -->
+      <section class="dash-panel mt-4">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Concentração</span>
+            <h2>Onde os eventos se concentram</h2>
+            <p>Clique numa linha para analisar os eventos do item.</p>
+          </div>
+          <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'ranking.' + rankingDimensao(), rotulo: 'Onde os eventos se concentram' }" />
+          <div class="dash-tabs" aria-label="Dimensão do ranking">
+            @for (aba of abasRanking; track aba.value) {
+              <button class="dash-tab" [class.is-active]="rankingDimensao() === aba.value" (click)="rankingDimensao.set(aba.value)">{{ aba.label }}</button>
+            }
+          </div>
+        </header>
+        <ces-data-table caption="Onde os eventos se concentram" storageKey="sst-dashboard-ranking-eventos" exportFileName="eventos-concentracao"
+          searchPlaceholder="Buscar" rowActionLabel="Analisar" rowActionIcon="pi pi-chart-bar"
+          [columns]="colunasRanking" [rows]="linhasRanking()" [rowKey]="chaveRanking" [rowLabel]="rotuloRanking"
+          stateTitle="Sem dados para esta dimensão no período" (rowActivate)="analisar('ranking', rankingDimensao() + '~' + $event.id)"></ces-data-table>
+      </section>
+
+      <!-- Lesão no corpo — movido para o final, imagem oculta por padrão -->
+      <section class="dash-grid" style="margin-top: 1.5rem;">
+        <article class="dash-panel dash-col-12">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Onde dói</span>
+              <h2>Locais de lesão no corpo</h2>
+              <p>Distribuição das lesões sobre uma prancha anatômica frontal e posterior, compatível com todos os locais oficiais carregados no catálogo.</p>
+            </div>
+            <ces-button variant="outline" size="sm" [label]="mostrarMapaCorporal() ? 'Ocultar prancha' : 'Exibir prancha anatômica'"
+              [icon]="mostrarMapaCorporal() ? 'pi pi-eye-slash' : 'pi pi-eye'" (pressed)="mostrarMapaCorporal.set(!mostrarMapaCorporal())"></ces-button>
+          </header>
+          @if (mostrarMapaCorporal()) {
+            <app-mapa-corpo-lesoes [itens]="d.porLocalLesao" />
+          } @else {
+            <div class="dash-empty--compact">
+              <i class="pi pi-image"></i>
+              <span>A prancha anatômica está oculta por padrão. Clique em <strong>"Exibir prancha anatômica"</strong> para visualizar o mapa de lesões.</span>
+            </div>
+          }
+        </article>
+      </section>
+    } @else {
+      <div class="dash-panel dash-empty"><i class="pi pi-inbox"></i>Não há dados disponíveis para os filtros selecionados.</div>
+    }
+  </div>
+
+</main>
+</app-copiloto-area>
+
+<app-dashboard-analise [vista]="vistaAnalise()" [trilha]="analise.trilha()" [copiloto]="copilotoDisponivel"
+  (fechar)="analise.fechar()" (navegar)="aprofundar($event)" (trocar)="analise.trocar($event)"
+  (voltar)="analise.voltar($event)" (perguntar)="perguntarAnalise($event)" />

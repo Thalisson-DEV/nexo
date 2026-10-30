@@ -1,0 +1,96 @@
+/* Customização do PanelMenu para a Sidebar */
+::ng-deep .custom-panelmenu .p-panelmenu-panel {
+  border: 0 !important;
+  background: transparent !important;
+  margin-bottom: 0.25rem !important;
+}
+
+::ng-deep .custom-panelmenu .p-panelmenu-header-link {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0.6rem 0.75rem !important;
+  border-radius: 0.75rem !important;
+  color: #475569 !important; /* slate-600 */
+  transition: all 0.2s ease !important;
+  font-size: 0.85rem !important;
+}
+
+::ng-deep .custom-panelmenu .p-panelmenu-header-link:hover {
+  background: #eff6ff !important; /* blue-50 */
+  color: #3b82f6 !important; /* blue-500 */
+}
+
+::ng-deep .custom-panelmenu .p-panelmenu-header-active .p-panelmenu-header-link {
+  background: #eff6ff !important;
+  color: #3b82f6 !important;
+  font-weight: 600 !important;
+}
+
+::ng-deep .custom-panelmenu .p-panelmenu-content {
+  background: transparent !important;
+  border: 0 !important;
+  padding-left: 1.25rem !important;
+  margin-top: 0.25rem !important;
+}
+
+::ng-deep .custom-panelmenu .p-menuitem-link {
+  padding: 0.5rem 0.75rem !important;
+  border-radius: 0.6rem !important;
+  color: #64748b !important; /* slate-500 */
+  font-size: 0.8rem !important;
+  transition: all 0.2s ease !important;
+}
+
+::ng-deep .custom-panelmenu .p-menuitem-link:hover {
+  background: #f8fafc !important; /* slate-50 */
+  color: #2563eb !important; /* blue-600 */
+}
+
+::ng-deep .custom-panelmenu .p-panelmenu-icon {
+  font-size: 0.7rem !important;
+  margin-right: 0.5rem !important;
+  color: inherit !important;
+}
+
+::ng-deep .custom-panelmenu .p-menuitem-icon {
+  font-size: 0.9rem !important;
+  margin-right: 0.75rem !important;
+  color: inherit !important;
+}
+
+/* Ajustes de animação Tailwind se não carregados */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-section, #print-section * {
+    visibility: visible;
+  }
+  #print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    padding: 0 !important;
+  }
+}
+

@@ -1,0 +1,357 @@
+:host {
+  display: block;
+  max-width: 46rem;
+}
+
+.cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.1rem 0.9rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-lg);
+  background: var(--ces-surface);
+  box-shadow: var(--ces-shadow-sm);
+}
+
+.cartao--decidido {
+  gap: 0.75rem;
+  background: var(--ces-surface-subtle);
+  box-shadow: none;
+}
+
+/* Cabeçalho: módulo, título e situação */
+.cartao__cabecalho {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.cartao__icone {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+}
+
+.cartao__icone i {
+  font-size: 1rem;
+}
+
+.cartao__titulos {
+  flex: 1;
+  min-width: 0;
+}
+
+.cartao__titulo {
+  margin: 0;
+  font-size: var(--ces-font-body);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--ces-foreground);
+}
+
+.cartao__subtitulo {
+  margin: 0.1rem 0 0;
+  overflow: hidden;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cartao__selo {
+  flex: none;
+}
+
+/* Campos */
+.cartao__corpo {
+  transition: opacity var(--ces-duration-normal) var(--ces-ease-standard);
+}
+
+.cartao__corpo--revisando {
+  opacity: 0.72;
+}
+
+.campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ces-form-field-gap, 1rem) 1rem;
+}
+
+.campos__aviso {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-warning-soft);
+  color: var(--ces-warning-text);
+  font-size: var(--ces-font-caption);
+}
+
+.cartao__vazio {
+  margin: 0;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-muted);
+}
+
+/* Lote: vários registros revisáveis um a um */
+.lote {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  list-style: none;
+  overflow: hidden;
+}
+
+.lote__registro + .lote__registro {
+  border-top: 1px solid var(--ces-border);
+}
+
+.lote__registro--aberto {
+  background: var(--ces-surface-subtle);
+}
+
+.lote__registro--aberto .campos {
+  padding: 0.25rem 0.85rem 1rem;
+}
+
+.lote__linha {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-right: 0.4rem;
+}
+
+.lote__alternar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: var(--ces-touch-target, 2.75rem);
+  padding: 0.5rem 0.85rem;
+  border: 0;
+  background: transparent;
+  color: var(--ces-foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lote__alternar:focus-visible {
+  outline: none;
+  box-shadow: inset var(--ces-focus-ring);
+}
+
+.lote__numero {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--ces-surface-muted);
+  color: var(--ces-foreground-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.lote__nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--ces-font-control);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lote__estado {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--ces-font-caption);
+  font-weight: 600;
+  color: var(--ces-warning-text);
+}
+
+.lote__estado--pronto {
+  color: var(--ces-success-text);
+}
+
+.lote__estado i,
+.lote__seta {
+  font-size: 0.72rem;
+}
+
+.lote__seta {
+  color: var(--ces-foreground-subtle);
+}
+
+/* Rodapé com a decisão */
+.cartao__rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--ces-border);
+}
+
+.cartao__resumo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-muted);
+}
+
+.cartao__botoes {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* Desfecho: o que foi gravado, o que falhou e a senha provisória */
+.desfecho {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.desfecho__texto {
+  margin: 0;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-muted);
+}
+
+.desfecho__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desfecho__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-height: 2rem;
+  font-size: var(--ces-font-control);
+}
+
+.desfecho__ok {
+  color: var(--ces-success);
+}
+
+.desfecho__falha {
+  color: var(--ces-danger);
+}
+
+.desfecho__nome {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.desfecho__motivo {
+  flex-basis: 100%;
+  padding-left: 1.5rem;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-danger-text);
+}
+
+.senhas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-surface);
+}
+
+.senhas__titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: var(--ces-font-control);
+  font-weight: 700;
+}
+
+.senhas__ajuda {
+  margin: 0;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-muted);
+}
+
+.senhas__linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+}
+
+.senhas__dono {
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-size: var(--ces-font-caption);
+  font-weight: 600;
+}
+
+.senhas__valor {
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--ces-radius-sm);
+  background: var(--ces-surface-muted);
+  font-size: var(--ces-font-control);
+  letter-spacing: 0.04em;
+  user-select: all;
+}
+
+@media (max-width: 40rem) {
+  .cartao {
+    padding: 0.85rem 0.85rem 0.75rem;
+  }
+
+  .campos {
+    grid-template-columns: 1fr;
+  }
+
+  .cartao__cabecalho {
+    flex-wrap: wrap;
+  }
+
+  .cartao__selo {
+    order: 3;
+    margin-left: 3rem;
+  }
+
+  .cartao__botoes {
+    width: 100%;
+  }
+
+  .cartao__botoes > * {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cartao__corpo {
+    transition: none;
+  }
+}

@@ -1,0 +1,554 @@
+<div
+  class="min-h-full min-h-screen bg-[var(--ces-surface)] text-[var(--ces-foreground)] relative transition-colors duration-200"
+  [class.p-4]="!isPrintMode()"
+  [class.md:p-8]="!isPrintMode()"
+  [class.print:p-0]="isPrintMode()"
+  [class.print:min-h-0]="isPrintMode()"
+  [class.print:bg-white]="isPrintMode()"
+  [class.print:dark:bg-white]="isPrintMode()"
+  [class.print:text-black]="isPrintMode()"
+>
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state
+        [state]="'loading'"
+        title="Carregando movimentação de estoque..."
+        description="Consultando detalhes da operação realizada..."
+      ></ces-async-state>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (error()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state
+        [state]="'error'"
+        title="Movimentação indisponível"
+        [description]="error() || 'Não foi possível carregar os dados.'"
+        actionLabel="Tentar novamente"
+        (action)="loadData()"
+      ></ces-async-state>
+    </div>
+  }
+
+  <!-- Main Content -->
+  @else if (movimentacao(); as mov) {
+    <div class="max-w-6xl mx-auto print:max-w-full pb-32 print:pb-0 rise print:animate-none">
+        <!-- 1. CABEÇALHO CORPORATIVO DA EMPRESA (PADRÃO TÉCNICO / COMERCIAL) -->
+        <div
+          class="grid grid-cols-3 items-center border-b border-slate-200 dark:border-slate-800 pb-6 mb-6 print:border-slate-300 print:pb-3 print:mb-3"
+          aria-label="Cabeçalho institucional"
+        >
+          <div class="flex justify-start">
+            <img
+              src="logo_vertical.svg"
+              alt="Logo"
+              class="h-16 print:h-14"
+              onerror="this.style.display = 'none'"
+            />
+          </div>
+          <div class="text-center flex flex-col gap-1">
+            <h1 class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100 print:text-black uppercase tracking-wider">
+              NOME DA EMPRESA
+            </h1>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 print:text-slate-700 font-bold uppercase tracking-widest">
+              Almoxarifado Central &amp; Gestão de Materiais
+            </p>
+            <p class="text-[11px] text-slate-600 dark:text-slate-400 print:text-slate-600 font-medium">
+              Serviços prestados à Concessionária
+            </p>
+          </div>
+          <div class="flex justify-end">
+            <img
+              src="logo_vertical.svg"
+              alt="Logo Cliente"
+              class="h-16 print:h-14 grayscale opacity-25 print:opacity-20"
+              onerror="this.style.display = 'none'"
+            />
+          </div>
+        </div>
+
+        <!-- 2. TÍTULO E IDENTIFICADOR DA OPERAÇÃO -->
+        <div class="py-4 text-center border-y border-slate-200 dark:border-slate-800 print:border-slate-300 my-4 print:py-2 print:my-2">
+          <h2 class="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 print:text-black tracking-tight uppercase">
+            Comprovante de Movimentação de Estoque
+          </h2>
+          <div class="flex items-center justify-center gap-2 mt-1.5 flex-wrap text-xs text-slate-600 dark:text-slate-400 print:text-slate-600 font-medium">
+            <span class="font-mono font-bold text-slate-900 dark:text-slate-100 print:text-black">
+              OP #{{ mov.idReferenciaOperacao.slice(0, 8) }}
+            </span>
+            <button
+              type="button"
+              (click)="copiarId(mov.idReferenciaOperacao)"
+              pTooltip="Copiar identificador da operação"
+              class="p-0.5 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded transition-colors print:hidden cursor-pointer"
+              aria-label="Copiar ID"
+            >
+              <i class="pi pi-copy text-xs"></i>
+            </button>
+            <span>·</span>
+            <span>
+              Realizada em:
+              <strong class="text-slate-900 dark:text-slate-100 print:text-black font-semibold">
+                {{ (mov.dataHora | date: 'dd/MM/yyyy HH:mm:ss') || '--/--/----' }}
+              </strong>
+            </span>
+            <span>·</span>
+            <ces-status [tone]="getTipoTone(mov.tipo)" [class.ces-status--devolucao]="mov.tipo === 'DEVOLUCAO'">{{ getTipoLabel(mov.tipo) }}</ces-status>
+          </div>
+        </div>
+
+        <!-- 3. BANNER DA NATUREZA DA OPERAÇÃO -->
+        <div class="destaque rounded-xl border p-3.5 mb-6 flex items-center gap-3 print:mb-3 print:p-2" [attr.data-tone]="getTipoTone(mov.tipo)">
+          <div class="destaque__icone w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border">
+            <i class="text-sm" [ngClass]="getTipoIcon(mov.tipo)" aria-hidden="true"></i>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <span class="text-xs font-bold uppercase tracking-wider">{{ getTipoBannerTitle(mov.tipo) }}</span>
+            <span class="text-[11px] font-medium opacity-90">{{ getTipoBannerSubtitle(mov) }}</span>
+          </div>
+        </div>
+
+        <!-- 4. DADOS GERAIS DA OPERAÇÃO (3 COLUNAS .KV) -->
+        <div
+          class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6 bg-slate-50/60 dark:bg-slate-900/40 p-4 md:p-5 rounded-xl border border-slate-200 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:mb-2 print:p-2"
+        >
+          <!-- Grupo 1: Identificação & Natureza -->
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+              <i class="pi pi-tag text-primary-500 text-xs"></i>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">
+                Operação &amp; Natureza
+              </span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Tipo</span>
+              <ces-status [tone]="getTipoTone(mov.tipo)" [class.ces-status--devolucao]="mov.tipo === 'DEVOLUCAO'">{{ getTipoLabel(mov.tipo) }}</ces-status>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Contexto</span>
+              <span class="kv-v font-semibold uppercase">
+                {{ mov.contexto || 'ALMOXARIFADO' }}
+              </span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Data/Hora</span>
+              <span class="kv-v font-semibold text-slate-800 dark:text-slate-200 print:text-black">
+                {{ (mov.dataHora | date: 'dd/MM/yyyy HH:mm:ss') || '—' }}
+              </span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Código OP</span>
+              <span class="kv-v font-mono font-bold text-slate-800 dark:text-slate-200 print:text-black">
+                #{{ mov.idReferenciaOperacao.slice(0, 8) }}
+              </span>
+            </div>
+            @if (mov.ocorrencia) {
+              <div class="kv">
+                <span class="kv-l">Ocorrência</span>
+                <span class="kv-v font-mono text-slate-700 dark:text-slate-300">{{ mov.ocorrencia }}</span>
+              </div>
+            }
+            @if (mov.idReserva) {
+              <div class="kv">
+                <span class="kv-l">Reserva</span>
+                <span class="kv-v font-mono text-slate-700 dark:text-slate-300">#{{ mov.idReserva.slice(0, 8) }}</span>
+              </div>
+            }
+          </div>
+
+          <!-- Grupo 2: Estoques / Localização -->
+          <div class="flex flex-col gap-3 md:border-x md:border-slate-200 md:dark:border-slate-800 print:border-x print:border-slate-300 md:px-5 print:px-3">
+            <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+              <i class="pi pi-box text-primary-500 text-xs"></i>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">
+                Estoques Envolvidos
+              </span>
+            </div>
+
+            <!-- Origem -->
+            <div class="kv">
+              <span class="kv-l">Origem</span>
+              <div class="flex items-center gap-1 min-w-0">
+                <span class="kv-v font-semibold text-slate-800 dark:text-slate-200 print:text-black" [title]="mov.estoqueOrigem?.nomeIdentificador || '—'">
+                  {{ mov.estoqueOrigem?.nomeIdentificador || '—' }}
+                </span>
+                @if (mov.estoqueOrigem?.id) {
+                  <button
+                    type="button"
+                    (click)="abrirSaldo(mov.estoqueOrigem?.id, mov.estoqueOrigem?.nomeIdentificador)"
+                    pTooltip="Consultar Saldo da Origem"
+                    class="p-1 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-md print:hidden transition-colors cursor-pointer"
+                  >
+                    <i class="pi pi-search text-xs"></i>
+                  </button>
+                }
+              </div>
+            </div>
+            @if (mov.estoqueOrigem?.tipoEstoque?.nome) {
+              <div class="kv">
+                <span class="kv-l">Tipo Origem</span>
+                <span class="kv-v text-slate-600 dark:text-slate-400 text-[11px]">
+                  {{ mov.estoqueOrigem?.tipoEstoque?.nome }}
+                </span>
+              </div>
+            }
+            @if (baseOrigem(); as baseO) {
+              <div class="kv">
+                <span class="kv-l">Base Origem</span>
+                <span class="kv-v text-slate-600 dark:text-slate-400 text-[11px]" [title]="baseO.nome">
+                  {{ baseO.nome }}
+                </span>
+              </div>
+            }
+
+            <!-- Destino -->
+            <div class="kv">
+              <span class="kv-l">Destino</span>
+              <div class="flex items-center gap-1 min-w-0">
+                <span class="kv-v font-semibold text-slate-800 dark:text-slate-200 print:text-black" [title]="mov.estoqueDestino?.nomeIdentificador || '—'">
+                  {{ mov.estoqueDestino?.nomeIdentificador || '—' }}
+                </span>
+                @if (mov.estoqueDestino?.id) {
+                  <button
+                    type="button"
+                    (click)="abrirSaldo(mov.estoqueDestino?.id, mov.estoqueDestino?.nomeIdentificador)"
+                    pTooltip="Consultar Saldo do Destino"
+                    class="p-1 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-md print:hidden transition-colors cursor-pointer"
+                  >
+                    <i class="pi pi-search text-xs"></i>
+                  </button>
+                }
+              </div>
+            </div>
+            @if (mov.estoqueDestino?.tipoEstoque?.nome) {
+              <div class="kv">
+                <span class="kv-l">Tipo Destino</span>
+                <span class="kv-v text-slate-600 dark:text-slate-400 text-[11px]">
+                  {{ mov.estoqueDestino?.tipoEstoque?.nome }}
+                </span>
+              </div>
+            }
+            @if (baseDestino(); as baseD) {
+              <div class="kv">
+                <span class="kv-l">Base Destino</span>
+                <span class="kv-v text-slate-600 dark:text-slate-400 text-[11px]" [title]="baseD.nome">
+                  {{ baseD.nome }}
+                </span>
+              </div>
+            }
+          </div>
+
+          <!-- Grupo 3: Responsáveis & Vínculos -->
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+              <i class="pi pi-users text-primary-500 text-xs"></i>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">
+                Responsáveis &amp; Vínculos
+              </span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Operador</span>
+              <span class="kv-v font-semibold uppercase text-slate-800 dark:text-slate-200 print:text-black">
+                {{ mov.operadorNome || 'Não identificado' }}
+              </span>
+            </div>
+            @if (equipe(); as eq) {
+              <div class="kv">
+                <span class="kv-l">Equipe</span>
+                <span class="kv-v font-semibold uppercase text-slate-800 dark:text-slate-200 print:text-black" [title]="eq.codigo + (eq.tipoEquipe ? ' - ' + eq.tipoEquipe.nome : '')">
+                  {{ eq.codigo }}{{ eq.tipoEquipe ? ' - ' + eq.tipoEquipe.nome : '' }}
+                </span>
+              </div>
+            }
+            @if (mov.idSolicitacao) {
+              <div class="kv">
+                <span class="kv-l">Solicitação</span>
+                <div class="flex items-center gap-1 min-w-0">
+                  <span class="kv-v font-mono font-bold text-primary-600 dark:text-primary-400">
+                    #{{ mov.idSolicitacao.slice(0, 8) }}
+                  </span>
+                  <button
+                    type="button"
+                    (click)="abrirSolicitacao(mov.idSolicitacao, mov.contexto)"
+                    pTooltip="Abrir Solicitação de Material"
+                    class="p-1 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-md print:hidden transition-colors cursor-pointer"
+                  >
+                    <i class="pi pi-external-link text-xs"></i>
+                  </button>
+                </div>
+              </div>
+            }
+            @if (mov.idObra) {
+              <div class="kv">
+                <span class="kv-l">Obra</span>
+                <div class="flex items-center gap-1 min-w-0">
+                  <span class="kv-v font-mono font-bold text-primary-600 dark:text-primary-400">
+                    {{ obra()?.numero || '#' + mov.idObra.slice(0, 8) }}
+                  </span>
+                  <button
+                    type="button"
+                    (click)="abrirObra(mov.idObra)"
+                    pTooltip="Abrir Detalhes da Obra"
+                    class="p-1 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-md print:hidden transition-colors cursor-pointer"
+                  >
+                    <i class="pi pi-external-link text-xs"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- 5. CARDS DE RESUMO -->
+        @let grupos = itensAgrupados();
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6 print:grid-cols-4 print:gap-2 print:mb-3">
+          <div class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-2xs">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Materiais</span>
+              <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60"><i class="pi pi-box text-xs"></i></div>
+            </div>
+            <div>
+              <span class="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums block">{{ grupos.length }}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{{ grupos.length === 1 ? 'material distinto' : 'materiais distintos' }}</span>
+            </div>
+          </div>
+          <div class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-2xs">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quantidade</span>
+              <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60"><i class="pi pi-chart-line text-xs"></i></div>
+            </div>
+            <div>
+              <span class="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums block">{{ calculateTotal(mov.itens) | number: '1.0-3' }}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">unidades movimentadas</span>
+            </div>
+          </div>
+          <div class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-2xs">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Números de Série</span>
+              <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60"><i class="pi pi-barcode text-xs"></i></div>
+            </div>
+            <div>
+              <span class="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums block">{{ totalSeries() }}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                @if (materiaisSeriados()) {
+                  em {{ materiaisSeriados() }} {{ materiaisSeriados() === 1 ? 'material seriado' : 'materiais seriados' }}
+                } @else {
+                  nenhum material seriado
+                }
+              </span>
+            </div>
+          </div>
+          <div class="flex flex-col justify-between p-4 rounded-xl border border-primary-200 dark:border-primary-800/80 bg-primary-50/70 dark:bg-primary-950/40 shadow-2xs">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-primary-700 dark:text-primary-300">Fluxo</span>
+              <div class="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/60 text-primary-700 dark:text-primary-300 flex items-center justify-center shrink-0 border border-primary-200/80 dark:border-primary-800/80"><i class="pi pi-arrow-right-arrow-left text-xs"></i></div>
+            </div>
+            <div class="min-w-0">
+              <span class="text-sm font-bold text-primary-700 dark:text-primary-300 block truncate" [title]="mov.estoqueOrigem?.nomeIdentificador || 'Sem origem'">{{ mov.estoqueOrigem?.nomeIdentificador || 'Sem origem' }}</span>
+              <span class="text-[11px] text-primary-600/90 dark:text-primary-400/90 font-medium block truncate" [title]="mov.estoqueDestino?.nomeIdentificador || 'Sem destino'">→ {{ mov.estoqueDestino?.nomeIdentificador || 'sem destino' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. ITENS MOVIMENTADOS (um por material e condição; seriados expandem com as séries) -->
+        <div class="mb-8 print:mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Itens da Movimentação</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">({{ grupos.length }} {{ grupos.length === 1 ? 'material' : 'materiais' }})</span>
+            </div>
+            <span class="text-xs text-slate-600 dark:text-slate-400">
+              Total movimentado: <strong class="font-mono text-slate-900 dark:text-slate-100 print:text-black">{{ calculateTotal(mov.itens) | number: '1.0-3' }}</strong>
+            </span>
+          </div>
+          @if (materiaisSeriados()) {
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3 print:hidden">
+              Materiais seriados (<i class="pi pi-barcode text-[10px]" aria-hidden="true"></i>) abrem na própria linha com os números de série.
+            </p>
+          }
+
+          <ces-data-table
+            caption="Itens da movimentação por material"
+            searchPlaceholder="Buscar por código, descrição ou série"
+            stateTitle="Operação sem itens"
+            stateDescription="Nenhum item registrado nesta movimentação."
+            noResultsTitle="Nenhum material encontrado nesta operação."
+            [columns]="colunasItens"
+            [rows]="grupos"
+            [rowKey]="chaveGrupo"
+            [rowLabel]="rotuloGrupo"
+            [rowExpandable]="temSeries"
+            [pageSizeOptions]="[50, 100, 500]"
+          >
+            <ng-template cesCell="codigo" let-g>
+              <span class="font-mono font-semibold">{{ g.material.codigo }}</span>
+            </ng-template>
+            <ng-template cesCell="descricao" let-g>
+              <span class="inline-flex items-center gap-2 flex-wrap">
+                <span class="uppercase">{{ g.material.descricao }}</span>
+                @if (g.series.length) {
+                  <ces-status tone="brand" icon="pi pi-barcode">{{ g.series.length }} {{ g.series.length === 1 ? 'série' : 'séries' }}</ces-status>
+                }
+              </span>
+            </ng-template>
+            <ng-template cesCell="condicao" let-g>
+              <ces-status [tone]="tomCondicao(g.condicao)">{{ rotuloCondicao(g.condicao) }}</ces-status>
+            </ng-template>
+            <ng-template cesRowDetail let-g>
+              <app-series-grade [series]="g.grade" [rotulo]="'Números de série de ' + g.material.descricao" />
+            </ng-template>
+          </ces-data-table>
+        </div>
+
+        <!-- 7. TERMO DE CONFERÊNCIA E ASSINATURAS -->
+        <div class="mb-8 px-1 page-break-inside-avoid print:mb-4 print:mt-6">
+          <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-tight text-slate-800 dark:text-slate-200">
+              Termo de Conferência &amp; Assinaturas Formais
+            </span>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 p-4 md:p-5 flex flex-col gap-5 print:p-3 print:bg-transparent print:border-slate-400">
+            <p class="text-xs leading-relaxed text-slate-700 dark:text-slate-300 text-justify print:text-[10px] print:leading-normal print:text-slate-800">
+              Os signatários confirmam a conferência dos materiais, quantidades e condições discriminados nesta movimentação de estoque,
+              conforme os procedimentos de controle da empresa e da concessionária.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 print:grid-cols-2 print:gap-4 print:pt-3">
+              @if (mov.tipo === 'TRANSFERENCIA') {
+                <!-- 1. Estoque Entregador (Origem) -->
+                <div class="flex flex-col items-center justify-between border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 rounded-lg p-4 text-center min-h-[140px] print:border-slate-400 print:min-h-[110px] print:p-2">
+                  <div class="w-full">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block">Estoque Entregador (Origem)</span>
+                    <span class="text-[11px] text-slate-600 dark:text-slate-400 block truncate font-medium">
+                      {{ mov.estoqueOrigem?.nomeIdentificador || 'Almoxarifado Entregador' }}
+                    </span>
+                  </div>
+                  <div class="w-full flex flex-col items-center mt-4 print:mt-3">
+                    <div class="signature-slot">
+                      @if (assinaturaEntregadorUrl()) {
+                        <img [src]="assinaturaEntregadorUrl()" class="signature-image" alt="Assinatura Estoque Entregador" />
+                      }
+                    </div>
+                    <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-full">
+                      {{ mov.operadorNome || 'Responsável Entregador' }}
+                    </span>
+                    <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Responsável pela Entrega / Expedição</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Data: {{ (mov.dataHora | date: 'dd/MM/yyyy HH:mm') || '____/____/________' }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- 2. Estoque Recebedor (Destino) -->
+                <div class="flex flex-col items-center justify-between border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 rounded-lg p-4 text-center min-h-[140px] print:border-slate-400 print:min-h-[110px] print:p-2">
+                  <div class="w-full">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block">Estoque Recebedor (Destino)</span>
+                    <span class="text-[11px] text-slate-600 dark:text-slate-400 block truncate font-medium">
+                      {{ mov.estoqueDestino?.nomeIdentificador || 'Almoxarifado Recebedor' }}
+                    </span>
+                  </div>
+                  <div class="w-full flex flex-col items-center mt-4 print:mt-3">
+                    <div class="signature-slot">
+                      @if (assinaturaRecebedorUrl()) {
+                        <img [src]="assinaturaRecebedorUrl()" class="signature-image" alt="Assinatura Estoque Recebedor" />
+                      }
+                    </div>
+                    <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-full">
+                      Conferente / Almoxarife Recebedor
+                    </span>
+                    <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Responsável pelo Recebimento / Destino</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Data: {{ (mov.dataHora | date: 'dd/MM/yyyy HH:mm') || '____/____/________' }}
+                    </span>
+                  </div>
+                </div>
+              } @else {
+                <div class="flex flex-col items-center justify-between border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 rounded-lg p-4 text-center min-h-[140px] print:border-slate-400 print:min-h-[110px] print:p-2">
+                  <div class="w-full">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block">Operador da Movimentação</span>
+                    <span class="text-[11px] text-slate-600 dark:text-slate-400 block">Emissão &amp; Registro</span>
+                  </div>
+                  <div class="w-full flex flex-col items-center mt-4 print:mt-3">
+                    <div class="signature-slot"></div>
+                    <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-full">
+                      {{ mov.operadorNome || 'Operador Responsável' }}
+                    </span>
+                    <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Responsável pela Operação</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">Data: ____/____/________</span>
+                  </div>
+                </div>
+
+                <div class="flex flex-col items-center justify-between border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 rounded-lg p-4 text-center min-h-[140px] print:border-slate-400 print:min-h-[110px] print:p-2">
+                  <div class="w-full">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block">Conferência do Estoque</span>
+                    <span class="text-[11px] text-slate-600 dark:text-slate-400 block truncate font-medium">
+                      {{ mov.estoqueDestino?.nomeIdentificador || mov.estoqueOrigem?.nomeIdentificador || 'Almoxarifado' }}
+                    </span>
+                  </div>
+                  <div class="w-full flex flex-col items-center mt-4 print:mt-3">
+                    <div class="signature-slot"></div>
+                    <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-full">Conferente / Almoxarife</span>
+                    <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Responsável pela Conferência</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">Data: ____/____/________</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. AUDITORIA E RODAPÉ DE EMISSÃO -->
+        <footer class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 dark:text-slate-300 print:mt-4 print:pt-2">
+          <div class="flex flex-col gap-0.5">
+            <span>Movimentação em: <strong class="text-slate-900 dark:text-slate-100">{{ (mov.dataHora | date: 'dd/MM/yyyy HH:mm') || '—' }}</strong></span>
+            <span>Operador: <strong class="text-slate-900 dark:text-slate-100">{{ mov.operadorNome || 'Não identificado' }}</strong></span>
+          </div>
+          <div class="text-right sm:text-right font-semibold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Documento emitido eletronicamente via Sistema Nexo · Almoxarifado
+          </div>
+        </footer>
+    </div>
+
+    <!-- 9. RODAPÉ DE AÇÕES FLUTUANTE (FIXO NO CANTO INFERIOR DIREITO) -->
+    <div
+      class="fixed bottom-6 right-6 md:bottom-8 md:right-12 flex items-center flex-wrap gap-2.5 print:hidden animate-in slide-in-from-right-4 duration-500 z-50"
+    >
+      <p-button
+        icon="pi pi-arrow-left"
+        label="VOLTAR"
+        (onClick)="voltar()"
+        styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"
+      ></p-button>
+
+      @if (mov.idSolicitacao) {
+        <p-button
+          icon="pi pi-file"
+          label="VER SOLICITAÇÃO"
+          (onClick)="abrirSolicitacao(mov.idSolicitacao, mov.contexto)"
+          styleClass="!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-primary-700 cursor-pointer"
+        ></p-button>
+      }
+
+      @if (mov.idObra) {
+        <p-button
+          icon="pi pi-building"
+          label="VER OBRA"
+          (onClick)="abrirObra(mov.idObra)"
+          styleClass="!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-primary-700 cursor-pointer"
+        ></p-button>
+      }
+
+      <p-button
+        icon="pi pi-print"
+        label="IMPRIMIR"
+        (onClick)="printReport()"
+        styleClass="!rounded-lg !bg-[var(--report-action-strong-bg)] !border-[var(--report-action-strong-bg)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--report-action-strong-bg-hover)] cursor-pointer"
+      ></p-button>
+    </div>
+  }
+</div>
+
+<app-saldo-estoque-dialog #saldoDialog></app-saldo-estoque-dialog>

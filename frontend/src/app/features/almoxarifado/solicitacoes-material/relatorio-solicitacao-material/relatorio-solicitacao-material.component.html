@@ -1,0 +1,1460 @@
+<div
+  class="min-h-full min-h-screen bg-[var(--ces-surface)] text-[var(--ces-foreground)] relative"
+  [class.p-4]="!isPrintMode()"
+  [class.md:p-8]="!isPrintMode()"
+  [class.print:p-0]="isPrintMode()"
+  [class.print:min-h-0]="isPrintMode()"
+  [class.print:bg-white]="isPrintMode()"
+  [class.print:dark:bg-white]="isPrintMode()"
+  [class.print:text-black]="isPrintMode()"
+>
+  <p-toast></p-toast>
+  <p-confirmDialog></p-confirmDialog>
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state
+        [state]="'loading'"
+        title="Carregando solicitação de material..."
+        description="Consultando informações da solicitação..."
+      ></ces-async-state>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (error()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state
+        [state]="'error'"
+        title="Solicitação indisponível"
+        [description]="error() || 'Não foi possível carregar os dados.'"
+        actionLabel="Tentar novamente"
+        (action)="loadData()"
+      ></ces-async-state>
+    </div>
+  }
+
+  <!-- Main Content -->
+  @else if (solicitacao(); as sol) {
+    <div class="max-w-6xl mx-auto print:max-w-full pb-32 print:pb-0 rise print:animate-none">
+      <!-- 1. CABEÇALHO CORPORATIVO DA EMPRESA -->
+      <div
+        class="grid grid-cols-3 items-center border-b border-slate-200 dark:border-slate-800 pb-6 mb-6 print:pb-2 print:mb-2"
+        aria-label="Cabeçalho institucional"
+      >
+        <div class="flex justify-start">
+          <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14" onerror="this.style.display = 'none'" />
+        </div>
+        <div class="text-center flex flex-col gap-1">
+          <h1 class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">NOME DA EMPRESA</h1>
+          <p class="text-[11px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest">
+            Almoxarifado Central &amp; Gestão de Materiais
+          </p>
+          <p class="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Serviços prestados à Concessionária</p>
+        </div>
+        <div class="flex justify-end">
+          <img
+            src="logo_vertical.svg"
+            alt="Logo Cliente"
+            class="h-16 print:h-14 grayscale opacity-25"
+            onerror="this.style.display = 'none'"
+          />
+        </div>
+      </div>
+
+      <!-- 2. TÍTULO -->
+      <div class="py-4 text-center border-y border-slate-200 dark:border-slate-800 my-4 print:py-2 print:my-2">
+        <h2 class="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight uppercase">
+          Solicitação de Material #{{ sol.id.substring(0, 8) }}
+        </h2>
+        <div class="flex items-center justify-center gap-2 mt-1.5 flex-wrap text-xs text-slate-600 dark:text-slate-300 font-medium">
+          <span class="font-bold text-slate-900 dark:text-slate-100">ID {{ sol.id.substring(0, 8) }}</span>
+          <span>·</span>
+          <span
+            >Emissão:
+            <strong class="text-slate-900 dark:text-slate-100">{{
+              (sol.dataSolicitacao | date: 'dd/MM/yyyy HH:mm') || '--/--/----'
+            }}</strong></span
+          >
+          <span>·</span>
+          <ces-status [tone]="getStatusTone(sol.status)">{{ getStatusLabel(sol.status) }}</ces-status>
+        </div>
+      </div>
+
+      <!-- FAIXA DA SITUAÇÃO -->
+      @let faixa = faixaSituacao();
+      <div class="destaque rounded-xl border p-3.5 mb-6 flex items-center gap-3 print:hidden" [attr.data-tone]="faixa.tom">
+        <div class="destaque__icone w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border">
+          <i class="text-sm" [ngClass]="faixa.icone" aria-hidden="true"></i>
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span class="text-xs font-bold uppercase tracking-wider">{{ faixa.titulo }}</span>
+          <span class="text-[11px] font-medium opacity-90">{{ faixa.texto }}</span>
+        </div>
+      </div>
+
+      <!-- 3. DADOS GERAIS DA SOLICITAÇÃO (3 COLUNAS .KV) -->
+      <div
+        class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6 bg-slate-50/60 dark:bg-slate-900/40 p-4 md:p-5 rounded-xl border border-slate-200 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:mb-2 print:p-2"
+      >
+        <!-- Grupo 1: Almoxarifados & Status -->
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+            <i class="pi pi-tag text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider"
+              >Identificação &amp; Almoxarifados</span
+            >
+          </div>
+          <div class="kv">
+            <span class="kv-l">Origem</span>
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="kv-v font-semibold" [title]="sol.estoqueOrigem.nomeIdentificador">{{
+                sol.estoqueOrigem.nomeIdentificador
+              }}</span>
+              <ces-icon-button
+                icon="pi pi-search"
+                [label]="'Consultar o saldo de ' + sol.estoqueOrigem.nomeIdentificador"
+                tooltip="Consultar saldo da origem"
+                size="icon-sm"
+                class="print:hidden"
+                (pressed)="abrirSaldo(sol.estoqueOrigem.id, sol.estoqueOrigem.nomeIdentificador)"
+              />
+            </div>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Destino</span>
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="kv-v font-semibold" [title]="sol.estoqueDestino.nomeIdentificador">{{
+                sol.estoqueDestino.nomeIdentificador
+              }}</span>
+              <ces-icon-button
+                icon="pi pi-search"
+                [label]="'Consultar o saldo de ' + sol.estoqueDestino.nomeIdentificador"
+                tooltip="Consultar saldo do destino"
+                size="icon-sm"
+                class="print:hidden"
+                (pressed)="abrirSaldo(sol.estoqueDestino.id, sol.estoqueDestino.nomeIdentificador)"
+              />
+            </div>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Status Atual</span>
+            <ces-status [tone]="getStatusTone(sol.status)">{{ getStatusLabel(sol.status) }}</ces-status>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Tipo</span>
+            <ces-status
+              [tone]="tipoTone(sol.tipoTecnico)"
+              [icon]="tipoIcon(sol.tipoTecnico)"
+              [class.ces-status--devolucao]="sol.tipoTecnico === 'DEVOLUCAO_COMUM' || sol.tipoTecnico === '222' || sol.tipoTecnico === 'DEVOLUCAO_CONCRETO' || sol.tipoTecnico === '922'"
+            >
+              {{ tipoLabel(sol.tipoTecnico) }}
+            </ces-status>
+          </div>
+          @if (sol.status === 'ENTREGUE') {
+            <div class="kv items-start">
+              <span class="kv-l">Encerramento</span>
+              <span class="text-[11px] font-semibold leading-snug text-right text-amber-700 dark:text-amber-300">
+                A solicitação já foi encerrada.
+              </span>
+            </div>
+          }
+        </div>
+
+        <!-- Grupo 2: Cronograma -->
+        <div class="flex flex-col gap-3 md:border-x md:border-slate-200 dark:md:border-slate-800 md:px-6">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+            <i class="pi pi-calendar text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Cronograma</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Solicitação</span>
+            <span class="kv-v">{{ (sol.dataSolicitacao | date: 'dd/MM/yyyy HH:mm') || '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Saque Previsto</span>
+            <span class="kv-v">{{ (sol.dataPrevista | date: 'dd/MM/yyyy' : 'UTC') || '—' }}</span>
+          </div>
+          @if (sol.foraPrazoSaque) {
+            <div class="kv items-start">
+              <span class="kv-l">Prazo de Solicitação</span>
+              <ces-status tone="warning" icon="pi pi-exclamation-triangle">Solicitada fora do prazo</ces-status>
+            </div>
+          }
+          <div class="kv">
+            <span class="kv-l">Verificação</span>
+            <span class="kv-v">{{ (sol.dataVerificacao | date: 'dd/MM/yyyy HH:mm') || '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Última Entrega</span>
+            <span class="kv-v" [class.text-emerald-600]="!!sol.dataEntrega" [class.dark:text-emerald-400]="!!sol.dataEntrega">{{
+              (sol.dataEntrega | date: 'dd/MM/yyyy HH:mm') || 'Pendente'
+            }}</span>
+          </div>
+        </div>
+
+        <!-- Grupo 3: Participantes -->
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+            <i class="pi pi-users text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Envolvidos</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Equipe de Saque</span>
+            <span class="kv-v font-semibold" [title]="equipeSaqueName()">{{ equipeSaqueName() }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Responsável pelo Saque</span>
+            <span class="kv-v font-semibold" [title]="responsavelSaqueNome()">{{ responsavelSaqueNome() }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Requisitante</span>
+            <span class="kv-v font-semibold uppercase">{{ getUserName(sol.idRequisitante) }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Aprovador</span>
+            <span class="kv-v font-semibold uppercase">{{ getUserName(sol.idAprovador) }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Almoxarife</span>
+            <span class="kv-v font-semibold uppercase">{{ getUserName(sol.idEntregadorAlmox) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <app-solicitacao-pendencias [detalhe]="sol"
+        [podeEditar]="(!!sol.dataPrevista || sol.status === 'APROVADO' || sol.status === 'ENTREGUE_PARCIAL') && sol.status !== 'REJEITADO' && sol.status !== 'ENTREGUE' && !sol.encerrada"
+        (atualizado)="loadData()" />
+
+      <!-- BLOCO DE REJEIÇÃO -->
+      @if (sol.status === 'REJEITADO' && sol.motivoRejeicao) {
+        <div
+          class="mb-6 p-4 bg-rose-50/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500"
+        >
+          <div class="flex items-start gap-4">
+            <div
+              class="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center shrink-0 border border-rose-200 dark:border-rose-800"
+            >
+              <i class="pi pi-times-circle text-base"></i>
+            </div>
+            <div class="flex flex-col gap-2 w-full">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider">
+                  Informações da Rejeição —
+                  <span class="text-xs text-rose-800 dark:text-rose-300 font-bold uppercase">{{
+                    sol.dataVerificacao | date: 'dd/MM/yyyy HH:mm'
+                  }}</span>
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1">
+                <div class="flex flex-col gap-1">
+                  <span class="text-xs font-bold text-rose-900 dark:text-rose-200 uppercase">{{ sol.motivoRejeicao.nome }}</span>
+                  <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+                    {{ sol.motivoRejeicao.descricao }}
+                  </p>
+                </div>
+                <div class="flex flex-col gap-1">
+                  <span class="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold tracking-wider">Justificativa</span>
+                  <div class="p-3 bg-white/80 dark:bg-slate-900/80 rounded-lg border border-rose-200 dark:border-rose-900/60 min-h-[60px]">
+                    <p class="text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
+                      "{{ sol.justificativaRejeicao || 'Sem justificativa detalhada' }}"
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- 4. CARDS DE RESUMO -->
+      @let grupos = gruposItens();
+      @let totais = totaisOperacionais();
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6 print:hidden">
+        <div class="resumo">
+          <div class="resumo__topo">
+            <span class="resumo__rotulo">Materiais</span>
+            <span class="resumo__icone"><i class="pi pi-box" aria-hidden="true"></i></span>
+          </div>
+          <div>
+            <span class="resumo__valor">{{ grupos.length }}</span>
+            <span class="resumo__legenda">{{ grupos.length === 1 ? 'material distinto' : 'materiais distintos' }} · {{ totais.solicitada | number: '1.0-3' }} solicitados</span>
+          </div>
+        </div>
+        <div class="resumo">
+          <div class="resumo__topo">
+            <span class="resumo__rotulo">Entregue</span>
+            <span class="resumo__icone"><i class="pi pi-truck" aria-hidden="true"></i></span>
+          </div>
+          <div>
+            <span class="resumo__valor">{{ totais.entregaLiquida | number: '1.0-3' }}</span>
+            <span class="resumo__legenda">
+              @if (totais.entregaEstornada > 0) {
+                {{ totais.entregaBruta | number: '1.0-3' }} entregues, {{ totais.entregaEstornada | number: '1.0-3' }} estornados
+              } @else {
+                {{ totais.entregaLiquida > 0 ? 'unidades entregues' : 'nada entregue ainda' }}
+              }
+            </span>
+          </div>
+        </div>
+        <div class="resumo">
+          <div class="resumo__topo">
+            <span class="resumo__rotulo">Números de Série</span>
+            <span class="resumo__icone"><i class="pi pi-barcode" aria-hidden="true"></i></span>
+          </div>
+          <div>
+            <span class="resumo__valor">{{ resumoSeries().entregues }}</span>
+            <span class="resumo__legenda">
+              @if (!resumoSeries().materiais) {
+                nenhum material seriado
+              } @else if (resumoSeries().definidas) {
+                entregues · {{ resumoSeries().definidas }} {{ resumoSeries().definidas === 1 ? 'definida' : 'definidas' }} para a entrega
+              } @else if (!resumoSeries().entregues) {
+                nenhuma entregue ainda · {{ resumoSeries().materiais }} {{ resumoSeries().materiais === 1 ? 'material seriado' : 'materiais seriados' }}
+              } @else {
+                entregues em {{ resumoSeries().materiais }} {{ resumoSeries().materiais === 1 ? 'material seriado' : 'materiais seriados' }}
+              }
+            </span>
+          </div>
+        </div>
+        <div class="resumo resumo--destaque">
+          <div class="resumo__topo">
+            <span class="resumo__rotulo">Saldo Pendente</span>
+            <span class="resumo__icone"><i class="pi pi-hourglass" aria-hidden="true"></i></span>
+          </div>
+          <div>
+            <span class="resumo__valor">{{ totais.pendente | number: '1.0-3' }}</span>
+            <span class="resumo__legenda">{{ totais.pendente > 0 ? 'a entregar em ' + materiaisPendentes() + (materiaisPendentes() === 1 ? ' material' : ' materiais') : 'solicitação atendida' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. MATERIAIS -->
+      <div class="mb-8 print:mb-4">
+        @if (isEditMode() || isDeliveryMode()) {
+          <div class="painel mb-6 print:hidden">
+            <div class="mb-3">
+              <span class="painel__titulo">Atendimento</span>
+              <span class="painel__texto">
+                {{ isDeliveryMode() ? 'De qual almoxarifado o material sai nesta entrega.' : 'Almoxarifado que atende e dia previsto para o saque.' }}
+              </span>
+            </div>
+            <div class="atendimento">
+              <ces-select
+                label="Almoxarifado de origem"
+                [options]="opcoesOrigem()"
+                [value]="origemAtual()?.id ?? null"
+                (valueChange)="trocarOrigem($event)"
+                [filter]="true"
+                [loading]="carregandoOrigens()"
+                [disabled]="!podeTrocarOrigem()"
+                [description]="podeTrocarOrigem() ? undefined : 'Já saiu material daqui: a origem não muda mais, porque o estorno volta para ela.'"
+              />
+              @if (isEditMode()) {
+                <ces-datepicker
+                  label="Data prevista do saque"
+                  [value]="dataPrevistaAtual()"
+                  (valueChange)="dataPrevistaEscolhida.set($event)"
+                />
+              }
+            </div>
+            @if (origemTrocada()) {
+              <p class="atendimento__aviso" role="status">
+                <i class="pi pi-arrow-right-arrow-left" aria-hidden="true"></i>
+                <span>
+                  Sai de <strong>{{ origemAtual()?.nome }}</strong> em vez de {{ sol.estoqueOrigem.nomeIdentificador }}.
+                  @if (isDeliveryMode() && resumoSeries().definidas) {
+                    As séries definidas em {{ sol.estoqueOrigem.nomeIdentificador }} não valem aqui: escolha as séries na linha.
+                  }
+                </span>
+              </p>
+            }
+          </div>
+        }
+        @if (isDeliveryMode()) {
+          <div class="mb-4">
+            <app-aviso-saldo-negativo-equipe
+              [saldosNegativos]="saldosNegativosEquipe()"
+              [idsMateriais]="idsMateriaisEntrega()"
+              [equipe]="sol.estoqueDestino.nomeIdentificador"
+            />
+          </div>
+          <div class="painel mb-6">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <span class="painel__titulo">Responsável pelo saque</span>
+                <span class="painel__texto">Identifique quem está recebendo os materiais.</span>
+              </div>
+              <label class="inline-flex items-center gap-2 text-[11px] font-semibold cursor-pointer">
+                <input
+                  type="checkbox"
+                  [checked]="withdrawalOutsideTeam()"
+                  (change)="onWithdrawalOutsideTeamChange($any($event.target).checked)"
+                />
+                Fora da equipe
+              </label>
+            </div>
+
+            @if (withdrawalOutsideTeam()) {
+              <ces-autocomplete
+                label="Colaborador responsável pelo saque"
+                [labelVisible]="false"
+                [options]="withdrawalOptions()"
+                [ngModel]="withdrawalCollaboratorId()"
+                (ngModelChange)="withdrawalCollaboratorId.set($event)"
+                [loading]="withdrawalRemoteLoading()"
+                [status]="withdrawalRemoteStatus()"
+                [error]="withdrawalRemoteError()"
+                [clearable]="true"
+                [minLength]="2"
+                [forceSelection]="true"
+                placeholder="Buscar colaborador ativo..."
+                appendTo="body"
+                (search)="searchWithdrawalCollaborators($event)"
+                (loadMore)="loadMoreWithdrawalCollaborators()"
+                (retry)="retryWithdrawalCollaborators()"
+              />
+            } @else {
+              <p-select
+                [options]="withdrawalOptions()"
+                [ngModel]="withdrawalCollaboratorId()"
+                (ngModelChange)="withdrawalCollaboratorId.set($event)"
+                optionLabel="label"
+                optionValue="value"
+                [filter]="true"
+                [loading]="withdrawalTeamLoading()"
+                [disabled]="withdrawalTeamLoading()"
+                placeholder="Selecione um membro da equipe..."
+                class="w-full"
+                appendTo="body"
+              />
+            }
+          </div>
+        }
+
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="secao__titulo">{{ isDeliveryMode() ? 'Itens desta Entrega' : 'Itens da Solicitação' }}</span>
+            <span class="secao__contagem">
+              @if (isDeliveryMode()) {
+                ({{ linhasNaEntrega() }} de {{ entregaRascunho().length }} saindo agora)
+              } @else {
+                ({{ grupos.length }} {{ grupos.length === 1 ? 'material' : 'materiais' }})
+              }
+            </span>
+          </div>
+          @if (isDeliveryMode()) {
+            <span class="flex items-center gap-1">
+              <ces-button label="Entregar tudo o que falta" icon="pi pi-check-square" variant="ghost" size="sm" (pressed)="preencherEntrega()" />
+              <ces-button label="Zerar" icon="pi pi-eraser" variant="ghost" size="sm" (pressed)="zerarEntrega()" />
+            </span>
+          } @else {
+            <span class="text-xs text-[var(--ces-foreground-muted)]">
+              Total solicitado: <strong class="font-mono text-[var(--ces-foreground)]">{{ totais.solicitada | number: '1.0-3' }}</strong>
+            </span>
+          }
+        </div>
+
+        @if (isEditMode() || isDeliveryMode()) {
+          <!-- Adição de material: aparece na aprovação e na entrega -->
+          <div class="painel painel--tracejado mb-4 print:hidden">
+            <div class="flex items-center gap-2 mb-2">
+              <i class="pi pi-plus-circle text-[var(--ces-brand)]" aria-hidden="true"></i>
+              <span class="painel__titulo">Adicionar material</span>
+              <span class="painel__texto">{{ isDeliveryMode() ? 'sai junto nesta entrega' : 'entra na solicitação ao aprovar' }}</span>
+            </div>
+            <div class="adicionar">
+              <ces-autocomplete
+                label="Material"
+                [labelVisible]="false"
+                [(ngModel)]="selectedMaterialId"
+                (ngModelChange)="onMaterialSelect($event)"
+                [options]="materiaisOptions()"
+                [loading]="materiaisLoading()"
+                [status]="materiaisStatus()"
+                [error]="materiaisError()"
+                [minLength]="2"
+                [virtualScroll]="true"
+                [virtualScrollItemSize]="42"
+                [clearable]="true"
+                placeholder="Pesquisar por código ou descrição do material..."
+                class="adicionar__material"
+                appendTo="body"
+                (search)="searchMaterials($event)"
+                (loadMore)="loadMoreMaterials()"
+                (retry)="retryMaterials()"
+              ></ces-autocomplete>
+              <ces-number-input
+                class="adicionar__quantidade"
+                label="Quantidade"
+                [labelVisible]="false"
+                placeholder="Qtd."
+                [min]="0.001"
+                [maxFractionDigits]="3"
+                [suffix]="selectedMaterial() ? ' ' + (selectedMaterial()!.unidadeMedida || 'UN') : ''"
+                [value]="itemQuantity()"
+                (valueChange)="itemQuantity.set($event)"
+              />
+              <ces-button label="Adicionar" icon="pi pi-plus" size="sm" [disabled]="!selectedMaterial() || !itemQuantity()" (pressed)="addItem()" />
+            </div>
+            @if (selectedMaterial(); as m) {
+              <div class="adicionar__saldos" aria-live="polite">
+                <span class="adicionar__nome">{{ m.codigo }} · {{ m.descricao }}</span>
+                @if (m.detalhaSerie) {
+                  <ces-status tone="brand" icon="pi pi-barcode">Com nº de série{{ isDeliveryMode() ? ': escolha as séries na linha' : '' }}</ces-status>
+                }
+                @if (saldosDoSelecionado(); as s) {
+                  <span>Em {{ origemAtual()?.nome }}: <strong>{{ s.origem | number: '1.0-3' }} {{ m.unidadeMedida || 'UN' }}</strong></span>
+                  <span>{{ sol.estoqueDestino.nomeIdentificador }} tem: <strong>{{ s.destino | number: '1.0-3' }} {{ m.unidadeMedida || 'UN' }}</strong></span>
+                  @if ((itemQuantity() ?? 0) > s.origem) {
+                    <ces-status tone="warning" icon="pi pi-exclamation-triangle">Passa do saldo da origem</ces-status>
+                  }
+                } @else {
+                  <span class="text-[var(--ces-foreground-muted)]">Consultando saldos...</span>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        @if (isDeliveryMode()) {
+          <!-- ENTREGA: o que falta de cada material; o com série sai pelas séries escolhidas -->
+          <div class="entrega" role="table" aria-label="Itens desta entrega">
+            <div class="entrega__linha entrega__cab" role="row">
+              <span role="columnheader">Material</span>
+              <span role="columnheader" class="entrega__num">Pedido</span>
+              <span role="columnheader" class="entrega__num">Já saiu</span>
+              <span role="columnheader" class="entrega__num">Falta</span>
+              <span role="columnheader" class="entrega__num">Na origem</span>
+              <span role="columnheader" class="entrega__num">Sai agora</span>
+              <span role="columnheader"><span class="sr-only">Ações</span></span>
+            </div>
+            @for (l of entregaRascunho(); track l.chave; let i = $index) {
+              @let saldo = saldoOrigem()[l.material.id];
+              <div class="entrega__linha" role="row" [class.entrega__linha--removida]="l.removido">
+                <span role="cell" class="entrega__material">
+                  <strong>{{ l.material.descricao }}</strong>
+                  <span>
+                    {{ l.material.codigo }} · {{ l.material.unidadeMedida || 'UN' }}
+                    @if (l.material.detalhaSerie) { · com nº de série }
+                  </span>
+                  @if (!l.idItem) {
+                    <ces-status tone="brand" icon="pi pi-plus">Incluído nesta entrega</ces-status>
+                  }
+                  @if (l.removido) {
+                    <ces-status tone="danger" icon="pi pi-trash">Sai da solicitação</ces-status>
+                  }
+                  @if (saldoNegativoDoMaterial(l.material.id); as negativo) {
+                    <ces-status tone="warning">Saldo {{ negativo.quantidade | number: '1.0-3' }} {{ negativo.unidadeMedida }} na equipe</ces-status>
+                  }
+                </span>
+                <span role="cell" class="entrega__num">{{ l.solicitada | number: '1.0-3' }}</span>
+                <span role="cell" class="entrega__num">{{ l.jaEntregue | number: '1.0-3' }}</span>
+                <span role="cell" class="entrega__num entrega__forte">{{ l.pendente | number: '1.0-3' }}</span>
+                <span role="cell" class="entrega__num" [class.entrega__alerta]="saldo != null && quantidadeDaLinha(l) > saldo">
+                  @if (saldo === undefined) { <span class="entrega__esqueleto" aria-label="Consultando saldo"></span> }
+                  @else { {{ saldo ?? 0 | number: '1.0-3' }} }
+                </span>
+                <span role="cell" class="entrega__num">
+                  @if (l.removido) {
+                    —
+                  } @else if (l.material.detalhaSerie) {
+                    <strong>{{ l.series.length }}</strong>
+                    <small class="block text-[var(--ces-foreground-muted)]">{{ l.series.length === 1 ? 'série' : 'séries' }}</small>
+                  } @else {
+                    <ces-number-input
+                      [label]="'Quantidade de ' + l.material.codigo + ' que sai agora'"
+                      [labelVisible]="false"
+                      [min]="0"
+                      [max]="l.idItem ? l.pendente : 999999"
+                      [maxFractionDigits]="3"
+                      [value]="l.quantidade"
+                      (valueChange)="definirQuantidadeEntrega(i, $event)"
+                      [error]="l.idItem && (l.quantidade ?? 0) > l.pendente ? 'Máximo ' + l.pendente : undefined"
+                    />
+                  }
+                </span>
+                <span role="cell" class="entrega__acoes">
+                  @if (!l.idItem || podeTirarDaSolicitacao(l)) {
+                    <ces-icon-button
+                      [icon]="l.removido ? 'pi pi-undo' : 'pi pi-trash'"
+                      [label]="(l.removido ? 'Manter ' : (l.idItem ? 'Tirar da solicitação ' : 'Descartar ')) + l.material.codigo"
+                      [tooltip]="l.removido ? 'Manter na solicitação' : l.idItem ? 'Tirar da solicitação' : 'Descartar'"
+                      size="icon-sm"
+                      (pressed)="alternarRemocaoEntrega(i)"
+                    />
+                  }
+                </span>
+                @if (l.material.detalhaSerie && !l.removido) {
+                  <div class="entrega__series" role="cell">
+                    <app-series-selecao
+                      [idSolicitacao]="sol.id"
+                      [origem]="origemAtual()!"
+                      [material]="{ id: l.material.id, codigo: l.material.codigo, descricao: l.material.descricao }"
+                      [maximo]="l.idItem ? l.pendente : (l.quantidade ?? 1)"
+                      [selecionadas]="l.series"
+                      (selecionadasChange)="definirSeriesEntrega(i, $event)"
+                    />
+                  </div>
+                }
+              </div>
+            } @empty {
+              <p class="entrega__vazio">Nada falta entregar. Inclua um material acima para entregar a mais.</p>
+            }
+          </div>
+        } @else if (isEditMode()) {
+          <!-- APROVAÇÃO: ajuste de quantidades, inclusão e retirada de materiais -->
+          <div class="entrega" role="table" aria-label="Itens da solicitação em aprovação">
+            <div class="entrega__linha entrega__linha--aprovacao entrega__cab" role="row">
+              <span role="columnheader">Material</span>
+              <span role="columnheader" class="entrega__num">Pedido</span>
+              <span role="columnheader" class="entrega__num">Aprovar</span>
+              <span role="columnheader"><span class="sr-only">Ações</span></span>
+            </div>
+            @for (item of itemsDraft(); track $index; let ri = $index) {
+              <div class="entrega__linha entrega__linha--aprovacao" role="row" [class.entrega__linha--removida]="item.removed">
+                <span role="cell" class="entrega__material">
+                  <strong>{{ item.material.descricao }}</strong>
+                  <span>{{ item.material.codigo }} · {{ item.material.unidadeMedida || 'UN' }} @if (item.material.detalhaSerie) { · com nº de série }</span>
+                  @if (item.isNew) { <ces-status tone="brand" icon="pi pi-plus">Incluído na aprovação</ces-status> }
+                  @if (item.removed) { <ces-status tone="danger" icon="pi pi-trash">Sai da solicitação</ces-status> }
+                </span>
+                <span role="cell" class="entrega__num">{{ (item.quantidadeOriginal ?? item.quantidade) | number: '1.0-3' }}</span>
+                <span role="cell" class="entrega__num">
+                  @if (item.removed) {
+                    —
+                  } @else {
+                    <ces-number-input
+                      [label]="'Quantidade aprovada de ' + item.material.codigo"
+                      [labelVisible]="false"
+                      [min]="0.001"
+                      [maxFractionDigits]="3"
+                      [value]="item.quantidade"
+                      (valueChange)="definirQuantidadeAprovada(ri, $event)"
+                    />
+                  }
+                </span>
+                <span role="cell" class="entrega__acoes">
+                  <ces-icon-button
+                    [icon]="item.removed ? 'pi pi-undo' : 'pi pi-trash'"
+                    [label]="(item.removed ? 'Manter ' : 'Tirar da solicitação ') + item.material.codigo"
+                    [tooltip]="item.removed ? 'Manter na solicitação' : 'Tirar da solicitação'"
+                    size="icon-sm"
+                    [disabled]="!item.removed && !canRemoveItem(item)"
+                    (pressed)="removeItem(ri)"
+                  />
+                </span>
+              </div>
+            }
+          </div>
+        } @else {
+          @if (resumoSeries().materiais) {
+            <p class="text-[11px] text-[var(--ces-foreground-muted)] mb-3 print:hidden">
+              Materiais com série (<i class="pi pi-barcode text-[10px]" aria-hidden="true"></i>) abrem na própria linha com as séries entregues{{ pode('ENTREGAR') ? ' e a definição das séries antes da entrega' : '' }}.
+            </p>
+          }
+          <ces-data-table
+            class="print:hidden"
+            caption="Itens da solicitação por material"
+            searchPlaceholder="Buscar por código, descrição ou série"
+            stateTitle="Solicitação sem itens"
+            stateDescription="Nenhum material nesta solicitação."
+            noResultsTitle="Nenhum material encontrado nesta solicitação."
+            [columns]="colunasItens"
+            [rows]="grupos"
+            [rowKey]="chaveGrupo"
+            [rowLabel]="rotuloGrupo"
+            [rowExpandable]="grupoExpansivel"
+            [pageSizeOptions]="[50, 100, 500]"
+          >
+            <ng-template cesCell="codigo" let-g>
+              <span class="font-mono font-semibold">{{ g.material.codigo }}</span>
+            </ng-template>
+            <ng-template cesCell="descricao" let-g>
+              <span class="inline-flex items-center gap-2 flex-wrap">
+                <span class="uppercase">{{ g.material.descricao }}</span>
+                @if (g.seriesEntregues.length) {
+                  <ces-status tone="brand" icon="pi pi-barcode" class="print:hidden">{{ g.seriesEntregues.length }} {{ g.seriesEntregues.length === 1 ? 'série entregue' : 'séries entregues' }}</ces-status>
+                }
+                @if (g.seriesReservadas.length && g.pendente > 0) {
+                  <ces-status tone="info" icon="pi pi-lock" class="print:hidden">{{ g.seriesReservadas.length }} de {{ g.pendente | number: '1.0-0' }} {{ g.seriesReservadas.length === 1 ? 'definida' : 'definidas' }}</ces-status>
+                } @else if (g.material.detalhaSerie && g.pendente > 0 && pode('ENTREGAR')) {
+                  <ces-status tone="neutral" icon="pi pi-barcode" class="print:hidden">Séries a definir</ces-status>
+                }
+              </span>
+            </ng-template>
+            <ng-template cesCell="situacao" let-g>
+              <span class="inline-flex items-center gap-1">
+                @let s = situacao(g);
+                <ces-status [tone]="s.tom" [icon]="s.icone">{{ g.itemComPendencia && g.pendente > 0 ? g.itemComPendencia.motivoPendencia?.nome : s.rotulo }}</ces-status>
+                @if (g.itemComPendencia) {
+                  <ces-icon-button icon="pi pi-exclamation-triangle" [label]="'Ver a pendência de ' + g.material.codigo" tooltip="Ver pendência" size="icon-sm" class="print:hidden" (pressed)="abrirModalPendenciaItem(g.itemComPendencia)" />
+                } @else if (podeRegistrarPendencia() && g.itemPendente) {
+                  <ces-icon-button icon="pi pi-flag" [label]="'Apontar pendência em ' + g.material.codigo" tooltip="Apontar pendência" size="icon-sm" class="print:hidden" (pressed)="abrirModalPendenciaItem(g.itemPendente)" />
+                }
+              </span>
+            </ng-template>
+            <ng-template cesRowDetail let-g>
+              <div class="detalhe-series">
+                @if (g.seriesEntregues.length) {
+                  <div class="detalhe-series__bloco">
+                    <span class="detalhe-series__titulo"><i class="pi pi-truck" aria-hidden="true"></i>Séries entregues ({{ g.seriesEntregues.length }})</span>
+                    <app-series-grade [series]="grade(g.seriesEntregues)" [rotulo]="'Séries entregues de ' + g.material.descricao" />
+                  </div>
+                }
+                @if (podeDefinirSeries(g)) {
+                  <div class="detalhe-series__bloco">
+                    <span class="detalhe-series__titulo">
+                      <i class="pi pi-lock" aria-hidden="true"></i>Séries para a entrega ({{ g.seriesReservadas.length }} de {{ g.pendente | number: '1.0-0' }})
+                    </span>
+                    @if (reservaAberta() === g.chave) {
+                      <p class="detalhe-series__texto">
+                        As séries definidas ficam reservadas para esta solicitação: não saem de {{ sol.estoqueOrigem.nomeIdentificador }} por outro caminho. Na entrega, já vêm escolhidas.
+                      </p>
+                      <app-series-selecao
+                        [idSolicitacao]="sol.id"
+                        [origem]="{ id: sol.estoqueOrigem.id, nome: sol.estoqueOrigem.nomeIdentificador }"
+                        [material]="{ id: g.material.id, codigo: g.material.codigo, descricao: g.material.descricao }"
+                        [maximo]="g.pendente"
+                        [(selecionadas)]="reservaRascunho"
+                      />
+                      <span class="flex justify-end gap-2">
+                        <ces-button label="Cancelar" variant="ghost" size="sm" (pressed)="reservaAberta.set(null)" />
+                        <ces-button label="Salvar séries" icon="pi pi-lock" size="sm" [loading]="salvandoReserva()" (pressed)="salvarReserva(g)" />
+                      </span>
+                    } @else {
+                      @if (g.seriesReservadas.length) {
+                        <app-series-grade [series]="grade(g.seriesReservadas)" [rotulo]="'Séries definidas de ' + g.material.descricao" />
+                      } @else {
+                        <p class="detalhe-series__texto">Nenhuma série definida ainda. Defina agora e, na entrega, é só confirmar.</p>
+                      }
+                      <span>
+                        <ces-button [label]="g.seriesReservadas.length ? 'Alterar séries' : 'Definir séries'" icon="pi pi-barcode" variant="secondary" size="sm" (pressed)="abrirReserva(g)" />
+                      </span>
+                    }
+                  </div>
+                } @else if (g.seriesReservadas.length && g.pendente > 0) {
+                  <div class="detalhe-series__bloco">
+                    <span class="detalhe-series__titulo"><i class="pi pi-lock" aria-hidden="true"></i>Séries definidas para a entrega</span>
+                    <app-series-grade [series]="grade(g.seriesReservadas)" [rotulo]="'Séries definidas de ' + g.material.descricao" />
+                  </div>
+                }
+              </div>
+            </ng-template>
+          </ces-data-table>
+
+          <!-- No papel: a mesma tabela, com as séries entregues abertas logo abaixo de cada material. -->
+          <table class="tabela-documento" aria-hidden="true">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Material / Descrição</th>
+                <th>Un.</th>
+                <th class="tabela-documento__num">Solicitado</th>
+                <th class="tabela-documento__num">Entregue</th>
+                <th class="tabela-documento__num">Pendente</th>
+                <th>Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (g of grupos; track g.chave) {
+                <tr>
+                  <td class="font-mono font-semibold">{{ g.material.codigo }}</td>
+                  <td class="uppercase">{{ g.material.descricao }}</td>
+                  <td>{{ g.material.unidadeMedida }}</td>
+                  <td class="tabela-documento__num">{{ g.solicitada | number: '1.0-3' }}</td>
+                  <td class="tabela-documento__num">{{ g.entregue | number: '1.0-3' }}</td>
+                  <td class="tabela-documento__num">{{ g.pendente | number: '1.0-3' }}</td>
+                  <td>{{ situacao(g).rotulo }}</td>
+                </tr>
+                @if (g.seriesEntregues.length) {
+                  <tr class="tabela-documento__detalhe">
+                    <td colspan="7">
+                      <app-series-grade [series]="grade(g.seriesEntregues)" [copiavel]="false" [rotulo]="'Séries entregues de ' + g.material.descricao" />
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+
+      @if (sol.contexto !== 'TECNICO' && !isEditMode()) {
+        <div class="mb-6 px-1 print:hidden">
+          <app-consumo-anterior-tabela [idSolicitacao]="sol.id" [itens]="sol.itens" [estoque]="sol.estoqueDestino.nomeIdentificador" />
+        </div>
+      }
+
+      <div class="mb-6 px-1 print:hidden">
+        <app-solicitacao-operacoes-historico [operacoes]="sol.operacoes" [equipeNome]="sol.estoqueDestino.nomeIdentificador" />
+      </div>
+
+      <!-- 5. HISTÓRICO & AUDITORIA (LINHA DO TEMPO) -->
+      <div class="mb-6 px-1 print:hidden">
+        <p-accordion [value]="timelineValue()" (valueChange)="timelineValue.set($event)">
+          <p-accordion-panel value="timeline">
+            <p-accordion-header>
+              <div class="flex items-center justify-between w-full gap-3 min-w-0 pr-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                    <i class="pi pi-history text-slate-600 dark:text-slate-300 text-sm"></i>
+                  </div>
+                  <div class="flex flex-col gap-0.5 min-w-0 text-left">
+                    <span class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100">Linha do tempo de alterações</span>
+                    <span class="text-xs text-slate-600 dark:text-slate-300 font-normal"
+                      >Veja todas as ações realizadas nesta solicitação em ordem cronológica.</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </p-accordion-header>
+            <p-accordion-content>
+              @if (isTimelineOpen()) {
+                <div class="pt-3">
+                  <app-solicitacao-tecnica-historico [idSolicitacao]="sol.id" [ocultarObra]="true" />
+                </div>
+              }
+            </p-accordion-content>
+          </p-accordion-panel>
+        </p-accordion>
+      </div>
+
+      <!-- 6. TERMO FORMAL DE RESPONSABILIDADE & QUADRO DE ASSINATURAS -->
+      <div class="mb-8 px-1 page-break-inside-avoid print:mb-4 print:mt-6" [hidden]="isEditMode() || isDeliveryMode()">
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+          <span class="text-xs font-bold uppercase tracking-tight text-slate-800 dark:text-slate-200"
+            >Termo de Responsabilidade &amp; Assinaturas Formais</span
+          >
+        </div>
+
+        <div
+          class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 p-4 md:p-5 flex flex-col gap-5 print:p-3 print:bg-transparent print:border-slate-400"
+        >
+          <!-- Texto do Termo de Declaração -->
+          <p
+            class="text-xs leading-relaxed text-slate-700 dark:text-slate-300 text-justify print:text-[10px] print:leading-normal print:text-slate-800"
+          >
+            Declaramos para os devidos fins que os materiais discriminados nesta solicitação foram devidamente conferidos e movimentados em
+            conformidade com as normas da empresa e da concessionária. A equipe responsável assume integral
+            custódia pelo recebimento, aplicação correta, conservação e devolução de eventuais sobras ao almoxarifado central.
+          </p>
+
+          <!-- Grade de 2 Vias de Assinatura (Almoxarifado & Equipe / Requisitante) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 print:grid-cols-2 print:gap-4 print:pt-3">
+            <!-- 1. Almoxarifado / Expedição -->
+            <div
+              class="flex flex-col items-center justify-between border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 rounded-lg p-4 text-center min-h-[140px] print:border-slate-400 print:min-h-[110px] print:p-2"
+            >
+              <div class="w-full">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block">Almoxarifado</span>
+                <span class="text-[11px] text-slate-600 dark:text-slate-400 block">Expedição &amp; Atendimento</span>
+              </div>
+
+              <div class="w-full flex flex-col items-center mt-4 print:mt-3">
+                <div class="signature-slot">
+                  @if (assinaturaAlmoxUrl()) {
+                    <img [src]="assinaturaAlmoxUrl()" class="signature-image" alt="Assinatura Almoxarifado" />
+                  }
+                </div>
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-full">
+                  {{ getUserName(sol.idEntregadorAlmox) || 'Responsável Almoxarifado' }}
+                </span>
+                <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Responsável pela Entrega</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {{ sol.dataEntrega ? (sol.dataEntrega | date: 'dd/MM/yyyy HH:mm') : 'Data: ____/____/________' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 2. Equipe / Requisitante -->
+            <div
+              class="flex flex-col items-center justify-between border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 rounded-lg p-4 text-center min-h-[140px] print:border-slate-400 print:min-h-[110px] print:p-2"
+            >
+              <div class="w-full">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block"
+                  >Requisitante / Receptora</span
+                >
+                <span class="text-[11px] text-slate-600 dark:text-slate-400 block truncate font-medium">
+                  {{ sol.estoqueDestino.nomeIdentificador || 'Equipe Receptora' }}
+                </span>
+              </div>
+
+              <div class="w-full flex flex-col items-center mt-4 print:mt-3">
+                <div class="signature-slot">
+                  @if (assinaturaEquipeUrl()) {
+                    <img [src]="assinaturaEquipeUrl()" class="signature-image" alt="Assinatura Requisitante" />
+                  }
+                </div>
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-full">
+                  {{ responsavelSaqueNome() }}
+                </span>
+                <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Responsável pelo Saque</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {{ sol.dataEntrega ? (sol.dataEntrega | date: 'dd/MM/yyyy HH:mm') : 'Data: ____/____/________' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. AUDITORIA & RODAPÉ DE EMISSÃO -->
+      <footer
+        class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 dark:text-slate-300 print:mt-4 print:pt-2"
+      >
+        <div class="flex flex-col gap-0.5">
+          <span
+            >Criado em:
+            <strong class="text-slate-900 dark:text-slate-100">{{ (sol.dataSolicitacao | date: 'dd/MM/yyyy HH:mm') || '—' }}</strong></span
+          >
+          @if (sol.dataVerificacao) {
+            <span
+              >Verificado em:
+              <strong class="text-slate-900 dark:text-slate-100">{{ sol.dataVerificacao | date: 'dd/MM/yyyy HH:mm' }}</strong></span
+            >
+          }
+        </div>
+        <div class="text-right sm:text-right font-semibold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Documento emitido eletronicamente via Sistema Nexo · Almoxarifado
+        </div>
+      </footer>
+    </div>
+
+    <!-- 8. RODAPÉ DE AÇÕES FLUTUANTE -->
+    <div
+      class="fixed bottom-6 right-6 md:bottom-8 md:right-12 flex items-center flex-wrap gap-2.5 print:hidden animate-in slide-in-from-right-4 duration-500 z-50"
+    >
+      <p-button
+        icon="pi pi-arrow-left"
+        label="VOLTAR"
+        (onClick)="voltar()"
+        styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"
+      ></p-button>
+
+      @if (isEditMode()) {
+        <p-button
+          label="CANCELAR"
+          icon="pi pi-times"
+          (onClick)="cancelApproval()"
+          styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] cursor-pointer"
+        ></p-button>
+        <p-button
+          label="CONFIRMAR E APROVAR"
+          icon="pi pi-check-circle"
+          [loading]="saving()"
+          (onClick)="confirmApproval()"
+          styleClass="!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-primary-700 cursor-pointer"
+        ></p-button>
+      } @else if (isDeliveryMode()) {
+        <p-button
+          label="CANCELAR ENTREGA"
+          icon="pi pi-times"
+          (onClick)="cancelDelivery()"
+          styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] cursor-pointer"
+        ></p-button>
+        <p-button
+          label="CONFIRMAR ENTREGA FÍSICA"
+          icon="pi pi-box"
+          [loading]="saving()"
+          (onClick)="confirmDelivery()"
+          styleClass="!rounded-lg !bg-[var(--ces-success)] !border-[var(--ces-success)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-success-hover)] cursor-pointer"
+        ></p-button>
+      } @else {
+        <p-button
+          icon="pi pi-print"
+          label="IMPRIMIR"
+          (onClick)="printReport()"
+          styleClass="!rounded-lg !bg-[var(--report-action-strong-bg)] !border-[var(--report-action-strong-bg)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--report-action-strong-bg-hover)] cursor-pointer"
+        ></p-button>
+
+        @if (pode('ESTORNAR')) {
+          <p-button
+            label="ESTORNAR"
+            icon="pi pi-replay"
+            [loading]="saving()"
+            (onClick)="confirmarEstorno()"
+            styleClass="!rounded-lg !bg-[var(--ces-warning)] !border-[var(--ces-warning)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-warning-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (podeRegistrarPendencia()) {
+          <p-button
+            label="PENDÊNCIA"
+            icon="pi pi-exclamation-triangle"
+            (onClick)="abrirModalPendenciaSolicitacao()"
+            styleClass="!rounded-lg !bg-[var(--ces-warning)] !border-[var(--ces-warning)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-warning-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (pode('REJEITAR')) {
+          <p-button
+            [label]="rotuloRejeicao().toUpperCase()"
+            icon="pi pi-times"
+            (onClick)="rejectSolicitacao()"
+            styleClass="!rounded-lg !bg-[var(--ces-danger)] !border-[var(--ces-danger)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-danger-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (pode('APROVAR')) {
+          <p-button
+            label="INICIAR APROVAÇÃO"
+            icon="pi pi-pencil"
+            (onClick)="startApproval()"
+            styleClass="!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-primary-700 cursor-pointer"
+          ></p-button>
+        } @else if (pode('ENTREGAR')) {
+          <p-button
+            label="REGISTRAR ENTREGA"
+            icon="pi pi-box"
+            (onClick)="startDelivery()"
+            styleClass="!rounded-lg !bg-[var(--ces-success)] !border-[var(--ces-success)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-success-hover)] cursor-pointer"
+          ></p-button>
+        }
+      }
+    </div>
+  }
+</div>
+
+<!-- Modal de Seleção de Assinatura -->
+<p-dialog
+  [visible]="displaySignatureTypeModal()"
+  (visibleChange)="displaySignatureTypeModal.set($event)"
+  [modal]="true"
+  header="Tipo de Assinatura"
+  [style]="{ width: '95vw', maxWidth: '500px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+>
+  <div class="flex flex-col gap-6 p-2">
+    <div class="text-center">
+      <h3 class="text-base font-bold text-slate-900 dark:text-slate-100">Como as partes irão assinar?</h3>
+      <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+        Selecione o método de assinatura para esta entrega. Ambas as partes devem utilizar o mesmo método.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Opção Física -->
+      <div
+        class="border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all group"
+        (click)="selectSignatureType('FISICA')"
+      >
+        <div
+          class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/60 flex items-center justify-center transition-colors"
+        >
+          <i
+            class="pi pi-file-edit text-xl text-slate-500 dark:text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors"
+          ></i>
+        </div>
+        <div class="text-center">
+          <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">Assinatura Física</span>
+          <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight"
+            >Será impresso e assinado<br />manualmente em papel</span
+          >
+        </div>
+      </div>
+
+      <!-- Opção Digital -->
+      <div
+        class="border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all group"
+        (click)="selectSignatureType('DIGITAL')"
+      >
+        <div
+          class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/60 flex items-center justify-center transition-colors"
+        >
+          <i
+            class="pi pi-tablet text-xl text-slate-500 dark:text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors"
+          ></i>
+        </div>
+        <div class="text-center">
+          <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">Assinatura Digital</span>
+          <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight"
+            >Assinatura eletrônica<br />direto no dispositivo</span
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+</p-dialog>
+
+<!-- Modal de Dashboard de Assinatura Digital -->
+<p-dialog
+  [visible]="displayDigitalSignatureDashboard()"
+  (visibleChange)="displayDigitalSignatureDashboard.set($event)"
+  [modal]="true"
+  header="Assinaturas Digitais"
+  [style]="{ width: '95vw', maxWidth: '600px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+>
+  <div class="flex flex-col gap-6 p-2">
+    <div class="text-center">
+      <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">Painel de Assinaturas</h3>
+      <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+        Ambas as partes precisam realizar a assinatura eletrônica para finalizar a entrega.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Slot Almoxarifado -->
+      <div class="flex flex-col gap-2">
+        <label class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-center">Almoxarifado</label>
+
+        @if (isBase64(deliveryData.assinaturaAlmox)) {
+          <div
+            class="border-2 border-emerald-200 dark:border-emerald-800/80 rounded-2xl p-4 bg-emerald-50/40 dark:bg-emerald-950/30 flex flex-col items-center gap-3 relative"
+          >
+            <img [src]="deliveryData.assinaturaAlmox" class="h-16 object-contain" alt="Assinatura Almox" />
+            <span
+              class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider bg-white dark:bg-slate-900 px-3 py-1 rounded-full shadow-2xs border border-emerald-200 dark:border-emerald-800"
+              >Assinado</span
+            >
+            <p-button
+              icon="pi pi-refresh"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              class="absolute top-2 right-2"
+              (onClick)="openSignaturePad('almox')"
+              pTooltip="Refazer Assinatura"
+            ></p-button>
+          </div>
+        } @else {
+          <div
+            class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 cursor-pointer hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all group"
+            (click)="openSignaturePad('almox')"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/60 flex items-center justify-center transition-colors"
+            >
+              <i class="pi pi-user text-lg text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-300"></i>
+            </div>
+            <span
+              class="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-primary-600 dark:group-hover:text-primary-300"
+              >Assinar agora</span
+            >
+          </div>
+        }
+      </div>
+
+      <!-- Slot Equipe -->
+      <div class="flex flex-col gap-2">
+        <label class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-center"
+          >Equipe / Requisitante</label
+        >
+
+        @if (isBase64(deliveryData.assinaturaEquipe)) {
+          <div
+            class="border-2 border-emerald-200 dark:border-emerald-800/80 rounded-2xl p-4 bg-emerald-50/40 dark:bg-emerald-950/30 flex flex-col items-center gap-3 relative"
+          >
+            <img [src]="deliveryData.assinaturaEquipe" class="h-16 object-contain" alt="Assinatura Equipe" />
+            <span
+              class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider bg-white dark:bg-slate-900 px-3 py-1 rounded-full shadow-2xs border border-emerald-200 dark:border-emerald-800"
+              >Assinado</span
+            >
+            <p-button
+              icon="pi pi-refresh"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              class="absolute top-2 right-2"
+              (onClick)="openSignaturePad('equipe')"
+              pTooltip="Refazer Assinatura"
+            ></p-button>
+          </div>
+        } @else {
+          <div
+            class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 cursor-pointer hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all group"
+            (click)="openSignaturePad('equipe')"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/60 flex items-center justify-center transition-colors"
+            >
+              <i class="pi pi-users text-lg text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-300"></i>
+            </div>
+            <span
+              class="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-primary-600 dark:group-hover:text-primary-300"
+              >Assinar agora</span
+            >
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4 flex items-center justify-end gap-2.5">
+      <ces-button
+        label="Voltar"
+        variant="ghost"
+        size="sm"
+        [disabled]="saving()"
+        (pressed)="displayDigitalSignatureDashboard.set(false); displaySignatureTypeModal.set(true)"
+      />
+      <ces-button
+        label="Finalizar Entrega Digital"
+        icon="pi pi-check-circle"
+        variant="primary"
+        size="sm"
+        [loading]="saving()"
+        [disabled]="saving() || !isBase64(deliveryData.assinaturaAlmox) || !isBase64(deliveryData.assinaturaEquipe)"
+        (pressed)="executeDelivery()"
+      />
+    </div>
+  </div>
+</p-dialog>
+
+<!-- Modal de Assinatura Digital (Canvas) -->
+<p-dialog
+  [visible]="displaySignatureModal()"
+  (visibleChange)="displaySignatureModal.set($event)"
+  [modal]="true"
+  [header]="currentSignatureField() === 'almox' ? 'Assinatura do Almoxarife' : 'Assinatura da Equipe'"
+  [style]="{ width: '95vw', maxWidth: '600px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+  (onHide)="clearSignaturePad()"
+>
+  <div class="flex flex-col gap-4">
+    <div
+      class="bg-primary-50/60 dark:bg-primary-950/40 p-3.5 rounded-xl border border-primary-200 dark:border-primary-800 flex items-start gap-3"
+    >
+      <i class="pi pi-pencil text-primary-600 dark:text-primary-400 mt-0.5 text-base"></i>
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs font-bold text-primary-800 dark:text-primary-200 uppercase tracking-wider">Área de Assinatura</span>
+        <p class="text-xs text-primary-700 dark:text-primary-300 leading-relaxed">
+          Use o mouse ou o dedo para desenhar a sua assinatura na área abaixo.
+        </p>
+      </div>
+    </div>
+
+    <div
+      class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 flex justify-center items-center relative overflow-hidden"
+      style="height: 250px"
+    >
+      <canvas
+        #signatureCanvas
+        class="w-full h-full cursor-crosshair touch-none"
+        (mousedown)="startDrawing($event)"
+        (mousemove)="draw($event)"
+        (mouseup)="stopDrawing()"
+        (mouseout)="stopDrawing()"
+        (touchstart)="startDrawing($event)"
+        (touchmove)="draw($event)"
+        (touchend)="stopDrawing()"
+        (touchcancel)="stopDrawing()"
+      ></canvas>
+      <div class="absolute bottom-2 right-2 flex gap-2">
+        <p-button
+          icon="pi pi-trash"
+          [rounded]="true"
+          [text]="true"
+          severity="danger"
+          (onClick)="clearSignaturePad()"
+          pTooltip="Limpar Assinatura"
+        ></p-button>
+      </div>
+      <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
+        <span class="text-3xl font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">Assine Aqui</span>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2.5 mt-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+      <ces-button label="Cancelar" variant="ghost" size="sm" (pressed)="displaySignatureModal.set(false)" />
+      <ces-button label="Salvar Assinatura" icon="pi pi-check" variant="primary" size="sm" (pressed)="saveSignature()" />
+    </div>
+  </div>
+</p-dialog>
+
+<!-- Modal de Rejeição -->
+<p-dialog
+  [visible]="displayRejectModal()"
+  (visibleChange)="displayRejectModal.set($event)"
+  [modal]="true"
+  [header]="rotuloRejeicao() + ' solicitação'"
+  [style]="{ width: '95vw', maxWidth: '500px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+>
+  <div class="flex flex-col gap-5 p-2">
+    <div class="bg-rose-50/70 dark:bg-rose-950/40 p-4 rounded-xl border border-rose-200 dark:border-rose-900/60 flex items-start gap-3">
+      <i class="pi pi-exclamation-circle text-rose-600 dark:text-rose-400 mt-0.5 text-lg"></i>
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider">Atenção</span>
+        <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+          A rejeição é irreversível e cancelará permanentemente esta solicitação de material.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Motivo da Rejeição</label>
+        <p-select
+          [(ngModel)]="rejectionData.idMotivoRejeicao"
+          [options]="motivosRejeicaoOptions()"
+          optionLabel="nome"
+          size="small"
+          optionValue="id"
+          placeholder="Selecione o motivo..."
+          class="w-full text-xs"
+          appendTo="body"
+        >
+          <ng-template let-motivo pTemplate="item">
+            <div class="flex flex-col gap-0.5">
+              <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ motivo.nome }}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">{{ motivo.descricao }}</span>
+            </div>
+          </ng-template>
+        </p-select>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Justificativa Detalhada</label>
+        <textarea
+          pTextarea
+          [(ngModel)]="rejectionData.justificativa"
+          rows="4"
+          placeholder="Descreva detalhadamente o porquê desta rejeição..."
+          class="w-full text-xs rounded-xl border-slate-300 dark:border-slate-700 focus:border-rose-500 bg-white dark:bg-slate-900"
+        ></textarea>
+        <span class="text-[10px] text-slate-500 dark:text-slate-400 italic">* Mínimo de 5 caracteres.</span>
+      </div>
+    </div>
+
+    <div class="mt-4 flex justify-end gap-2.5">
+      <ces-button label="Cancelar" variant="ghost" size="sm" (pressed)="displayRejectModal.set(false)" />
+      <ces-button
+        label="Confirmar Rejeição"
+        icon="pi pi-times-circle"
+        variant="destructive"
+        size="sm"
+        [loading]="saving()"
+        [disabled]="!rejectionData.idMotivoRejeicao || !rejectionData.justificativa || rejectionData.justificativa.length < 5"
+        (pressed)="confirmRejection()"
+      />
+    </div>
+  </div>
+</p-dialog>
+
+<!-- Modal de Estorno Parcial -->
+<p-dialog
+  [(visible)]="displayEstornoParcialModal"
+  [modal]="true"
+  header="Estorno Parcial de Materiais"
+  [style]="{ width: '95vw', maxWidth: '600px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+>
+  <div class="flex flex-col gap-4">
+    <div class="bg-amber-50/70 dark:bg-amber-950/40 p-4 rounded-xl border border-amber-200 dark:border-amber-900/60 flex items-start gap-3">
+      <i class="pi pi-exclamation-triangle text-amber-600 dark:text-amber-400 text-lg mt-0.5"></i>
+      <div class="flex flex-col gap-1">
+        <span class="text-amber-900 dark:text-amber-200 font-bold text-xs uppercase tracking-wider">Atenção: Ação Irreversível</span>
+        <p class="text-amber-800 dark:text-amber-300 text-xs leading-relaxed">
+          Selecione os materiais e as quantidades que deseja estornar. Esta ação reverterá os saldos e retornará os itens ao estoque de
+          origem. <b>Esta operação não poderá ser desfeita.</b>
+        </p>
+      </div>
+    </div>
+
+    <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
+      <p-table [value]="estornoItems()" styleClass="p-datatable-sm">
+        <ng-template pTemplate="header">
+          <tr
+            class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200"
+          >
+            <th style="width: 3rem" class="py-2.5 px-3">
+              <p-checkbox
+                [binary]="true"
+                (onChange)="toggleSelectAllEstorno($event.checked)"
+                [ngModel]="isAllEstornoSelected()"
+                size="small"
+              ></p-checkbox>
+            </th>
+            <th class="py-2.5 px-3">Material</th>
+            <th class="py-2.5 px-3 text-center">Qtd. Entregue</th>
+            <th class="py-2.5 px-3 text-center" style="width: 130px">Qtd. Estorno</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-item>
+          <tr
+            [class.bg-slate-50]="!item.selected"
+            class="border-b border-slate-100 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200"
+          >
+            <td class="py-2.5 px-3">
+              <p-checkbox [(ngModel)]="item.selected" [binary]="true" size="small"></p-checkbox>
+            </td>
+            <td class="py-2.5 px-3">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ item.material.descricao }}</span>
+                <span class="text-[10px] text-slate-500 dark:text-slate-400 font-semibold tracking-tight"
+                  >COD: {{ item.material.codigo }}</span
+                >
+                @if (item.numSerie) {
+                  <span
+                    class="text-[9px] font-bold text-sky-700 dark:text-sky-300 mt-0.5 bg-sky-50 dark:bg-sky-950/70 px-1.5 py-0.5 rounded w-fit border border-sky-200 dark:border-sky-800 uppercase tracking-tighter"
+                    >SÉRIE: {{ item.numSerie }}</span
+                  >
+                }
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-xs text-slate-700 dark:text-slate-300 text-center font-semibold tabular-nums">
+              {{ item.quantidadeEntregaLiquida ?? item.quantidadeEntregue | number: '1.3-3' }}
+            </td>
+            <td class="py-2.5 px-3">
+              <p-inputNumber
+                [(ngModel)]="item.quantidadeEstorno"
+                [min]="0"
+                [max]="item.quantidadeEntregaLiquida ?? item.quantidadeEntregue"
+                [minFractionDigits]="3"
+                [maxFractionDigits]="3"
+                [disabled]="!item.selected"
+                styleClass="!w-full"
+                inputStyleClass="!text-xs !text-center !font-semibold !py-1"
+              ></p-inputNumber>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+
+    <div class="flex items-center justify-end gap-2.5 pt-2">
+      <ces-button label="Cancelar" variant="ghost" size="sm" (pressed)="displayEstornoParcialModal.set(false)" />
+      <p-button
+        label="Confirmar Estorno"
+        icon="pi pi-check"
+        [loading]="saving()"
+        (onClick)="confirmarEstornoParcial()"
+        styleClass="!rounded-lg !bg-[var(--ces-warning)] !border-[var(--ces-warning)] !text-white !font-medium !text-xs !px-6 !py-2 hover:!bg-[var(--ces-warning-hover)] cursor-pointer"
+      ></p-button>
+    </div>
+  </div>
+</p-dialog>
+
+<app-saldo-estoque-dialog #saldoDialog></app-saldo-estoque-dialog>
+
+@if (solicitacao(); as sol) {
+  <app-solicitacao-pendencia-modal
+    [(visible)]="pendenciaModalVisible"
+    [idSolicitacao]="sol.id"
+    [itens]="sol.itens"
+    [idItem]="pendenciaModalItemId()"
+    [itemLabel]="pendenciaModalItemLabel()"
+    [motivoAtual]="pendenciaModalMotivoAtual()"
+    [justificativaAtual]="pendenciaModalJustificativaAtual()"
+    (pendenciaSalva)="loadData()"
+    (pendenciaResolvida)="loadData()"
+  />
+}

@@ -1,0 +1,1739 @@
+<ces-dialog-shell
+  [title]="title()"
+  [size]="dialogSize()"
+  [(visible)]="visible"
+  [loading]="submitting()"
+  loadingLabel="Enviando comando..."
+  (closed)="close()"
+>
+  <div class="flex flex-col gap-4">
+    <!-- RETENTATIVA IDEMPOTENTE -->
+    @if (retryRequest()) {
+      <div
+        class="p-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 flex items-center justify-between gap-3 text-xs"
+      >
+        <div class="flex items-center gap-2">
+          <i class="pi pi-refresh text-amber-600 animate-spin"></i>
+          <span
+            ><strong>Resposta não confirmada:</strong> Esta retentativa preservará a mesma chave de
+            idempotência e os mesmos dados.</span
+          >
+        </div>
+        <p-button
+          label="Descartar e editar"
+          [text]="true"
+          size="small"
+          (onClick)="discardRetry()"
+        />
+      </div>
+    }
+
+    <!-- CONTEXTO DA SOLICITAÇÃO (SEM EXPOR IDS CRUS) -->
+    <div class="flex flex-col gap-4 py-4">
+      <!-- CONTEXTO DA SOLICITAÇÃO (SEM EXPOR IDS CRUS) -->
+      <div
+        class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 rounded-lg bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center border border-primary-200/60 dark:border-primary-800/60 shrink-0"
+          >
+            <i [class]="fixedTypeIcon()" class="text-base"></i>
+          </div>
+          <div class="flex flex-col">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase">
+                {{ obraDisplay() }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <span
+            class="text-[11px] font-medium px-2.5 py-1 rounded border flex items-center gap-1.5"
+            [ngClass]="statusTagClass(detail()?.status)"
+          >
+            {{ statusLabel(detail()?.status) }}
+          </span>
+
+          @if (isAddition()) {
+            <span
+              class="text-[11px] font-medium px-2.5 py-1 rounded border flex items-center gap-1.5"
+              [ngClass]="separacaoTagClass(technical().statusSeparacao)"
+            >
+              {{ separacaoLabel(technical().statusSeparacao) }}
+            </span>
+          }
+
+          <span
+            class="text-[11px] font-medium px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5"
+          >
+            <i class="pi pi-box text-[10px] text-slate-500 dark:text-slate-400"></i>
+            {{ lines().length }} material(is)
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANNER DE BLOQUEIO SE HOUVER ENTREGA -->
+    @if (mode() === 'reserve' && hasDeliveryMovement()) {
+      <div
+        class="p-3 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2.5"
+      >
+        <i class="pi pi-ban text-rose-600 dark:text-rose-400 text-base shrink-0"></i>
+        <div class="flex flex-col gap-0.5">
+          <span class="font-bold">Alteração de Reserva Bloqueada</span>
+          <span class="text-[11px] text-rose-700/90 dark:text-rose-300/90"
+            >Esta solicitação já possui movimentação de entrega de material registrada. A alteração
+            ou vinculação de reserva externa está bloqueada.</span
+          >
+        </div>
+      </div>
+    }
+
+
+
+    <!-- ==================== MODO: RESERVA EXTERNA (STEPPER) ==================== -->
+    @if (mode() === 'reserve') {
+      <p-stepper [(value)]="activeStep">
+        <p-step-list>
+          <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" (click)="goToStep(1)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-bookmark text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-[var(--ces-brand)]' : 'text-slate-400'"
+                >
+                  Identificação da Reserva
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+
+          <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" (click)="goToStep(2)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-eye text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-[var(--ces-brand)]' : 'text-slate-400'"
+                >
+                  Revisão e Confirmação
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+        </p-step-list>
+
+        <p-step-panels>
+          <!-- ETAPA 1: DADOS DA RESERVA -->
+          <p-step-panel [value]="1">
+            <ng-template #content>
+              <div class="mt-4 flex flex-col gap-4">
+                <div class="section-marker">
+                  <span>1. Identificação da Reserva SAP / Concessionária</span>
+                </div>
+
+                <!-- Box Informativo -->
+                <div
+                  class="p-3 rounded-xl border border-blue-100 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30 text-blue-900 dark:text-blue-200 text-xs flex items-start gap-2.5"
+                >
+                  <i class="pi pi-info-circle text-primary-500 text-base shrink-0 mt-0.5"></i>
+                  <div class="flex flex-col gap-0.5">
+                    <span class="font-bold">
+                      {{
+                        technical().reserva
+                          ? 'Atualização de Reserva Externa'
+                          : 'Vínculo de Reserva Externa'
+                      }}
+                    </span>
+                    <span class="text-[11px] text-blue-800/80 dark:text-blue-300">
+                      Copie os dados exatamente como constam no sistema da concessionária (SAP /
+                      Concessionária). Eles serão vinculados à movimentação dos materiais.
+                    </span>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <!-- Número da Reserva -->
+                  <div class="field">
+                    <label>
+                      <i class="pi pi-bookmark text-primary-600 text-xs"></i>
+                      Número da Reserva Externa <span class="required-mark">*</span>
+                    </label>
+                    <input
+                      pInputText
+                      [ngModel]="reserveNumber()"
+                      (ngModelChange)="reserveNumber.set($event)"
+                      placeholder="Ex.: 80012345"
+                      class="w-full"
+                      size="small"
+                      maxlength="20"
+                    />
+                    <small class="text-[10px] text-slate-500">Até 20 dígitos numéricos.</small>
+                    @if (fieldError('numero')) {
+                      <span class="form-error">{{ fieldError('numero') }}</span>
+                    }
+                  </div>
+
+                  <!-- Data de Emissão -->
+                  <div class="field">
+                    <label>
+                      <i class="pi pi-calendar text-primary-600 text-xs"></i>
+                      Data de Emissão <span class="required-mark">*</span>
+                    </label>
+                    <p-datepicker
+                      [ngModel]="reserveDate()"
+                      (ngModelChange)="reserveDate.set($event)"
+                      dateFormat="dd/mm/yy"
+                      [showIcon]="true"
+                      iconDisplay="input"
+                      placeholder="DD/MM/AAAA"
+                      class="w-full"
+                      size="small"
+                      appendTo="body"
+                    />
+                    @if (fieldError('dataCriacao')) {
+                      <span class="form-error">{{ fieldError('dataCriacao') }}</span>
+                    }
+                  </div>
+
+                  <!-- Fiscal / Agente Responsável -->
+                  <div class="field sm:col-span-2">
+                    <label>
+                      <i class="pi pi-user-check text-primary-600 text-xs"></i>
+                      Fiscal ou Agente Responsável (Opcional)
+                    </label>
+                    <p-select
+                      [options]="agents()"
+                      [ngModel]="agentId()"
+                      (ngModelChange)="agentId.set($event)"
+                      optionLabel="label"
+                      optionValue="value"
+                      [filter]="true"
+                      [showClear]="true"
+                      [loading]="agentsLoading()"
+                      placeholder="Selecione o fiscal ou agente da concessionária..."
+                      class="w-full"
+                      size="small"
+                      appendTo="body"
+                    />
+                    <small class="text-[10px] text-slate-500"
+                      >Responsável pela autorização da reserva.</small
+                    >
+                    @if (agentsLoadError()) {
+                      <span class="text-[10px] text-amber-600">{{ agentsLoadError() }}</span>
+                    }
+                  </div>
+
+                  <!-- Justificativa / Observação -->
+                  <div class="field sm:col-span-2">
+                    @if (technical().reserva) {
+                      <label>
+                        <i class="pi pi-exclamation-circle text-amber-600 text-xs"></i>
+                        Justificativa da Alteração <span class="required-mark">*</span>
+                      </label>
+                      <textarea
+                        pTextarea
+                        [ngModel]="justification()"
+                        (ngModelChange)="justification.set($event)"
+                        placeholder="Descreva o motivo da alteração da reserva externa..."
+                        class="w-full !text-xs min-h-[60px]"
+                        maxlength="500"
+                        rows="2"
+                      ></textarea>
+                      <div class="flex justify-between items-center text-[10px] text-slate-400">
+                        <span>Obrigatória para o histórico de auditoria.</span>
+                        <span>{{ justification().length }}/500</span>
+                      </div>
+                      @if (fieldError('justificativa')) {
+                        <span class="form-error">{{ fieldError('justificativa') }}</span>
+                      }
+                    } @else {
+                      <label>
+                        <i class="pi pi-comment text-primary-600 text-xs"></i>
+                        Observações sobre a Reserva (Opcional)
+                      </label>
+                      <textarea
+                        pTextarea
+                        [ngModel]="justification()"
+                        (ngModelChange)="justification.set($event)"
+                        placeholder="Informações adicionais sobre o atendimento ou vínculo..."
+                        class="w-full !text-xs min-h-[60px]"
+                        maxlength="500"
+                        rows="2"
+                      ></textarea>
+                    }
+                  </div>
+                </div>
+
+                <div class="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <p-button
+                    label="Continuar para revisão"
+                    icon="pi pi-arrow-right"
+                    iconPos="right"
+                    size="small"
+                    severity="primary"
+                    (onClick)="nextStep()"
+                  />
+                </div>
+              </div>
+            </ng-template>
+          </p-step-panel>
+
+          <!-- ETAPA 2: REVISÃO DA RESERVA -->
+          <p-step-panel [value]="2">
+            <ng-template #content>
+              <div class="mt-4 flex flex-col gap-4">
+                <div class="section-marker">
+                  <span>2. Conferência dos Dados da Reserva</span>
+                </div>
+
+                <!-- Banner Didático de Orientações da Reserva -->
+                <div
+                  class="p-3 rounded-xl border border-blue-100 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 flex items-start gap-2.5 text-xs text-blue-900 dark:text-blue-200"
+                >
+                  <i
+                    class="pi pi-info-circle text-primary-600 dark:text-primary-400 text-sm mt-0.5 shrink-0"
+                  ></i>
+                  <div class="flex flex-col gap-0.5">
+                    <span class="font-semibold">{{
+                      technical().reserva
+                        ? 'Conferência de alteração da reserva externa'
+                        : 'Conferência de registro da reserva externa'
+                    }}</span>
+                    <span
+                      class="text-[11px] text-blue-800/80 dark:text-blue-300/80 leading-relaxed"
+                    >
+                      {{
+                        technical().reserva
+                          ? 'Revise os dados atualizados da reserva. A justificativa informada será anexada ao histórico de auditoria para rastreabilidade de estoque e fiscalização.'
+                          : 'A reserva externa vincula o atendimento ao fiscal e habilita a conferência e o rastreamento das movimentações de materiais integradas à obra.'
+                      }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Cards Estruturados de Revisão da Reserva -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <!-- Identificação da Reserva -->
+                  <div
+                    class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/40 flex flex-col gap-2"
+                  >
+                    <div
+                      class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider"
+                    >
+                      <i class="pi pi-ticket text-primary-500"></i>
+                      Identificação da Reserva
+                    </div>
+                    <div
+                      class="font-mono font-bold text-sm text-primary-700 dark:text-primary-300 pb-1.5 border-b border-slate-200/60 dark:border-slate-800 flex justify-between items-center"
+                    >
+                      <span>Nº {{ reserveNumber() }}</span>
+                      <span
+                        class="text-[10px] font-sans font-normal px-2 py-0.5 rounded bg-primary-100/60 dark:bg-primary-900/40 text-primary-800 dark:text-primary-300"
+                      >
+                        {{ technical().reserva ? 'Edição' : 'Novo Registro' }}
+                      </span>
+                    </div>
+                    <div class="flex flex-col gap-1.5 text-[11px]">
+                      <div class="flex justify-between items-center">
+                        <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <i class="pi pi-calendar text-[10px] text-slate-400"></i> Emissão:
+                        </span>
+                        <span class="font-medium text-slate-800 dark:text-slate-200">{{
+                          formattedReserveDate()
+                        }}</span>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <span class="text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <i class="pi pi-user text-[10px] text-slate-400"></i> Fiscal / Agente:
+                        </span>
+                        <span class="font-medium text-slate-800 dark:text-slate-200 text-right">{{
+                          selectedAgentName()
+                        }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Destino e Vinculação -->
+                  <div
+                    class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/40 flex flex-col gap-2"
+                  >
+                    <div
+                      class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider"
+                    >
+                      <i class="pi pi-building text-primary-500"></i>
+                      Destino e Vinculação
+                    </div>
+                    <div
+                      class="font-semibold text-xs text-slate-800 dark:text-slate-100 pb-1.5 border-b border-slate-200/60 dark:border-slate-800"
+                    >
+                      {{ obraDisplay() }}
+                    </div>
+                    <div class="flex flex-col gap-1.5 text-[11px]">
+                      <div class="flex justify-between items-center">
+                        <span class="text-slate-500 dark:text-slate-400">Tipo Técnico:</span>
+                        <span
+                          class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                          [ngClass]="
+                            isAddition()
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60'
+                              : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/60'
+                          "
+                        >
+                          <i [class]="fixedTypeIcon()" class="text-[9px]"></i>
+                          {{ fixedTypeLabel() }}
+                        </span>
+                      </div>
+                      <div class="flex justify-between items-center">
+                        <span class="text-slate-500 dark:text-slate-400">Status Atendimento:</span>
+                        <span class="font-medium text-slate-800 dark:text-slate-200">{{
+                          statusLabel(detail()?.status)
+                        }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                @if (justification()) {
+                  <div
+                    class="p-3.5 rounded-xl border"
+                    [ngClass]="
+                      technical().reserva
+                        ? 'border-amber-200 bg-amber-50/50 dark:border-amber-900/60 dark:bg-amber-950/30'
+                        : 'border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900/40'
+                    "
+                  >
+                    <div
+                      class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider mb-1"
+                      [ngClass]="
+                        technical().reserva
+                          ? 'text-amber-800 dark:text-amber-300'
+                          : 'text-slate-500 dark:text-slate-400'
+                      "
+                    >
+                      <i
+                        [class]="
+                          technical().reserva
+                            ? 'pi pi-history text-amber-600'
+                            : 'pi pi-comment text-slate-500'
+                        "
+                      ></i>
+                      {{
+                        technical().reserva
+                          ? 'Justificativa da Alteração da Reserva (Auditoria)'
+                          : 'Observações da Reserva'
+                      }}
+                    </div>
+                    <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {{ justification() }}
+                    </p>
+                  </div>
+                }
+
+                <div
+                  class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 text-xs flex items-center gap-2"
+                >
+                  <i class="pi pi-shield text-primary-500"></i>
+                  <span>
+                    {{
+                      technical().reserva
+                        ? 'A alteração da reserva será registrada no histórico de auditoria com data e responsável.'
+                        : 'Ao registrar, o número da reserva externa ficará consolidado nesta solicitação para conferência em campo.'
+                    }}
+                  </span>
+                </div>
+
+                <div
+                  class="flex justify-between pt-3 border-t border-slate-100 dark:border-slate-800"
+                >
+                  <p-button
+                    label="Voltar"
+                    icon="pi pi-arrow-left"
+                    [text]="true"
+                    severity="secondary"
+                    size="small"
+                    (onClick)="prevStep()"
+                  />
+                  <p-button
+                    [label]="
+                      technical().reserva
+                        ? 'Salvar Alteração da Reserva'
+                        : 'Registrar Reserva Externa'
+                    "
+                    icon="pi pi-check"
+                    [loading]="submitting()"
+                    [disabled]="!actionAllowed() || submitting()"
+                    size="small"
+                    severity="primary"
+                    (onClick)="submit()"
+                  />
+                </div>
+              </div>
+            </ng-template>
+          </p-step-panel>
+        </p-step-panels>
+      </p-stepper>
+    }
+
+    <!-- ==================== MODO: CONFIRMAR ENTREGA (STEPPER 3 ETAPAS) ==================== -->
+    @if (mode() === 'deliver') {
+      <p-stepper [(value)]="activeStep">
+        <p-step-list>
+          <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" (click)="goToStep(1)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-box text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-[var(--ces-brand)]' : 'text-slate-400'"
+                >
+                  Escopo & Materiais
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+
+          <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" (click)="goToStep(2)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-user text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-[var(--ces-brand)]' : 'text-slate-400'"
+                >
+                  Retirada & Reserva
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+        </p-step-list>
+
+        <p-step-panels>
+          <!-- ETAPA 1: ESCOPO & MATERIAIS -->
+          <p-step-panel [value]="1">
+            <ng-template #content>
+              <div class="mt-4 flex flex-col gap-4">
+                <div class="section-marker !mb-0">
+                  <span>1. Escopo da Entrega</span>
+                </div>
+
+                <!-- CARDS DE SELEÇÃO RÁPIDA: TOTAL OU PARCIAL -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <!-- Card Entregar Tudo -->
+                  <div
+                    class="border-2 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group"
+                    [ngClass]="deliveryMode() === 'all'
+                      ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 shadow-sm'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-primary-400 hover:bg-slate-50/50 dark:hover:bg-slate-900/50'"
+                    (click)="selectDeliveryMode('all')"
+                  >
+                    <div
+                      class="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+                      [ngClass]="deliveryMode() === 'all'
+                        ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:text-primary-600'"
+                    >
+                      <i class="pi pi-check-circle text-xl"></i>
+                    </div>
+                    <div class="text-center">
+                      <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">Entregar Tudo</span>
+                      <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
+                        Atender 100% do saldo pendente de todos os materiais
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Card Entrega Parcial -->
+                  <div
+                    class="border-2 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all group"
+                    [ngClass]="deliveryMode() === 'partial'
+                      ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-950/30 shadow-sm'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-primary-400 hover:bg-slate-50/50 dark:hover:bg-slate-900/50'"
+                    (click)="selectDeliveryMode('partial')"
+                  >
+                    <div
+                      class="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+                      [ngClass]="deliveryMode() === 'partial'
+                        ? 'bg-primary-100 dark:bg-primary-950/80 text-primary-600 dark:text-primary-400'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 group-hover:text-primary-600'"
+                    >
+                      <i class="pi pi-sliders-h text-xl"></i>
+                    </div>
+                    <div class="text-center">
+                      <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">Entrega Parcial</span>
+                      <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
+                        Ajustar materiais e quantidades a entregar
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- AVISO INFORMATIVO: SALDO NEGATIVO NA EQUIPE (NÃO BLOQUEIA) -->
+                <app-aviso-saldo-negativo-equipe
+                  [saldosNegativos]="saldosNegativosEquipe()"
+                  [idsMateriais]="idsMateriaisEntrega()"
+                  [equipe]="selectedTeam()?.codigo"
+                />
+
+                <!-- AVISO QUANDO TOTAL MAS COM MATERIAIS SERIADOS -->
+                @if (deliveryMode() === 'all' && hasSerialLines()) {
+                  <div class="p-3 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/70 dark:bg-sky-950/30 text-sky-800 dark:text-sky-200 text-xs flex items-center gap-2.5">
+                    <i class="pi pi-info-circle text-sky-600 dark:text-sky-400 text-base shrink-0"></i>
+                    <div class="flex flex-col gap-0.5">
+                      <span class="font-bold">Atenção para materiais seriados</span>
+                      <span class="text-[11px] text-sky-700 dark:text-sky-300">
+                        Esta solicitação possui materiais que exigem número de série. Preencha os números de série na tabela abaixo antes de prosseguir.
+                      </span>
+                    </div>
+                  </div>
+                }
+
+                <!-- BANNER QUANDO TOTAL SEM SERIADOS COM BOTÃO PARA REVISAR -->
+                @if (deliveryMode() === 'all' && !hasSerialLines()) {
+                  <div class="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 text-xs flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5">
+                      <i class="pi pi-check-circle text-emerald-600 dark:text-emerald-400 text-lg shrink-0"></i>
+                      <span>Todos os <strong>{{ lines().length }}</strong> materiais serão entregues integralmente (100% do saldo).</span>
+                    </div>
+                    <p-button
+                      [label]="showMaterialReview() ? 'Ocultar materiais' : 'Revisar materiais'"
+                      [text]="true"
+                      size="small"
+                      [icon]="showMaterialReview() ? 'pi pi-chevron-up' : 'pi pi-eye'"
+                      (onClick)="showMaterialReview.set(!showMaterialReview())"
+                    />
+                  </div>
+                }
+
+                <!-- TABELA DE MATERIAIS (SE PARCIAL, OU SE TIVER ITENS SERIADOS, OU SE O USUÁRIO SOLICITOU REVISAR) -->
+                @if (deliveryMode() === 'partial' || hasSerialLines() || showMaterialReview()) {
+                  <div class="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
+                    <p-table
+                      [value]="lines()"
+                      dataKey="uid"
+                      [rowTrackBy]="trackByLineUid"
+                      styleClass="p-datatable-sm"
+                      [scrollable]="true"
+                      scrollHeight="300px"
+                    >
+                      <ng-template pTemplate="header">
+                        <tr class="text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50/80 dark:bg-slate-800/50">
+                          <th style="min-width: 220px" class="py-2.5 px-3">Material</th>
+                          <th style="width: 90px" class="py-2.5 px-3 text-right">Saldo</th>
+                          <th style="width: 130px" class="py-2.5 px-3 text-center">Qtd. Entregar</th>
+                          <th style="width: 190px" class="py-2.5 px-3">Nº Série / Detalhe</th>
+                        </tr>
+                      </ng-template>
+
+                      <ng-template pTemplate="body" let-line let-rowIndex="rowIndex">
+                        <tr class="border-t border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 text-xs">
+                          <!-- Material -->
+                          <td class="py-2 px-3 align-middle">
+                            <div class="flex flex-col gap-1">
+                              <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="font-medium text-slate-800 dark:text-slate-200 leading-tight">
+                                  {{ line.label }}
+                                </span>
+                                @if (line.serialRequired) {
+                                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                                    SÉRIE
+                                  </span>
+                                }
+                              </div>
+                              @if (isFirstLineForItem(rowIndex) && saldoNegativoDoMaterial(line.idMaterial); as negativo) {
+                                <div>
+                                  <ces-status tone="warning">
+                                    Saldo {{ negativo.quantidade | number: '1.0-3' }} {{ negativo.unidadeMedida }} na equipe
+                                  </ces-status>
+                                </div>
+                              }
+                              @if (deliveryMode() === 'partial' && isFirstLineForItem(rowIndex)) {
+                                <label class="inline-flex items-center gap-1.5 text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    class="rounded border-slate-300 text-primary-600 focus:ring-0 cursor-pointer"
+                                    [checked]="isItemFullySelected(line.idItemSolicitacao)"
+                                    [disabled]="locked()"
+                                    (change)="toggleItemFullySelected(rowIndex, $any($event.target).checked)"
+                                  />
+                                  Entregar saldo completo deste material
+                                </label>
+                              }
+                            </div>
+                          </td>
+
+                          <!-- Saldo -->
+                          <td class="py-2 px-3 align-middle text-right font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                            {{ line.max | number: (line.serialRequired ? '1.0-0' : '1.3-3') }}
+                          </td>
+
+                          <!-- Quantidade a Entregar -->
+                          <td class="py-2 px-3 align-middle text-center">
+                            @if (line.serialRequired) {
+                              <span class="inline-flex items-center justify-center font-mono font-bold text-xs px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                1 un
+                              </span>
+                            } @else {
+                              <p-inputNumber
+                                [ngModel]="line.quantity"
+                                (ngModelChange)="updateLine(rowIndex, { quantity: $event })"
+                                [min]="0"
+                                [max]="line.max"
+                                [step]="0.001"
+                                [minFractionDigits]="0"
+                                [maxFractionDigits]="3"
+                                placeholder="0,000"
+                                class="w-full text-right"
+                                size="small"
+                              />
+                            }
+                          </td>
+
+                          <!-- Número de Série & Ações -->
+                          <td class="py-2 px-3 align-middle">
+                            @if (line.serialRequired) {
+                              <div class="flex items-center gap-1.5">
+                                <input
+                                  pInputText
+                                  [ngModel]="line.numeroSerie"
+                                  (ngModelChange)="updateLine(rowIndex, { numeroSerie: $event })"
+                                  placeholder="Nº de série..."
+                                  class="w-full uppercase !text-xs !py-1 !px-2"
+                                  size="small"
+                                />
+                                @if (canAddSerialUnit(line)) {
+                                  <button
+                                    type="button"
+                                    (click)="addSerialLine(line)"
+                                    pTooltip="Adicionar unidade deste material"
+                                    tooltipPosition="top"
+                                    class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0 cursor-pointer"
+                                  >
+                                    <i class="pi pi-plus text-[10px]"></i>
+                                  </button>
+                                }
+                                @if (canRemoveSerialUnit(line)) {
+                                  <button
+                                    type="button"
+                                    (click)="removeLine(rowIndex)"
+                                    pTooltip="Remover unidade seriada"
+                                    tooltipPosition="top"
+                                    class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 transition-colors shrink-0 cursor-pointer"
+                                  >
+                                    <i class="pi pi-trash text-[10px]"></i>
+                                  </button>
+                                }
+                              </div>
+                            } @else {
+                              <span class="text-[11px] text-slate-400 dark:text-slate-600 italic">Não seriado</span>
+                            }
+                          </td>
+                        </tr>
+                      </ng-template>
+
+                      <ng-template pTemplate="emptymessage">
+                        <tr>
+                          <td colspan="4" class="text-center py-6 text-xs text-slate-400">
+                            Nenhum material pendente para entrega.
+                          </td>
+                        </tr>
+                      </ng-template>
+                    </p-table>
+                  </div>
+                }
+
+                @if (fieldError('itens')) {
+                  <div class="p-2.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                    <i class="pi pi-exclamation-circle text-rose-500 text-sm shrink-0"></i>
+                    <span>{{ fieldError('itens') }}</span>
+                  </div>
+                }
+
+                <!-- RODAPÉ DA ETAPA 1 -->
+                <div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800 mt-2">
+                  <div class="text-xs text-slate-500">
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">{{ selectedItemsCount() }}</span>
+                    linha(s) configurada(s) para entrega
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <p-button
+                      label="Cancelar"
+                      [text]="true"
+                      severity="secondary"
+                      size="small"
+                      [disabled]="submitting()"
+                      (onClick)="close()"
+                    />
+                    <p-button
+                      label="Pendência"
+                      icon="pi pi-exclamation-triangle"
+                      [text]="true"
+                      severity="warn"
+                      size="small"
+                      [disabled]="submitting()"
+                      (onClick)="abrirModalPendencia()"
+                    />
+                    <p-button
+                      label="Avançar para Retirada"
+                      icon="pi pi-arrow-right"
+                      iconPos="right"
+                      size="small"
+                      severity="primary"
+                      (onClick)="nextStep()"
+                    />
+                  </div>
+                </div>
+              </div>
+            </ng-template>
+          </p-step-panel>
+
+          <!-- ETAPA 2: RETIRADA & RESERVA -->
+          <p-step-panel [value]="2">
+            <ng-template #content>
+              <div class="mt-4 flex flex-col gap-4">
+                <div class="section-marker !mb-0">
+                  <span>2. Identificação da Retirada e Reserva SAP</span>
+                </div>
+
+                <app-aviso-saldo-negativo-equipe
+                  [saldosNegativos]="saldosNegativosEquipe()"
+                  [idsMateriais]="idsMateriaisEntrega()"
+                  [equipe]="selectedTeam()?.codigo"
+                />
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- CARD DADOS DA RETIRADA -->
+                  <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col gap-3.5 shadow-2xs">
+                    <div class="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <i class="pi pi-users text-primary-600"></i>
+                      <span>Dados da Retirada</span>
+                    </div>
+
+                    <!-- Equipe Receptora -->
+                    <div class="field">
+                      <label>
+                        Equipe Receptora <span class="required-mark">*</span>
+                      </label>
+                      <p-select
+                        [options]="teamOptions()"
+                        [ngModel]="deliveryTeamId()"
+                        (ngModelChange)="onDeliveryTeamChange($event)"
+                        optionLabel="label"
+                        optionValue="value"
+                        [filter]="true"
+                        [loading]="teamsLoading()"
+                        [disabled]="locked()"
+                        placeholder="Selecione a equipe de campo..."
+                        class="w-full"
+                        size="small"
+                        appendTo="body"
+                      />
+                      @if (fieldError('idEquipe')) {
+                        <span class="form-error">{{ fieldError('idEquipe') }}</span>
+                      }
+                    </div>
+
+                    <!-- Responsável pelo Saque -->
+                    <div class="field">
+                      <div class="flex items-center justify-between pb-1">
+                        <label for="delivery-withdrawal-collaborator" class="!mb-0">
+                          Responsável pelo Saque <span class="required-mark">*</span>
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-600 dark:text-slate-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            [checked]="withdrawalOutsideTeam()"
+                            [disabled]="locked()"
+                            (change)="onWithdrawalOutsideTeamChange($any($event.target).checked)"
+                          />
+                          Fora da equipe
+                        </label>
+                      </div>
+
+                      @if (withdrawalOutsideTeam()) {
+                        <ces-autocomplete
+                          label="Colaborador responsável pelo saque"
+                          [labelVisible]="false"
+                          inputId="delivery-withdrawal-collaborator"
+                          [options]="withdrawalOptions()"
+                          [ngModel]="withdrawalCollaboratorId()"
+                          (ngModelChange)="onWithdrawalCollaboratorChange($event)"
+                          [clearable]="true"
+                          [loading]="withdrawalLookupLoading()"
+                          [status]="withdrawalRemoteStatus()"
+                          [error]="withdrawalRemoteError()"
+                          [minLength]="2"
+                          [forceSelection]="true"
+                          [virtualScroll]="true"
+                          [virtualScrollItemSize]="38"
+                          [disabled]="locked()"
+                          placeholder="Buscar colaborador ativo..."
+                          class="w-full"
+                          appendTo="body"
+                          (search)="searchWithdrawalCollaborators($event)"
+                          (loadMore)="loadMoreWithdrawalCollaborators()"
+                          (retry)="retryWithdrawalCollaborators()"
+                        />
+                      } @else {
+                        <p-select
+                          [options]="withdrawalOptions()"
+                          [ngModel]="withdrawalCollaboratorId()"
+                          (ngModelChange)="onWithdrawalCollaboratorChange($event)"
+                          optionLabel="label"
+                          optionValue="value"
+                          [filter]="true"
+                          [loading]="withdrawalTeamLoading()"
+                          [disabled]="locked() || !deliveryTeamId() || withdrawalTeamLoading()"
+                          placeholder="Selecione o membro da equipe..."
+                          class="w-full"
+                          size="small"
+                          appendTo="body"
+                        />
+                      }
+                      @if (fieldError('idColaboradorSaque')) {
+                        <span class="form-error">{{ fieldError('idColaboradorSaque') }}</span>
+                      }
+                      @if (withdrawalLookupError()) {
+                        <span class="text-[10px] text-amber-700 dark:text-amber-300">{{ withdrawalLookupError() }}</span>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- CARD RESERVA EXTERNA SAP -->
+                  <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col gap-3.5 shadow-2xs">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        <i class="pi pi-bookmark text-primary-600"></i>
+                        <span>Reserva SAP / Concessionária</span>
+                      </div>
+                      @if (!technical().reserva) {
+                        @if (isReserveRequired()) {
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                            Obrigatória
+                          </span>
+                        } @else {
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-900">
+                            Opcional (OC/OS)
+                          </span>
+                        }
+                      }
+                    </div>
+
+                    @if (technical().reserva; as reserva) {
+                      <div class="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 flex items-center justify-between gap-3 text-xs text-emerald-900 dark:text-emerald-200">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                          <i class="pi pi-bookmark text-emerald-600 dark:text-emerald-400 text-lg shrink-0"></i>
+                          <div class="flex flex-col truncate">
+                            <span class="font-bold truncate">Reserva SAP Vinculada</span>
+                            <span class="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 font-mono font-medium truncate">
+                              Nº {{ reserva.numero }} · {{ reserva.dataCriacao | date: 'dd/MM/yyyy' }}
+                            </span>
+                          </div>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-emerald-200/80 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 shrink-0">
+                          Conferida
+                        </span>
+                      </div>
+                      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-auto">
+                        A reserva desta solicitação já foi registrada previamente e está associada a esta entrega.
+                      </p>
+                    } @else {
+                      @if (isReserveRequired()) {
+                        <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-tight">
+                          Para esta obra, a entrega dos materiais <strong>exige obrigatoriamente</strong> o número da reserva gerada no sistema da concessionária (SAP).
+                        </p>
+                      } @else {
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                          Esta obra está vinculada a <strong>OC/OS</strong> ({{ technical().tipoObra }}). Caso possua a reserva SAP gerada, informe-a abaixo (opcional):
+                        </p>
+                      }
+                      <div class="flex flex-col gap-2.5">
+                        <div class="field !mb-0">
+                          <label>
+                            Nº da Reserva SAP
+                            @if (isReserveRequired()) {
+                              <span class="required-mark">*</span>
+                            } @else {
+                              <span class="text-[10px] font-normal text-slate-400">(Opcional)</span>
+                            }
+                          </label>
+                          <input
+                            pInputText
+                            [ngModel]="reserveNumber()"
+                            (ngModelChange)="reserveNumber.set($event)"
+                            [placeholder]="isReserveRequired() ? 'Até 20 dígitos numéricos (obrigatório)' : 'Até 20 dígitos numéricos (opcional)'"
+                            class="w-full"
+                            size="small"
+                            maxlength="20"
+                          />
+                          @if (fieldError('numeroReserva')) {
+                            <span class="form-error">{{ fieldError('numeroReserva') }}</span>
+                          }
+                        </div>
+                        <div class="field !mb-0">
+                          <label>
+                            Data de Emissão
+                            @if (isReserveRequired()) {
+                              <span class="required-mark">*</span>
+                            }
+                          </label>
+                          <p-datepicker
+                            [ngModel]="reserveDate()"
+                            (ngModelChange)="reserveDate.set($event)"
+                            dateFormat="dd/mm/yy"
+                            [showIcon]="true"
+                            iconDisplay="input"
+                            placeholder="Data de emissão"
+                            class="w-full"
+                            size="small"
+                            appendTo="body"
+                          />
+                          @if (fieldError('dataReserva')) {
+                            <span class="form-error">{{ fieldError('dataReserva') }}</span>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- RODAPÉ DA ETAPA 2 -->
+                <div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800 mt-2">
+                  <p-button
+                    label="Voltar para Materiais"
+                    icon="pi pi-arrow-left"
+                    [text]="true"
+                    severity="secondary"
+                    size="small"
+                    (onClick)="prevStep()"
+                  />
+                  <p-button
+                    label="Confirmar Entrega"
+                    icon="pi pi-check"
+                    iconPos="right"
+                    size="small"
+                    severity="primary"
+                    [disabled]="!actionAllowed()"
+                    (onClick)="confirmDeliveryStep()"
+                  />
+                </div>
+              </div>
+            </ng-template>
+          </p-step-panel>
+        </p-step-panels>
+      </p-stepper>
+    }
+
+    <!-- ==================== MODO: CONFIRMAR DEVOLUÇÃO ==================== -->
+    @if (mode() === 'return') {
+      <div class="flex flex-col gap-4">
+        <div class="section-marker">
+          <span>Recebimento de Devolução ao Estoque</span>
+        </div>
+
+        <div
+          class="p-3 rounded-xl border border-amber-100 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5"
+        >
+          <i class="pi pi-inbox text-amber-600 text-base shrink-0 mt-0.5"></i>
+          <div class="flex flex-col gap-0.5">
+            <span class="font-bold">Recebimento físico de devolução</span>
+            <span class="text-[11px] text-amber-800/80 dark:text-amber-300">
+              Informe as quantidades que saem do estoque da equipe e retornam ao almoxarifado,
+              indicando se o material retorna novo ou como sucata.
+            </span>
+          </div>
+        </div>
+
+        <!-- CARD RESERVA SAP EM DEVOLUÇÃO -->
+        <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col gap-3.5 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+              <i class="pi pi-bookmark text-primary-600"></i>
+              <span>Reserva SAP / Concessionária</span>
+            </div>
+            @if (!technical().reserva) {
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-900">
+                Opcional
+              </span>
+            }
+          </div>
+
+          @if (technical().reserva; as reserva) {
+            <div class="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 flex items-center justify-between gap-3 text-xs text-emerald-900 dark:text-emerald-200">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <i class="pi pi-bookmark text-emerald-600 dark:text-emerald-400 text-lg shrink-0"></i>
+                <div class="flex flex-col truncate">
+                  <span class="font-bold truncate">Reserva SAP Vinculada</span>
+                  <span class="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 font-mono font-medium truncate">
+                    Nº {{ reserva.numero }} · {{ reserva.dataCriacao | date: 'dd/MM/yyyy' }}
+                  </span>
+                </div>
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-emerald-200/80 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 shrink-0">
+                Conferida
+              </span>
+            </div>
+          } @else {
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+              A reserva externa não é obrigatória para confirmação de devolução. Caso confirmada sem reserva, os materiais serão marcados automaticamente com <strong>Pendente Reserva</strong>.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="field !mb-0 flex-1">
+                <label>
+                  Nº da Reserva SAP
+                  <span class="text-[10px] font-normal text-slate-400">(Opcional)</span>
+                </label>
+                <input
+                  pInputText
+                  [ngModel]="reserveNumber()"
+                  (ngModelChange)="reserveNumber.set($event)"
+                  placeholder="Até 20 dígitos numéricos (opcional)"
+                  class="w-full"
+                  size="small"
+                  maxlength="20"
+                />
+                @if (fieldError('numeroReserva')) {
+                  <span class="form-error">{{ fieldError('numeroReserva') }}</span>
+                }
+              </div>
+              <div class="field !mb-0 flex-1">
+                <label>Data de Emissão</label>
+                <p-datepicker
+                  [ngModel]="reserveDate()"
+                  (ngModelChange)="reserveDate.set($event)"
+                  dateFormat="dd/mm/yy"
+                  [showIcon]="true"
+                  iconDisplay="input"
+                  placeholder="Data de emissão"
+                  class="w-full"
+                  size="small"
+                  appendTo="body"
+                />
+                @if (fieldError('dataReserva')) {
+                  <span class="form-error">{{ fieldError('dataReserva') }}</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="flex flex-col gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+          @for (line of lines(); track line.uid; let index = $index) {
+            <div
+              class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col gap-2"
+            >
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <span class="font-medium text-xs text-slate-800 dark:text-slate-200">{{
+                  line.label
+                }}</span>
+                <span
+                  class="text-[11px] font-medium px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-100 dark:border-amber-900/50"
+                >
+                  Saldo: {{ line.max | number: '1.3-3' }}
+                </span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                <div
+                  [ngClass]="line.serialRequired ? 'sm:col-span-4' : 'sm:col-span-8'"
+                  class="field"
+                >
+                  <label>
+                    <i class="pi pi-calculator text-primary-600 text-xs"></i>
+                    Quantidade devolvida
+                  </label>
+                  <p-inputNumber
+                    [ngModel]="line.quantity"
+                    (ngModelChange)="updateLine(index, { quantity: $event })"
+                    [min]="0"
+                    [max]="line.max"
+                    [step]="line.serialRequired ? 1 : 0.001"
+                    [minFractionDigits]="line.serialRequired ? 0 : 3"
+                    [maxFractionDigits]="line.serialRequired ? 0 : 3"
+                    placeholder="0,000"
+                    class="w-full"
+                    size="small"
+                  />
+                </div>
+                <div [ngClass]="line.serialRequired ? 'sm:col-span-3' : 'sm:col-span-4'" class="field">
+                  <label>
+                    <i class="pi pi-tag text-primary-600 text-xs"></i>
+                    Condição
+                  </label>
+                  <p-select
+                    [options]="[
+                      { label: 'Novo', value: 'NOVO' },
+                      { label: 'Sucata', value: 'SUCATA' }
+                    ]"
+                    [ngModel]="line.condition"
+                    (ngModelChange)="updateLine(index, { condition: $event })"
+                    optionLabel="label"
+                    optionValue="value"
+                    class="w-full"
+                    size="small"
+                    appendTo="body"
+                  />
+                </div>
+                @if (line.serialRequired) {
+                  <div class="sm:col-span-3 field">
+                    <label>
+                      <i class="pi pi-barcode text-primary-600 text-xs"></i>
+                      Número de série <span class="required-mark">*</span>
+                    </label>
+                    <input
+                      pInputText
+                      [ngModel]="line.numeroSerie"
+                      (ngModelChange)="updateLine(index, { numeroSerie: $event })"
+                      placeholder="Nº de série..."
+                      class="w-full uppercase"
+                      size="small"
+                    />
+                  </div>
+                  <div class="sm:col-span-2 flex items-center gap-1">
+                    <p-button
+                      icon="pi pi-plus"
+                      label="Unidade"
+                      [text]="true"
+                      size="small"
+                      (onClick)="addSerialLine(line)"
+                      pTooltip="Adicionar outra unidade seriada"
+                    />
+                    @if ($count > 1) {
+                      <button
+                        type="button"
+                        (click)="removeLine(index)"
+                        pTooltip="Remover unidade"
+                        class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 transition-colors cursor-pointer"
+                      >
+                        <i class="pi pi-trash text-xs"></i>
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (fieldError('itens')) {
+          <span class="form-error">{{ fieldError('itens') }}</span>
+        }
+
+        <div
+          class="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800"
+        >
+          <p-button
+            label="Cancelar"
+            [text]="true"
+            severity="secondary"
+            size="small"
+            (onClick)="close()"
+          />
+          <p-button
+            label="Confirmar Devolução"
+            icon="pi pi-check"
+            size="small"
+            severity="primary"
+            [loading]="submitting()"
+            [disabled]="!actionAllowed() || submitting()"
+            (onClick)="submit()"
+          />
+        </div>
+      </div>
+    }
+
+    <!-- ==================== MODO: ESTORNAR OPERAÇÃO ==================== -->
+    @if (mode() === 'reverse') {
+      <div class="flex flex-col gap-4">
+        <div class="section-marker">
+          <span>Estorno Compensatório de Operação</span>
+        </div>
+
+        <div
+          class="p-3 rounded-xl border border-amber-100 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5"
+        >
+          <i class="pi pi-exclamation-triangle text-amber-600 text-base shrink-0 mt-0.5"></i>
+          <div class="flex flex-col gap-0.5">
+            <span class="font-bold">Correção de lançamento físico</span>
+            <span class="text-[11px] text-amber-800/80 dark:text-amber-300">
+              O estorno cria uma nova operação compensatória para correção de lançamentos físicos. O
+              lançamento anterior é preservado no histórico.
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+          <div class="field">
+            <label>
+              <i class="pi pi-history text-primary-600 text-xs"></i>
+              Operação original <span class="required-mark">*</span>
+            </label>
+            <p-select
+              [options]="operationOptions()"
+              [ngModel]="originalOperationId()"
+              (ngModelChange)="selectOperation($event)"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Selecione a operação a ser estornada..."
+              class="w-full"
+              size="small"
+              appendTo="body"
+            />
+            @if (fieldError('idOperacaoOriginal')) {
+              <span class="form-error">{{ fieldError('idOperacaoOriginal') }}</span>
+            }
+          </div>
+
+          @if (lines().length) {
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >Itens para estorno</span
+              >
+              @for (line of lines(); track line.uid; let index = $index) {
+                <div
+                  class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between gap-3"
+                >
+                  <div class="flex flex-col">
+                    <span class="font-medium text-xs text-slate-800 dark:text-slate-200">{{
+                      line.label
+                    }}</span>
+                    @if (line.numeroSerie) {
+                      <span class="text-[10px] text-slate-500">Série: {{ line.numeroSerie }}</span>
+                    }
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-slate-400">Máx: {{ line.max }}</span>
+                    <p-inputNumber
+                      [ngModel]="line.quantity"
+                      (ngModelChange)="updateLine(index, { quantity: $event })"
+                      [min]="0"
+                      [max]="line.max"
+                      [step]="line.serialRequired ? 1 : 0.001"
+                      [minFractionDigits]="line.serialRequired ? 0 : 3"
+                      [maxFractionDigits]="line.serialRequired ? 0 : 3"
+                      size="small"
+                      inputStyleClass="!w-24 !text-right !text-xs !py-1 !font-mono !font-medium"
+                    />
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <div class="field">
+            <label>
+              <i class="pi pi-comment text-primary-600 text-xs"></i>
+              Motivo do estorno <span class="required-mark">*</span>
+            </label>
+            <textarea
+              pTextarea
+              [ngModel]="reason()"
+              (ngModelChange)="reason.set($event)"
+              placeholder="Descreva detalhadamente o motivo do estorno..."
+              class="w-full !text-xs min-h-[65px]"
+              maxlength="500"
+              rows="2"
+            ></textarea>
+            <div class="flex justify-between items-center text-[10px] text-slate-400">
+              <span>Registrado no histórico de auditoria.</span>
+              <span>{{ reason().length }}/500</span>
+            </div>
+            @if (fieldError('motivo')) {
+              <span class="form-error">{{ fieldError('motivo') }}</span>
+            }
+          </div>
+        </div>
+
+        <div
+          class="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800"
+        >
+          <p-button
+            label="Cancelar"
+            [text]="true"
+            severity="secondary"
+            size="small"
+            (onClick)="close()"
+          />
+          <p-button
+            label="Confirmar Estorno"
+            icon="pi pi-check"
+            size="small"
+            severity="primary"
+            [loading]="submitting()"
+            [disabled]="!actionAllowed() || submitting() || !reason().trim()"
+            (onClick)="submit()"
+          />
+        </div>
+      </div>
+    }
+
+    <!-- ==================== MODO: ENCERRAR SALDO ==================== -->
+    @if (mode() === 'close') {
+      <div class="flex flex-col gap-4">
+        <div class="section-marker">
+          <span>Encerramento de Saldo Remanescente</span>
+        </div>
+
+        <div
+          class="p-3 rounded-xl border border-red-100 dark:border-red-900 bg-red-50/60 dark:bg-red-950/30 text-red-900 dark:text-red-200 text-xs flex items-start gap-2.5"
+        >
+          <i class="pi pi-exclamation-circle text-red-600 text-base shrink-0 mt-0.5"></i>
+          <div class="flex flex-col gap-0.5">
+            <span class="font-bold">Ação Definitiva</span>
+            <span class="text-[11px] text-red-800/80 dark:text-red-300">
+              O saldo pendente não poderá mais ser atendido ou devolvido. Esta ação é definitiva e
+              encerra a solicitação.
+            </span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>
+            <i class="pi pi-comment text-primary-600 text-xs"></i>
+            Motivo do encerramento <span class="required-mark">*</span>
+          </label>
+          <textarea
+            pTextarea
+            [ngModel]="reason()"
+            (ngModelChange)="reason.set($event)"
+            placeholder="Informe o motivo pelo qual o saldo não será mais atendido..."
+            class="w-full !text-xs min-h-[75px]"
+            maxlength="500"
+            rows="3"
+          ></textarea>
+          <div class="flex justify-between items-center text-[10px] text-slate-400">
+            <span>Registrado no histórico da solicitação.</span>
+            <span>{{ reason().length }}/500</span>
+          </div>
+          @if (fieldError('motivo')) {
+            <span class="form-error">{{ fieldError('motivo') }}</span>
+          }
+        </div>
+
+        <div
+          class="flex justify-between items-center pt-3 border-t border-slate-100 dark:border-slate-800"
+        >
+          <p-button
+            label="Cancelar"
+            [text]="true"
+            severity="secondary"
+            size="small"
+            (onClick)="close()"
+          />
+          <p-button
+            label="Encerrar Saldo"
+            icon="pi pi-lock"
+            severity="danger"
+            size="small"
+            [loading]="submitting()"
+            [disabled]="!actionAllowed() || submitting() || !reason().trim()"
+            (onClick)="submit()"
+          />
+        </div>
+      </div>
+    }
+  </div>
+</ces-dialog-shell>
+
+  <app-solicitacao-pendencia-modal
+    [(visible)]="pendenciaModalVisible"
+    [idSolicitacao]="detail()?.id ?? ''"
+    [itens]="detail()?.itens ?? []"
+    [idItem]="pendenciaModalItemId()"
+    [itemLabel]="pendenciaModalItemLabel()"
+    [motivoAtual]="pendenciaModalMotivoAtual()"
+    [justificativaAtual]="pendenciaModalJustificativaAtual()"
+    (pendenciaSalva)="onPendenciaAtualizada()"
+    (pendenciaResolvida)="onPendenciaAtualizada()"
+  />
+
+<!-- Modal de Tipo de Assinatura (Física ou Digital) -->
+<p-dialog
+  [visible]="displaySignatureTypeModal()"
+  (visibleChange)="displaySignatureTypeModal.set($event)"
+  [modal]="true"
+  header="Tipo de Assinatura"
+  [style]="{ width: '95vw', maxWidth: '500px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+>
+  <div class="flex flex-col gap-6 p-2">
+    <div class="text-center">
+      <h3 class="text-base font-bold text-slate-900 dark:text-slate-100">Como as partes irão assinar?</h3>
+      <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+        Selecione o método de assinatura para esta entrega. Ambas as partes devem utilizar o mesmo método.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Opção Física -->
+      <div
+        class="border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all group"
+        (click)="selectSignatureType('FISICA')"
+      >
+        <div
+          class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/60 flex items-center justify-center transition-colors"
+        >
+          <i
+            class="pi pi-file-edit text-xl text-slate-500 dark:text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors"
+          ></i>
+        </div>
+        <div class="text-center">
+          <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">Assinatura Física</span>
+          <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
+            Será impresso e assinado<br />manualmente em papel
+          </span>
+        </div>
+      </div>
+
+      <!-- Opção Digital -->
+      <div
+        class="border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all group"
+        (click)="selectSignatureType('DIGITAL')"
+      >
+        <div
+          class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/60 flex items-center justify-center transition-colors"
+        >
+          <i
+            class="pi pi-tablet text-xl text-slate-500 dark:text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors"
+          ></i>
+        </div>
+        <div class="text-center">
+          <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">Assinatura Digital</span>
+          <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
+            Assinatura eletrônica<br />direto no dispositivo
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</p-dialog>
+
+<!-- Modal de Painel de Assinatura Digital -->
+<p-dialog
+  [visible]="displayDigitalSignatureDashboard()"
+  (visibleChange)="displayDigitalSignatureDashboard.set($event)"
+  [modal]="true"
+  header="Assinaturas Digitais"
+  [style]="{ width: '95vw', maxWidth: '600px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+>
+  <div class="flex flex-col gap-6 p-2">
+    <div class="text-center">
+      <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
+        Painel de Assinaturas
+      </h3>
+      <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+        Ambas as partes precisam realizar a assinatura eletrônica para finalizar a entrega.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Slot Almoxarifado -->
+      <div class="flex flex-col gap-2">
+        <label class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-center">Almoxarifado</label>
+
+        @if (isBase64(signatureWarehouse())) {
+          <div
+            class="border-2 border-emerald-200 dark:border-emerald-800/80 rounded-2xl p-4 bg-emerald-50/40 dark:bg-emerald-950/30 flex flex-col items-center gap-3 relative"
+          >
+            <img [src]="signatureWarehouse()" class="h-16 object-contain" alt="Assinatura Almox" />
+            <span
+              class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider bg-white dark:bg-slate-900 px-3 py-1 rounded-full shadow-2xs border border-emerald-200 dark:border-emerald-800"
+            >Assinado</span>
+            <p-button
+              icon="pi pi-refresh"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              class="absolute top-2 right-2"
+              (onClick)="openSignaturePad('almox')"
+              pTooltip="Refazer Assinatura"
+            />
+          </div>
+        } @else {
+          <div
+            class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 cursor-pointer hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all group"
+            (click)="openSignaturePad('almox')"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/60 flex items-center justify-center transition-colors"
+            >
+              <i class="pi pi-user text-lg text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-300"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-primary-600 dark:group-hover:text-primary-300">
+              Assinar agora
+            </span>
+          </div>
+        }
+        @if (fieldError('assinaturaAlmox')) {
+          <span class="form-error text-center">{{ fieldError('assinaturaAlmox') }}</span>
+        }
+      </div>
+
+      <!-- Slot Equipe -->
+      <div class="flex flex-col gap-2">
+        <label class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-center">Equipe / Requisitante</label>
+
+        @if (isBase64(signatureTeam())) {
+          <div
+            class="border-2 border-emerald-200 dark:border-emerald-800/80 rounded-2xl p-4 bg-emerald-50/40 dark:bg-emerald-950/30 flex flex-col items-center gap-3 relative"
+          >
+            <img [src]="signatureTeam()" class="h-16 object-contain" alt="Assinatura Equipe" />
+            <span
+              class="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider bg-white dark:bg-slate-900 px-3 py-1 rounded-full shadow-2xs border border-emerald-200 dark:border-emerald-800"
+            >Assinado</span>
+            <p-button
+              icon="pi pi-refresh"
+              [rounded]="true"
+              [text]="true"
+              severity="secondary"
+              class="absolute top-2 right-2"
+              (onClick)="openSignaturePad('equipe')"
+              pTooltip="Refazer Assinatura"
+            />
+          </div>
+        } @else {
+          <div
+            class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 flex flex-col items-center justify-center gap-2.5 cursor-pointer hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-all group"
+            (click)="openSignaturePad('equipe')"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/60 flex items-center justify-center transition-colors"
+            >
+              <i class="pi pi-users text-lg text-slate-400 group-hover:text-primary-600 dark:group-hover:text-primary-300"></i>
+            </div>
+            <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-primary-600 dark:group-hover:text-primary-300">
+              Assinar agora
+            </span>
+          </div>
+        }
+        @if (fieldError('assinaturaEquipe')) {
+          <span class="form-error text-center">{{ fieldError('assinaturaEquipe') }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="mt-4 border-t border-slate-200 dark:border-slate-700 pt-4 flex items-center justify-end gap-2.5">
+      <p-button
+        label="Voltar"
+        [text]="true"
+        severity="secondary"
+        size="small"
+        [disabled]="submitting()"
+        (onClick)="displayDigitalSignatureDashboard.set(false); displaySignatureTypeModal.set(true)"
+      />
+      <p-button
+        label="Finalizar Entrega Digital"
+        icon="pi pi-check-circle"
+        size="small"
+        severity="primary"
+        [loading]="submitting()"
+        [disabled]="submitting() || !isBase64(signatureWarehouse()) || !isBase64(signatureTeam())"
+        (onClick)="submit()"
+      />
+    </div>
+  </div>
+</p-dialog>
+
+<!-- Modal de Assinatura Digital (Canvas Pad) -->
+<p-dialog
+  [visible]="displaySignatureModal()"
+  (visibleChange)="displaySignatureModal.set($event)"
+  [modal]="true"
+  [header]="currentSignatureField() === 'almox' ? 'Assinatura do Almoxarife' : 'Assinatura da Equipe'"
+  [style]="{ width: '95vw', maxWidth: '600px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+  (onHide)="closeSignaturePad()"
+>
+  <div class="flex flex-col gap-4">
+    <div class="bg-primary-50/60 dark:bg-primary-950/40 p-3.5 rounded-xl border border-primary-200 dark:border-primary-800 flex items-start gap-3">
+      <i class="pi pi-pencil text-primary-600 dark:text-primary-400 mt-0.5 text-base"></i>
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs font-bold text-primary-800 dark:text-primary-200 uppercase tracking-wider">Área de Assinatura</span>
+        <p class="text-xs text-primary-700 dark:text-primary-300 leading-relaxed">
+          Use o mouse ou o dedo para desenhar a sua assinatura na área abaixo.
+        </p>
+      </div>
+    </div>
+
+    <div
+      class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 flex justify-center items-center relative overflow-hidden"
+      style="height: 250px"
+    >
+      <canvas
+        #signatureCanvas
+        class="w-full h-full cursor-crosshair touch-none"
+        (mousedown)="startDrawing($event)"
+        (mousemove)="draw($event)"
+        (mouseup)="stopDrawing()"
+        (mouseout)="stopDrawing()"
+        (touchstart)="startDrawing($event)"
+        (touchmove)="draw($event)"
+        (touchend)="stopDrawing()"
+        (touchcancel)="stopDrawing()"
+      ></canvas>
+      <div class="absolute bottom-2 right-2 flex gap-2">
+        <p-button
+          icon="pi pi-trash"
+          [rounded]="true"
+          [text]="true"
+          severity="danger"
+          (onClick)="clearSignaturePad()"
+          pTooltip="Limpar Assinatura"
+        />
+      </div>
+      <div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10">
+        <span class="text-3xl font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">Assine Aqui</span>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2.5 mt-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+      <p-button
+        label="Cancelar"
+        [text]="true"
+        severity="secondary"
+        size="small"
+        (onClick)="closeSignaturePad()"
+      />
+      <p-button
+        label="Salvar Assinatura"
+        icon="pi pi-check"
+        size="small"
+        severity="primary"
+        (onClick)="saveSignature()"
+      />
+    </div>
+  </div>
+</p-dialog>

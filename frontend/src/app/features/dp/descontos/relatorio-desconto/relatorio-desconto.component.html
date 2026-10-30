@@ -1,0 +1,829 @@
+<div class="min-h-screen bg-white dark:bg-[var(--ces-canvas)] text-slate-900 dark:text-[var(--ces-foreground)] p-4 md:p-8 relative print:p-0 print:bg-white print:text-black">
+
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <p-progressSpinner strokeWidth="4" fill="transparent" animationDuration=".5s"></p-progressSpinner>
+      <span class="text-sm font-medium text-slate-500 animate-pulse">Carregando dados do desconto...</span>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <p-message severity="error" [text]="error() || 'Erro ao carregar dados'"></p-message>
+    </div>
+  }
+
+  @if (!loading() && desconto()) {
+    <form [formGroup]="editForm" class="max-w-5xl mx-auto pb-32 rise print:max-w-full print:animate-none print:pb-0">
+      <div class="flex flex-col gap-6">
+
+        <!-- Cabeçalho da empresa (Relatório) -->
+        <div class="grid grid-cols-3 items-center border-b border-gray-200 dark:border-slate-800 pb-6 mb-2">
+          <div class="flex justify-start">
+            <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14" onerror="this.style.display='none'">
+          </div>
+          <div class="text-center flex flex-col gap-1">
+            <h1 class="text-xs font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider">NOME DA EMPRESA</h1>
+            <p class="text-[9px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest">Departamento Pessoal (DP)</p>
+            <p class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Serviços prestados à Concessionária</p>
+          </div>
+          <div class="flex justify-end">
+            <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14 grayscale opacity-25" onerror="this.style.display='none'">
+          </div>
+        </div>
+
+        <!-- Título -->
+        <div class="py-4 text-center border-y border-gray-200 dark:border-slate-800 my-4 print:py-2 print:my-2">
+          <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight uppercase">Termo de Autorização de Desconto em Folha</h2>
+          <p class="text-[10px] text-slate-600 dark:text-slate-400 font-medium mt-1 uppercase tracking-widest">Solicitação #{{ desconto()?.id?.substring(0, 8) }} · {{ desconto()?.dataCriacao | date:'dd/MM/yyyy HH:mm' }}</p>
+        </div>
+
+        <!-- Faixa de situação atual (status + valor que vale) -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border px-5 py-4 print:hidden"
+             [ngClass]="{
+               'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800/60': desconto()?.status === 'SOLICITADO',
+               'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800/60': desconto()?.status === 'VALIDADO',
+               'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60': desconto()?.status === 'BAIXADO',
+               'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60': desconto()?.status === 'REJEITADO'
+             }">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-widest border"
+                  [ngClass]="getStatusClass(desconto()?.status)">
+              {{ getStatusLabel(desconto()?.status) }}
+            </span>
+            <span class="text-[10px] font-semibold"
+                  [ngClass]="{
+                    'text-orange-950 dark:text-orange-200': desconto()?.status === 'SOLICITADO',
+                    'text-blue-950 dark:text-blue-200': desconto()?.status === 'VALIDADO',
+                    'text-emerald-950 dark:text-emerald-200': desconto()?.status === 'BAIXADO',
+                    'text-red-950 dark:text-red-200': desconto()?.status === 'REJEITADO'
+                  }">
+              @switch (desconto()?.status) {
+                @case ('SOLICITADO') { Aguardando validação — itens e dados ainda podem ser alterados. }
+                @case ('VALIDADO') { Validado — itens congelados. Aguardando a baixa em folha. }
+                @case ('BAIXADO') { Ciclo concluído. Registro selado, sem novas alterações. }
+                @case ('REJEITADO') { Solicitação rejeitada. Registro terminal. }
+              }
+            </span>
+          </div>
+          @if (desconto()?.status !== 'REJEITADO') {
+            <div class="flex items-baseline gap-2 sm:text-right">
+              <span class="text-[9px] font-bold uppercase tracking-widest"
+                    [ngClass]="{
+                      'text-orange-800 dark:text-orange-300': desconto()?.status === 'SOLICITADO',
+                      'text-blue-800 dark:text-blue-300': desconto()?.status === 'VALIDADO',
+                      'text-emerald-800 dark:text-emerald-300': desconto()?.status === 'BAIXADO'
+                    }">Valor {{ etapaValorEfetivo() }}</span>
+              <span class="text-lg font-black"
+                    [ngClass]="{
+                      'text-orange-950 dark:text-orange-100': desconto()?.status === 'SOLICITADO',
+                      'text-blue-950 dark:text-blue-100': desconto()?.status === 'VALIDADO',
+                      'text-emerald-950 dark:text-emerald-100': desconto()?.status === 'BAIXADO'
+                    }">{{ valorEfetivo() | currency:'BRL' }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- 1. Dados do Desconto -->
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">1. Dados do Desconto</span>
+          </div>
+
+          <!-- Controles de Edição (Visíveis apenas quando editável na tela) -->
+          @if (isEditavel()) {
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
+              <div class="flex flex-col gap-1 md:col-span-1">
+                <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px] flex items-center gap-1">
+                  <i class="pi pi-user text-primary-600"></i>Colaborador
+                </label>
+                <ces-autocomplete label="Colaborador" [labelVisible]="false" formControlName="colaboradorId" [options]="colaboradores()" [loading]="colaboradoresLoading()" [status]="colaboradoresStatus()" [virtualScroll]="true" [virtualScrollItemSize]="38" placeholder="Pesquisar por nome..." [clearable]="true" appendTo="body" (search)="searchColaboradores($event)" (loadMore)="loadMoreColaboradores()" (retry)="retryColaboradores()"></ces-autocomplete>
+              </div>
+
+              <div class="flex flex-col gap-1 md:col-span-1">
+                <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px] flex items-center gap-1">
+                  <i class="pi pi-tag text-primary-600"></i>Motivo do Desconto
+                </label>
+                <p-select [options]="motivos()" formControlName="motivoId" optionLabel="descricao" optionValue="id" [filter]="true" placeholder="Selecione o motivo..." class="w-full" size="small" appendTo="body"></p-select>
+              </div>
+
+              <div class="flex flex-col gap-1 md:col-span-1">
+                <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px] flex items-center gap-1">
+                  <i class="pi pi-calendar text-primary-600"></i>Data da Ocorrência
+                </label>
+                <p-datepicker dateMask formControlName="dataOcorrencia" dateFormat="dd/mm/yy" placeholder="DD/MM/AAAA" class="w-full custom-input-sm" appendTo="body" [showIcon]="true" iconDisplay="input"></p-datepicker>
+              </div>
+            </div>
+          }
+
+          <!-- Card Rico de Identificação do Colaborador e Ocorrência (Padrão Nexo) -->
+          @if (colaboradorSelecionado(); as colab) {
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 bg-slate-50/40 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:p-2">
+              <!-- Coluna 1: Colaborador -->
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                  <i class="pi pi-user text-primary-500 text-xs"></i>
+                  <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Colaborador</span>
+                </div>
+                <div class="kv"><span class="kv-l">Nome</span><span class="kv-v kv-v--wrap">{{ colab.nomeCompleto }}</span></div>
+                <div class="kv"><span class="kv-l">CPF</span><span class="kv-v font-mono">{{ formatCpf(colab.cpf) }}</span></div>
+                <div class="kv"><span class="kv-l">Função</span><span class="kv-v">{{ colab.funcao.nome || '—' }}</span></div>
+                <div class="kv"><span class="kv-l">Admissão</span><span class="kv-v">{{ (colab.dataContratacao | date:'dd/MM/yyyy') || '—' }}</span></div>
+              </div>
+              <!-- Coluna 2: Contexto -->
+              <div class="flex flex-col gap-3 md:border-x md:border-slate-200 dark:md:border-slate-700 md:px-6">
+                <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                  <i class="pi pi-sitemap text-primary-500 text-xs"></i>
+                  <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Contexto</span>
+                </div>
+                <div class="kv"><span class="kv-l">Processo</span><span class="kv-v kv-v--wrap">{{ colab.processo.nome || '—' }}</span></div>
+                <div class="kv"><span class="kv-l">Base</span><span class="kv-v kv-v--wrap">{{ colab.baseOperacional.nome || '—' }}</span></div>
+                <div class="kv"><span class="kv-l">Motivo</span><span class="kv-v kv-v--wrap">{{ motivoAtual()?.descricao || '—' }}</span></div>
+                <div class="kv"><span class="kv-l">Ocorrência</span><span class="kv-v">{{ (desconto()?.dataOcorrencia || editForm.get('dataOcorrencia')?.value) | date:'dd/MM/yyyy' }}</span></div>
+              </div>
+              <!-- Coluna 3: Resumo -->
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                  <i class="pi pi-calculator text-primary-500 text-xs"></i>
+                  <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Resumo</span>
+                </div>
+                <div class="kv">
+                  <span class="kv-l">Status</span>
+                  <span class="text-[10px] font-medium px-2 py-1 rounded-md uppercase tracking-tight" [ngClass]="getStatusClass(desconto()?.status)">{{ getStatusLabel(desconto()?.status) }}</span>
+                </div>
+                <div class="kv"><span class="kv-l">Valor</span><span class="kv-v font-bold">{{ valorEfetivo() | currency:'BRL' }}</span></div>
+                <div class="kv"><span class="kv-l">Parcelas</span><span class="kv-v">{{ parcelasAtuais() }}x de {{ valorParcela() | currency:'BRL' }}</span></div>
+                <div class="kv"><span class="kv-l">Solicitação</span><span class="kv-v">#{{ desconto()?.id?.substring(0, 8) }}</span></div>
+              </div>
+            </div>
+          } @else {
+            <div class="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex items-center justify-center">
+              <span class="text-xs text-slate-400 italic">Dados do colaborador indisponíveis</span>
+            </div>
+          }
+
+          <!-- Seção Estruturada: Rastreabilidade e Justificativa do Processo -->
+          <div class="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-700/60 pb-3 gap-2">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-history text-primary-500 text-xs"></i>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">Rastreabilidade e Justificativa</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[9px] font-bold px-2.5 py-1 rounded-md uppercase tracking-widest border" [ngClass]="getStatusClass(desconto()?.status)">
+                  {{ getStatusLabel(desconto()?.status) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Grid de Rastreabilidade das Etapas (Solicitação, Validação e Baixa) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 print:grid-cols-3 gap-3 print:gap-2">
+              <!-- 1. Solicitante -->
+              <div class="bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/60 rounded-lg p-3 flex flex-col gap-1.5 shadow-xs">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                  <span class="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="pi pi-file-edit text-orange-500 text-xs"></i> 1. Solicitação
+                  </span>
+                  @if (desconto()?.dataCriacao) {
+                    <span class="text-[8.5px] font-medium text-slate-400 dark:text-slate-500">{{ desconto()?.dataCriacao | date:'dd/MM/yy HH:mm' }}</span>
+                  }
+                </div>
+                <div class="flex flex-col gap-0.5 mt-0.5">
+                  <span class="text-xs font-bold text-slate-800 dark:text-slate-100" [title]="getResponsavelNome(desconto()?.usuarioSolicitanteId) || 'Responsável pelo Lançamento'">
+                    {{ getResponsavelNome(desconto()?.usuarioSolicitanteId) || 'Responsável pelo Lançamento' }}
+                  </span>
+                  <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
+                    Sugerido: <strong class="text-slate-800 dark:text-slate-100 font-bold">{{ desconto()?.valorSugerido | currency:'BRL' }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <!-- 2. Validador -->
+              <div class="bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/60 rounded-lg p-3 flex flex-col gap-1.5 shadow-xs"
+                   [ngClass]="desconto()?.status === 'VALIDADO' || desconto()?.status === 'BAIXADO' ? '!border-blue-200 dark:!border-blue-800/60 !bg-blue-50/30 dark:!bg-blue-950/30' : ''">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                  <span class="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+                        [ngClass]="desconto()?.status === 'VALIDADO' || desconto()?.status === 'BAIXADO' ? 'text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'">
+                    <i class="pi pi-check-square text-xs" [ngClass]="desconto()?.status === 'VALIDADO' || desconto()?.status === 'BAIXADO' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'"></i> 2. Validação
+                  </span>
+                  @if (desconto()?.dataValidacao) {
+                    <span class="text-[8.5px] font-medium text-slate-400 dark:text-slate-500">{{ desconto()?.dataValidacao | date:'dd/MM/yy HH:mm' }}</span>
+                  }
+                </div>
+                <div class="flex flex-col gap-0.5 mt-0.5">
+                  <span class="text-xs font-bold"
+                        [ngClass]="desconto()?.status === 'VALIDADO' || desconto()?.status === 'BAIXADO' ? 'text-blue-900 dark:text-blue-200' : 'text-slate-500 dark:text-slate-400'"
+                        [title]="getResponsavelNome(desconto()?.usuarioValidadorId) || (desconto()?.status === 'REJEITADO' ? 'Rejeitado' : 'Aguardando validação')">
+                    {{ getResponsavelNome(desconto()?.usuarioValidadorId) || (desconto()?.status === 'REJEITADO' ? 'Rejeitado' : 'Aguardando validação') }}
+                  </span>
+                  <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
+                    Validado: <strong [ngClass]="desconto()?.valorValidado !== null && desconto()?.valorValidado !== undefined ? 'text-blue-800 dark:text-blue-300 font-bold' : 'text-slate-400 dark:text-slate-500'">{{ (desconto()?.valorValidado | currency:'BRL') || '—' }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <!-- 3. Baixa em Folha -->
+              <div class="bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/60 rounded-lg p-3 flex flex-col gap-1.5 shadow-xs"
+                   [ngClass]="desconto()?.status === 'BAIXADO' ? '!border-green-200 dark:!border-green-800/60 !bg-green-50/30 dark:!bg-green-950/30' : ''">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                  <span class="text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+                        [ngClass]="desconto()?.status === 'BAIXADO' ? 'text-green-700 dark:text-green-300' : 'text-slate-600 dark:text-slate-400'">
+                    <i class="pi pi-wallet text-xs" [ngClass]="desconto()?.status === 'BAIXADO' ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'"></i> 3. Baixa em Folha (DP)
+                  </span>
+                  @if (desconto()?.dataBaixa) {
+                    <span class="text-[8.5px] font-medium text-slate-400 dark:text-slate-500">{{ desconto()?.dataBaixa | date:'dd/MM/yy HH:mm' }}</span>
+                  }
+                </div>
+                <div class="flex flex-col gap-0.5 mt-0.5">
+                  <span class="text-xs font-bold"
+                        [ngClass]="desconto()?.status === 'BAIXADO' ? 'text-green-900 dark:text-green-200' : 'text-slate-500 dark:text-slate-400'"
+                        [title]="getResponsavelNome(desconto()?.usuarioBaixaId) || (desconto()?.status === 'REJEITADO' ? 'Não baixado' : 'Aguardando baixa')">
+                    {{ getResponsavelNome(desconto()?.usuarioBaixaId) || (desconto()?.status === 'REJEITADO' ? 'Não baixado' : 'Aguardando baixa') }}
+                  </span>
+                  <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
+                    Baixado: <strong [ngClass]="desconto()?.valorBaixado !== null && desconto()?.valorBaixado !== undefined ? 'text-green-800 dark:text-green-300 font-bold' : 'text-slate-400 dark:text-slate-500'">{{ (desconto()?.valorBaixado | currency:'BRL') || '—' }}</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Justificativa / Observações Integradas -->
+            <div class="flex flex-col gap-1.5 pt-1">
+              <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                <i class="pi pi-align-left text-[9px] text-slate-400 dark:text-slate-500"></i>Justificativa / Observações do Processo
+              </span>
+              @if (isEditavel()) {
+                <textarea pTextarea formControlName="observacoes" placeholder="Informe as observações ou justificativa do desconto..." class="custom-input !text-sm !w-full min-h-[70px] bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 print:hidden"></textarea>
+                <div class="hidden print:block bg-white border border-slate-200/80 rounded-lg p-3">
+                  <p class="text-[11px] text-slate-700 whitespace-pre-line">{{ editForm.get('observacoes')?.value || 'Sem observações registradas.' }}</p>
+                </div>
+              } @else {
+                <div class="bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/60 rounded-lg p-3">
+                  <p class="text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-line">{{ desconto()?.observacoes || 'Sem observações registradas.' }}</p>
+                </div>
+              }
+            </div>
+
+            @if (desconto()?.status === 'REJEITADO') {
+              <div class="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 rounded-lg p-3 flex flex-col gap-1">
+                <span class="text-[9px] font-bold text-red-700 dark:text-red-300 uppercase flex items-center gap-1">
+                  <i class="pi pi-times-circle text-red-600 dark:text-red-400"></i>Motivo da Rejeição
+                </span>
+                <p class="text-[11px] text-red-800 dark:text-red-200 font-medium whitespace-pre-line">{{ desconto()?.motivoRejeicao }}</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- 2. Lista de Materiais -->
+        <div class="flex flex-col gap-5 mt-4">
+          <div class="flex justify-between items-center border-l-2 border-primary-500 pl-3 mb-3">
+            <div class="flex items-center gap-2"><span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">2. Itens a Descontar</span><span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">({{ desconto()!.itens.length }})</span></div>
+            @if (isEditavel()) {
+              <p-button [label]="showItemForm() ? 'Ocultar Form' : 'Adicionar Item'" [icon]="showItemForm() ? 'pi pi-times' : 'pi pi-plus'" [text]="true" (onClick)="showItemForm.set(!showItemForm())" styleClass="!text-primary-600 dark:!text-primary-400 !text-[10px] !font-bold print:hidden"></p-button>
+            } @else {
+              <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1 print:hidden">
+                <i class="pi pi-lock text-[9px]"></i> Somente leitura
+              </span>
+            }
+          </div>
+
+          <!-- Adicionar Item (Apenas se SOLICITADO) -->
+          @if (showItemForm() && isEditavel()) {
+            <div class="bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mb-2 print:hidden">
+              <label class="filter-label !text-primary-700 dark:!text-primary-400 !text-[11px] block mb-2 font-bold uppercase tracking-wider">Adicionar Equipamento / Material</label>
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div class="md:col-span-4 flex flex-col gap-1">
+                  <input pInputText name="descricaoMaterial" [(ngModel)]="newItem.descricaoMaterial" [ngModelOptions]="{standalone: true}" placeholder="Ex: Multímetro, Bota..." class="custom-input !w-full" size="small" />
+                </div>
+                <div class="md:col-span-4 flex flex-col gap-1">
+                  <p-select name="tipoEquipamentoId" [(ngModel)]="newItem.tipoEquipamentoId" [ngModelOptions]="{standalone: true}" [options]="categorias()" optionLabel="descricao" optionValue="id" placeholder="Categoria..." class="w-full" size="small" appendTo="body"></p-select>
+                </div>
+                <div class="md:col-span-3 flex flex-col gap-1">
+                  <p-inputNumber name="valor" [(ngModel)]="newItem.valor" [ngModelOptions]="{standalone: true}" [min]="0" [maxFractionDigits]="2" [minFractionDigits]="2" mode="currency" currency="BRL" locale="pt-BR" class="w-full custom-input-number-sm" placeholder="R$ 0,00"></p-inputNumber>
+                </div>
+                <div class="md:col-span-1 flex items-end">
+                  <p-button icon="pi pi-plus" (onClick)="addNewItem()" [loading]="saving()" [disabled]="!newItem.descricaoMaterial || !newItem.tipoEquipamentoId || !newItem.valor" styleClass="!bg-blue-600 hover:!bg-blue-500 !border-blue-600 !rounded-xl !w-full !text-white shadow-sm" pTooltip="Salvar Item"></p-button>
+                </div>
+              </div>
+              <p class="text-[9px] text-slate-400 dark:text-slate-500 italic mt-2">O valor sugerido do desconto é recalculado automaticamente a cada item incluído ou removido.</p>
+            </div>
+          }
+
+          <!-- Tabela de Itens -->
+          <p-table [value]="desconto()!.itens" class="p-datatable-sm minimalist-table" [scrollable]="true" scrollHeight="300px">
+            <ng-template pTemplate="header">
+              <tr>
+                <th class="!text-[9px] font-bold text-gray-400 dark:text-slate-400 uppercase border-b-2 border-slate-200 dark:border-slate-700 pb-2">Material</th>
+                <th class="!text-[9px] font-bold text-gray-400 dark:text-slate-400 uppercase border-b-2 border-slate-200 dark:border-slate-700 pb-2">Categoria</th>
+                <th class="!text-[9px] font-bold text-gray-400 dark:text-slate-400 uppercase text-right border-b-2 border-slate-200 dark:border-slate-700 pb-2">Valor Unit.</th>
+                @if (isEditavel()) {
+                  <th style="width: 3rem" class="border-b-2 border-slate-200 dark:border-slate-700 pb-2 print:hidden"></th>
+                }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-item>
+              <tr class="border-b border-gray-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                @if (editingItemId() === item.id) {
+                  <td class="!py-2">
+                    <input pInputText [(ngModel)]="inlineEditDraft.descricaoMaterial" [ngModelOptions]="{standalone: true}" class="custom-input !w-full !text-[11px] !h-[34px] !box-border" />
+                  </td>
+                  <td class="!py-2">
+                    <p-select [(ngModel)]="inlineEditDraft.tipoEquipamentoId" [ngModelOptions]="{standalone: true}" [options]="categorias()" optionLabel="descricao" optionValue="id" appendTo="body" class="w-full !text-[11px]" styleClass="!h-[34px] !flex !items-center !box-border"></p-select>
+                  </td>
+                  <td class="!py-2">
+                    <p-inputNumber [(ngModel)]="inlineEditDraft.valor" [ngModelOptions]="{standalone: true}" [min]="0" [maxFractionDigits]="2" [minFractionDigits]="2" mode="currency" currency="BRL" locale="pt-BR" class="w-full custom-input-number-sm !text-[11px]" inputStyleClass="!h-[34px] !box-border"></p-inputNumber>
+                  </td>
+                  <td class="!py-0 !px-0 w-[80px] print:hidden">
+                    <div class="flex h-full items-stretch min-h-[50px]">
+                      <p-button icon="pi pi-check" [text]="true" (onClick)="saveEditItem()" [loading]="saving()" [disabled]="!inlineEditDraft.descricaoMaterial || !inlineEditDraft.tipoEquipamentoId || !inlineEditDraft.valor" styleClass="!text-green-600 hover:!bg-green-100 dark:hover:!bg-green-950/40 !h-full !w-full !rounded-none border-l border-slate-100 dark:border-slate-800" pTooltip="Salvar"></p-button>
+                      <p-button icon="pi pi-times" [text]="true" (onClick)="cancelEditItem()" [disabled]="saving()" styleClass="!text-red-500 hover:!bg-red-100 dark:hover:!bg-red-950/40 !h-full !w-full !rounded-none border-l border-slate-100 dark:border-slate-800" pTooltip="Cancelar"></p-button>
+                    </div>
+                  </td>
+                } @else {
+                  <td class="!py-3 text-[11px] font-bold text-slate-700 dark:text-slate-200">{{ item.descricaoMaterial }}</td>
+                  <td class="!py-3 text-[11px] text-slate-600 dark:text-slate-400">{{ item.tipoEquipamento?.descricao || 'Desconhecido' }}</td>
+                  <td class="!py-3 text-[11px] font-medium text-right text-slate-800 dark:text-slate-100">{{ item.valor | currency:'BRL' }}</td>
+                  @if (isEditavel()) {
+                    <td class="text-center !py-3 print:hidden flex justify-end gap-1">
+                      <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" (onClick)="editItem(item)" styleClass="!text-blue-500 !w-6 !h-6" pTooltip="Editar"></p-button>
+                      <p-button icon="pi pi-trash" [text]="true" [rounded]="true" (onClick)="removeItem(item.id)" styleClass="!text-red-400 !w-6 !h-6" pTooltip="Remover"></p-button>
+                    </td>
+                  }
+                }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="footer">
+              @if (desconto()!.itens.length > 0) {
+                <tr class="!bg-transparent">
+                  <td [attr.colspan]="2" class="!bg-transparent dark:!bg-transparent !py-2.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest border-t-2 border-slate-200 dark:border-slate-700">
+                    {{ desconto()!.itens.length }} {{ desconto()!.itens.length === 1 ? 'item' : 'itens' }}
+                  </td>
+                  <td class="!bg-transparent dark:!bg-transparent !py-2.5 text-[11px] font-black text-right text-slate-900 dark:text-slate-100 border-t-2 border-slate-200 dark:border-slate-700">
+                    {{ somaItens() | currency:'BRL' }}
+                  </td>
+                  @if (isEditavel()) {
+                    <td class="!bg-transparent dark:!bg-transparent border-t-2 border-slate-200 dark:border-slate-700 print:hidden"></td>
+                  }
+                </tr>
+              }
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td [attr.colspan]="isEditavel() ? 4 : 3" class="text-center py-8">
+                  <div class="flex flex-col items-center gap-1">
+                    <span class="text-[11px] text-slate-400 italic">Nenhum item adicionado</span>
+                    @if (isEditavel()) {
+                      <span class="text-[10px] text-amber-600 dark:text-amber-400 font-medium">É obrigatório ao menos um item para validar o desconto.</span>
+                    }
+                  </div>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+
+        <!-- 3. Valores por Etapa e Parcelamento (Modo Tela) -->
+        <div class="flex flex-col gap-5 mt-4 print:hidden">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3 mb-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">3. Valores e Parcelamento</span>
+          </div>
+
+          <!-- Trilha financeira: Sugerido -> Validado -> Baixado -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <!-- Sugerido -->
+            <div class="flex flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4">
+              <div class="flex items-center justify-between">
+                <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">1. Sugerido</span>
+                <i class="pi pi-file-edit text-[10px] text-slate-400"></i>
+              </div>
+              <span class="text-lg font-black text-slate-700 dark:text-slate-200">{{ desconto()?.valorSugerido | currency:'BRL' }}</span>
+              <span class="text-[9px] font-medium text-slate-400 dark:text-slate-500">Somatório automático dos itens</span>
+              @if (desconto()?.dataCriacao) {
+                <span class="text-[9px] text-slate-400 dark:text-slate-500">{{ desconto()?.dataCriacao | date:'dd/MM/yy HH:mm' }}</span>
+              }
+            </div>
+
+            <!-- Validado -->
+            <div class="flex flex-col gap-1 rounded-xl border p-4"
+                 [ngClass]="desconto()?.valorValidado !== null && desconto()?.valorValidado !== undefined ? 'border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-950/30' : 'border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40'">
+              <div class="flex items-center justify-between">
+                <span class="text-[9px] font-bold uppercase tracking-widest" [ngClass]="desconto()?.valorValidado !== null && desconto()?.valorValidado !== undefined ? 'text-blue-700 dark:text-blue-300' : 'text-slate-400 dark:text-slate-500'">2. Validado</span>
+                <i class="pi pi-check-square text-[10px]" [ngClass]="desconto()?.valorValidado !== null && desconto()?.valorValidado !== undefined ? 'text-blue-400' : 'text-slate-300 dark:text-slate-600'"></i>
+              </div>
+              @if (desconto()?.valorValidado !== null && desconto()?.valorValidado !== undefined) {
+                <span class="text-lg font-black text-blue-700 dark:text-blue-300">{{ desconto()?.valorValidado | currency:'BRL' }}</span>
+                @if (divergenciaValidacao(); as diff) {
+                  <span class="text-[9px] font-bold flex items-center gap-1" [ngClass]="diff > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'">
+                    <i class="pi text-[9px]" [ngClass]="diff > 0 ? 'pi-arrow-up-right' : 'pi-arrow-down-right'"></i>
+                    {{ abs(diff) | currency:'BRL' }} {{ diff > 0 ? 'acima' : 'abaixo' }} do sugerido
+                  </span>
+                } @else {
+                  <span class="text-[9px] font-medium text-slate-400 dark:text-slate-500">Igual ao valor sugerido</span>
+                }
+                @if (desconto()?.dataValidacao) {
+                  <span class="text-[9px] text-slate-400 dark:text-slate-500">{{ desconto()?.dataValidacao | date:'dd/MM/yy HH:mm' }}</span>
+                }
+              } @else {
+                <span class="text-lg font-black text-slate-300 dark:text-slate-600">—</span>
+                <span class="text-[9px] font-medium text-slate-400 dark:text-slate-500">{{ desconto()?.status === 'REJEITADO' ? 'Não ocorreu (rejeitado)' : 'Aguardando validação' }}</span>
+              }
+            </div>
+
+            <!-- Baixado -->
+            <div class="flex flex-col gap-1 rounded-xl border p-4"
+                 [ngClass]="desconto()?.valorBaixado !== null && desconto()?.valorBaixado !== undefined ? 'border-green-200 dark:border-green-800/60 bg-green-50 dark:bg-green-950/30' : 'border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40'">
+              <div class="flex items-center justify-between">
+                <span class="text-[9px] font-bold uppercase tracking-widest" [ngClass]="desconto()?.valorBaixado !== null && desconto()?.valorBaixado !== undefined ? 'text-green-700 dark:text-green-300' : 'text-slate-400 dark:text-slate-500'">3. Baixado</span>
+                <i class="pi pi-wallet text-[10px]" [ngClass]="desconto()?.valorBaixado !== null && desconto()?.valorBaixado !== undefined ? 'text-green-500' : 'text-slate-300 dark:text-slate-600'"></i>
+              </div>
+              @if (desconto()?.valorBaixado !== null && desconto()?.valorBaixado !== undefined) {
+                <span class="text-lg font-black text-green-700 dark:text-green-300">{{ desconto()?.valorBaixado | currency:'BRL' }}</span>
+                @if (divergenciaBaixa(); as diff) {
+                  <span class="text-[9px] font-bold flex items-center gap-1" [ngClass]="diff > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'">
+                    <i class="pi text-[9px]" [ngClass]="diff > 0 ? 'pi-arrow-up-right' : 'pi-arrow-down-right'"></i>
+                    {{ abs(diff) | currency:'BRL' }} {{ diff > 0 ? 'acima' : 'abaixo' }} do validado
+                  </span>
+                } @else {
+                  <span class="text-[9px] font-medium text-slate-400 dark:text-slate-500">Igual ao valor validado</span>
+                }
+                @if (desconto()?.dataBaixa) {
+                  <span class="text-[9px] text-slate-400 dark:text-slate-500">{{ desconto()?.dataBaixa | date:'dd/MM/yy HH:mm' }}</span>
+                }
+              } @else {
+                <span class="text-lg font-black text-slate-300 dark:text-slate-600">—</span>
+                <span class="text-[9px] font-medium text-slate-400 dark:text-slate-500">{{ desconto()?.status === 'REJEITADO' ? 'Não ocorreu (rejeitado)' : 'Aguardando baixa em folha' }}</span>
+              }
+            </div>
+          </div>
+
+          <!-- Parcelamento + Valor Efetivo -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+            <div class="flex flex-col gap-1 md:col-span-1 justify-center bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+              <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px]">Qtd. de Parcelas</label>
+              @if (isEditavel()) {
+                <p-inputNumber formControlName="quantidadeParcelas" [min]="1" [max]="maxParcelas()" [showButtons]="true" class="w-full custom-input-number-sm mt-1"></p-inputNumber>
+                <span class="text-[9px] text-slate-400 dark:text-slate-500 italic">Teto do motivo: {{ selectedMotivoTeto() }} parcelas</span>
+              } @else {
+                <div class="text-xl font-black text-slate-700 dark:text-slate-200 mt-1">{{ desconto()?.quantidadeParcelas }}x</div>
+              }
+            </div>
+
+            <div class="flex flex-col gap-1 md:col-span-1 text-right bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 h-full justify-center">
+              <span class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px]">Valor Efetivo</span>
+              <span class="text-xl font-black text-slate-700 dark:text-slate-200">{{ valorEfetivo() | currency:'BRL' }}</span>
+              <span class="text-[9px] font-medium text-slate-400 dark:text-slate-500 mt-1">Etapa vigente: {{ etapaValorEfetivo() }}</span>
+            </div>
+
+            <div class="flex flex-col gap-1 md:col-span-1 text-right bg-primary-50 dark:bg-primary-950/30 p-4 rounded-xl border border-primary-200 dark:border-primary-800/50 h-full justify-center">
+              <span class="text-[10px] font-bold text-primary-700 dark:text-primary-300 uppercase tracking-widest">Desconto Mensal</span>
+              <span class="text-xl font-black text-primary-700 dark:text-primary-300">{{ valorParcela() | currency:'BRL' }}</span>
+              <span class="text-[9px] font-medium text-slate-500 dark:text-slate-400 mt-1">{{ parcelasAtuais() }}x na folha do colaborador</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Condições de Pagamento (Modo Impressão - Limpo e Sem Redundância) -->
+        <div class="hidden print:flex items-center justify-between border border-slate-300 bg-slate-50/80 p-2 rounded-md text-[9px] mt-1 mb-1">
+          <div>
+            <span class="font-bold text-slate-600 uppercase text-[8px]">Condição de Parcelamento: </span>
+            <span class="font-black text-slate-900">{{ parcelasAtuais() }} parcela(s) de {{ valorParcela() | currency:'BRL' }}</span>
+            <span class="text-slate-500 text-[8px]"> descontadas mensalmente em folha.</span>
+          </div>
+          <div class="text-right">
+            <span class="font-bold text-slate-600 uppercase text-[8px]">Valor Total a Descontar: </span>
+            <span class="font-black text-slate-900 text-[10.5px]">{{ valorEfetivo() | currency:'BRL' }}</span>
+          </div>
+        </div>
+
+        <!-- 4. Anexos -->
+        <div class="flex flex-col gap-5 mt-4 print:hidden">
+          <div class="flex justify-between items-center border-l-2 border-primary-500 pl-3 mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">4. Anexos e Comprovantes</span>
+              @if (desconto()?.anexos?.length) {
+                <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">({{ desconto()!.anexos.length }})</span>
+              }
+            </div>
+            @if (desconto()?.status === 'VALIDADO') {
+              <span class="text-[9px] font-medium text-slate-400 dark:text-slate-500">Novas evidências podem ser anexadas, mas as existentes não podem ser removidas.</span>
+            }
+          </div>
+
+          <div class="flex flex-col gap-3">
+            @if (desconto()?.anexos?.length === 0) {
+              <!-- Dropzone Grande (Vazio) -->
+              <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-slate-800/40 min-h-[150px] relative transition-colors"
+                   [ngClass]="desconto()?.status === 'SOLICITADO' || desconto()?.status === 'VALIDADO' ? 'hover:bg-slate-100/50 dark:hover:bg-slate-800 hover:border-primary-400 cursor-pointer' : ''">
+                @if (desconto()?.status === 'SOLICITADO' || desconto()?.status === 'VALIDADO') {
+                  <input type="file" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" (change)="onFileSelect($event)" [accept]="anexoAccept">
+                }
+                <div class="w-12 h-12 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center mb-3 text-slate-400 shadow-sm border border-slate-100 dark:border-slate-800">
+                  <i class="pi pi-cloud-upload text-2xl"></i>
+                </div>
+                <span class="text-sm font-bold text-slate-600 dark:text-slate-300">
+                  {{ (desconto()?.status === 'SOLICITADO' || desconto()?.status === 'VALIDADO') ? 'Clique para selecionar os arquivos' : 'Nenhum anexo enviado.' }}
+                </span>
+                @if (desconto()?.status === 'SOLICITADO' || desconto()?.status === 'VALIDADO') {
+                  <span class="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">Insira fotos, áudios (OGG, MP3), vídeos, PDFs ou documentos (Max 15MB)</span>
+                }
+              </div>
+            } @else {
+              <!-- Lista de Arquivos Compacta -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                @for (anexo of desconto()?.anexos; track anexo.id) {
+                  <div class="flex items-center justify-between bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/60 rounded-lg p-2 sm:p-2.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                    <div class="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
+                      <div class="w-8 h-8 rounded flex items-center justify-center shrink-0" [ngClass]="getAnexoContainerClass(anexo.nomeArquivo, anexo.contentType)">
+                        <i class="pi text-base" [ngClass]="getAnexoIcon(anexo.nomeArquivo, anexo.contentType)"></i>
+                      </div>
+                      <div class="flex flex-col min-w-0 pr-1 flex-1">
+                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate block w-full" [title]="anexo.nomeArquivo">{{ anexo.nomeArquivo }}</span>
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium">{{ getAnexoLabel(anexo.nomeArquivo, anexo.contentType) }}{{ anexo.tamanhoBytes ? ' • ' + formatSize(anexo.tamanhoBytes) : '' }}</span>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <button type="button" (click)="visualizarAnexo(anexo)" class="w-7 h-7 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/40 transition-colors shrink-0 cursor-pointer" [pTooltip]="getAnexoCategoria(anexo.nomeArquivo, anexo.contentType) === 'audio' ? 'Ouvir Áudio' : (getAnexoCategoria(anexo.nomeArquivo, anexo.contentType) === 'video' ? 'Assistir Vídeo' : 'Visualizar')">
+                        <i class="pi text-xs" [ngClass]="getAnexoCategoria(anexo.nomeArquivo, anexo.contentType) === 'audio' || getAnexoCategoria(anexo.nomeArquivo, anexo.contentType) === 'video' ? 'pi-play' : 'pi-eye'"></i>
+                      </button>
+                      <button type="button" (click)="baixarAnexo(anexo)" class="w-7 h-7 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/40 transition-colors shrink-0 cursor-pointer" pTooltip="Baixar">
+                        <i class="pi pi-download text-xs"></i>
+                      </button>
+                      @if (desconto()?.status === 'SOLICITADO') {
+                        <button type="button" (click)="removerAnexo(anexo.id)" class="w-7 h-7 flex items-center justify-center rounded-full text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shrink-0 cursor-pointer" pTooltip="Remover">
+                          <i class="pi pi-trash text-xs"></i>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+
+                <!-- Adicionar Mais (Apenas se não finalizado) -->
+                @if (desconto()?.status === 'SOLICITADO' || desconto()?.status === 'VALIDADO') {
+                  <label class="flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-primary-400 cursor-pointer transition-colors shadow-2xs min-h-[48px] relative">
+                    <input type="file" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" (change)="onFileSelect($event)" [accept]="anexoAccept">
+                    <i class="pi pi-plus-circle text-primary-500 text-base"></i>
+                    <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-tight">Adicionar mais</span>
+                  </label>
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- 5. Termo de Ciência e Assinaturas a Próprio Punho -->
+        <div class="flex flex-col gap-6 mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 print:mt-4 print:pt-2">
+
+          <!-- Declaração do Colaborador (Art. 462 da CLT) -->
+          <div class="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 print:border-none print:p-0 print:bg-transparent">
+            <p class="text-[10px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-1">Declaração do Colaborador (Art. 462 da CLT)</p>
+            <p class="text-[10px] text-slate-700 dark:text-slate-300 leading-relaxed text-justify">
+              Declaro para os devidos fins que estou ciente do motivo e concordo com o valor e condições de parcelamento discriminados neste <strong>Termo de Autorização de Desconto em Folha</strong>, autorizando a empresa <strong>NOME DA EMPRESA</strong> a efetuar os respectivos descontos em minha remuneração mensal, na forma do Artigo 462 da Consolidação das Leis do Trabalho (CLT).
+            </p>
+          </div>
+
+          <!-- Assinaturas Padrão: Colaborador, Gestor e DP -->
+          <div class="grid grid-cols-1 md:grid-cols-3 print:grid-cols-3 gap-8 mt-6 print:gap-4">
+            <div class="flex flex-col items-center text-center">
+              <div class="w-full border-b border-slate-400 dark:border-slate-600 mb-1.5 h-10"></div>
+              <span class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase" [title]="colaboradorSelecionado()?.nomeCompleto || getColaboradorName(desconto()?.colaboradorId)">
+                {{ colaboradorSelecionado()?.nomeCompleto || getColaboradorName(desconto()?.colaboradorId) }}
+              </span>
+              <span class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Colaborador (Assinatura a próprio punho)</span>
+              @if (colaboradorSelecionado()?.cpf) {
+                <span class="text-[9px] text-slate-500 dark:text-slate-400 font-mono">CPF: {{ formatCpf(colaboradorSelecionado()?.cpf) }}</span>
+              }
+              <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">Data: ____/____/________</span>
+            </div>
+
+            <div class="flex flex-col items-center text-center">
+              <div class="w-full border-b border-slate-400 dark:border-slate-600 mb-1.5 h-10"></div>
+              <span class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase">Gestor Imediato / Responsável</span>
+              <span class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Assinatura a próprio punho</span>
+              <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">Data: ____/____/________</span>
+            </div>
+
+            <div class="flex flex-col items-center text-center">
+              <div class="w-full border-b border-slate-400 dark:border-slate-600 mb-1.5 h-10"></div>
+              <span class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase">Departamento Pessoal</span>
+              <span class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Assinatura / Baixa</span>
+              <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">Data: ____/____/________</span>
+            </div>
+          </div>
+
+          <!-- Ressalva Fixa e Permanente em Caso de Recusa de Assinatura -->
+          <div class="mt-6 pt-4 border-t border-dashed border-slate-300 dark:border-slate-700">
+            <div class="text-center mb-2">
+              <span class="text-[9px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                Ressalva em caso de recusa de assinatura:
+              </span>
+            </div>
+            <p class="text-[9px] text-slate-500 dark:text-slate-400 text-center leading-relaxed max-w-2xl mx-auto mb-4">
+              Em caso de recusa do empregado em assinar este termo de ciência/autorização, o fato foi presenciado e atestado pelas testemunhas abaixo qualificadas, que declaram ter sido dada ciência integral do conteúdo ao colaborador:
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-8 print:gap-6">
+              <!-- 1ª Testemunha -->
+              <div class="flex flex-col items-center text-center">
+                <div class="w-full border-b border-slate-400 dark:border-slate-600 mb-1.5 h-8"></div>
+                <span class="text-[9px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">1ª Testemunha (Nome / Assinatura)</span>
+                <div class="w-full text-left space-y-1">
+                  <p class="text-[8.5px] text-slate-600 dark:text-slate-400"><strong>Função:</strong> _________________________________________________</p>
+                  <p class="text-[8.5px] text-slate-600 dark:text-slate-400 font-mono"><strong>CPF:</strong> _______________________ <strong>Data:</strong> ____/____/________</p>
+                </div>
+              </div>
+
+              <!-- 2ª Testemunha -->
+              <div class="flex flex-col items-center text-center">
+                <div class="w-full border-b border-slate-400 dark:border-slate-600 mb-1.5 h-8"></div>
+                <span class="text-[9px] font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">2ª Testemunha (Nome / Assinatura)</span>
+                <div class="w-full text-left space-y-1">
+                  <p class="text-[8.5px] text-slate-600 dark:text-slate-400"><strong>Função:</strong> _________________________________________________</p>
+                  <p class="text-[8.5px] text-slate-600 dark:text-slate-400 font-mono"><strong>CPF:</strong> _______________________ <strong>Data:</strong> ____/____/________</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <!-- Ações Finais (Flutuantes) -->
+    <div class="fixed bottom-6 right-6 md:bottom-8 md:right-8 flex flex-col-reverse sm:flex-row items-end sm:items-center gap-3 z-30 print:hidden">
+      <div class="flex items-center gap-3 flex-wrap justify-end">
+        @if (hasChanges()) {
+          <span class="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 flex items-center gap-1.5 shadow-sm">
+            <i class="pi pi-exclamation-circle text-[10px]"></i> Alterações não salvas
+          </span>
+          <p-button label="Descartar" icon="pi pi-undo" [text]="true" severity="secondary" (onClick)="descartarAlteracoes()" [disabled]="saving()" styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-[11px] !px-5 !py-3 shadow-sm"></p-button>
+          <p-button label="Salvar Alterações" icon="pi pi-save" [loading]="saving()" [disabled]="editForm.invalid" (onClick)="salvarAlteracoes()" styleClass="!w-full md:!w-auto !justify-center !rounded-xl !bg-blue-600 !border-blue-600 !text-white !font-medium !text-[11px] !tracking-widest !uppercase !px-6 !py-3 shadow-lg transition-all"></p-button>
+        } @else {
+          <p-button label="Imprimir" icon="pi pi-print" (onClick)="print()" styleClass="!rounded-xl !bg-slate-700 dark:!bg-slate-800 !border-slate-700 dark:!border-slate-700 hover:!bg-slate-600 hover:!border-slate-600 !text-white !font-medium !text-[11px] !px-6 !py-3 shadow-sm md:flex hidden"></p-button>
+          <p-button label="Voltar" icon="pi pi-arrow-left" [text]="true" severity="secondary" (onClick)="voltar()" styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-[11px] !px-6 !py-3 shadow-sm md:flex hidden"></p-button>
+
+          @if (desconto()?.status === 'SOLICITADO') {
+            <p-button label="Rejeitar" icon="pi pi-times-circle" [loading]="saving()" (onClick)="abrirRejeitarDialog()" styleClass="!w-full md:!w-auto !justify-center !rounded-xl !bg-red-600 !border-red-600 hover:!bg-red-500 !text-white !font-medium !text-[11px] !tracking-widest !uppercase !px-6 !py-3 shadow-lg transition-all"></p-button>
+            <span [pTooltip]="desconto()?.itens?.length === 0 ? 'Adicione ao menos um item para validar' : ''" tooltipPosition="top">
+              <p-button label="Validar Desconto" icon="pi pi-check-circle" [loading]="saving()" [disabled]="desconto()?.itens?.length === 0" (onClick)="abrirValidarDialog()" styleClass="!w-full md:!w-auto !justify-center !rounded-xl !bg-blue-600 !border-blue-600 hover:!bg-blue-500 !text-white !font-medium !text-[11px] !tracking-widest !uppercase !px-6 !py-3 shadow-lg transition-all"></p-button>
+            </span>
+          }
+          @if (desconto()?.status === 'VALIDADO') {
+            <p-button label="Baixar no RH" icon="pi pi-download" [loading]="saving()" (onClick)="abrirBaixarDialog()" styleClass="!w-full md:!w-auto !justify-center !rounded-xl !bg-green-600 !border-green-600 hover:!bg-green-500 !text-white !font-medium !text-[11px] !tracking-widest !uppercase !px-8 !py-3 shadow-lg transition-all"></p-button>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Modal de Validação (valorValidado é obrigatório) -->
+<p-dialog [(visible)]="showValidarDialog" [modal]="true" header="Validar Desconto" [style]="{ width: '90vw', maxWidth: '460px' }" [draggable]="false" [resizable]="false" class="custom-dialog">
+  <div class="flex flex-col gap-4 mt-2">
+    <p class="text-sm text-slate-600 dark:text-slate-300">
+      Confirme o valor aprovado para este desconto. Após validar, <strong>os itens não poderão mais ser alterados</strong>.
+    </p>
+
+    <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-3">
+      <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Valor sugerido</span>
+      <span class="text-sm font-black text-slate-700 dark:text-slate-200">{{ desconto()?.valorSugerido | currency:'BRL' }}</span>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px]">Valor validado <span class="text-red-500">*</span></label>
+      <p-inputNumber [ngModel]="valorValidadoInput()" (ngModelChange)="valorValidadoInput.set($event)" [min]="0" [maxFractionDigits]="2" [minFractionDigits]="2" mode="currency" currency="BRL" locale="pt-BR" class="w-full custom-input-number-sm" placeholder="R$ 0,00"></p-inputNumber>
+      @if (valorValidadoInput() === null || valorValidadoInput() === undefined) {
+        <span class="text-[10px] font-medium text-red-500">Informe o valor validado.</span>
+      } @else if (previewDivergenciaValidacao() !== 0) {
+        <span class="text-[10px] font-bold flex items-center gap-1" [ngClass]="previewDivergenciaValidacao() > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'">
+          <i class="pi text-[10px]" [ngClass]="previewDivergenciaValidacao() > 0 ? 'pi-arrow-up-right' : 'pi-arrow-down-right'"></i>
+          Divergência de {{ abs(previewDivergenciaValidacao()) | currency:'BRL' }} em relação ao sugerido
+        </span>
+      } @else {
+        <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500">Mesmo valor do sugerido.</span>
+      }
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 pt-4">
+      <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="showValidarDialog.set(false)" [disabled]="validando()" styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-xs !px-4 !py-2.5"></p-button>
+      <p-button label="Confirmar Validação" icon="pi pi-check" (onClick)="confirmarValidacao()" [loading]="validando()" [disabled]="valorValidadoInput() === null || valorValidadoInput() === undefined || valorValidadoInput()! < 0" styleClass="!bg-blue-600 hover:!bg-blue-500 !border-blue-600 !text-white !rounded-xl !px-5 !py-2.5 shadow-sm"></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- Modal de Baixa (valorBaixado é obrigatório) -->
+<p-dialog [(visible)]="showBaixarDialog" [modal]="true" header="Registrar Baixa do Desconto" [style]="{ width: '90vw', maxWidth: '540px' }" [draggable]="false" [resizable]="false" class="custom-dialog">
+  <div class="flex flex-col gap-4 mt-2">
+    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+      Confirme a efetivação da baixa financeira deste termo de desconto informando o valor efetivamente descontado em folha.
+    </p>
+
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2">
+        <span class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px]">Valor sugerido</span>
+        <span class="text-xs font-bold text-slate-600 dark:text-slate-300">{{ desconto()?.valorSugerido | currency:'BRL' }}</span>
+      </div>
+      <div class="flex items-center justify-between bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-lg px-4 py-2.5">
+        <span class="filter-label !text-blue-700 dark:!text-blue-300 !text-[11px]">Valor validado</span>
+        <span class="text-sm font-black text-blue-700 dark:text-blue-300">{{ desconto()?.valorValidado | currency:'BRL' }}</span>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px]">Valor baixado <span class="text-red-500">*</span></label>
+      <p-inputNumber [ngModel]="valorBaixadoInput()" (ngModelChange)="valorBaixadoInput.set($event)" [min]="0" [maxFractionDigits]="2" [minFractionDigits]="2" mode="currency" currency="BRL" locale="pt-BR" class="w-full custom-input-number-sm" placeholder="R$ 0,00"></p-inputNumber>
+      @if (valorBaixadoInput() === null || valorBaixadoInput() === undefined) {
+        <span class="text-[10px] font-medium text-red-500">Informe o valor baixado.</span>
+      } @else if (previewDivergenciaBaixa() !== 0) {
+        <span class="text-[10px] font-bold flex items-center gap-1" [ngClass]="previewDivergenciaBaixa() > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'">
+          <i class="pi text-[10px]" [ngClass]="previewDivergenciaBaixa() > 0 ? 'pi-arrow-up-right' : 'pi-arrow-down-right'"></i>
+          Divergência de {{ abs(previewDivergenciaBaixa()) | currency:'BRL' }} em relação ao validado
+        </span>
+      } @else {
+        <span class="text-[10px] font-medium text-slate-400 dark:text-slate-500">Mesmo valor do validado.</span>
+      }
+      @if (valorBaixadoInput() !== null && valorBaixadoInput() !== undefined && desconto()?.quantidadeParcelas) {
+        <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1">
+          Equivale a {{ desconto()?.quantidadeParcelas }}x de {{ (valorBaixadoInput()! / (desconto()!.quantidadeParcelas || 1)) | currency:'BRL' }} na folha.
+        </span>
+      }
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 pt-4">
+      <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="showBaixarDialog.set(false)" [disabled]="baixando()" styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-xs !px-4 !py-2.5"></p-button>
+      <p-button label="Confirmar Baixa" icon="pi pi-check" severity="success" (onClick)="confirmarBaixa()" [loading]="baixando()" [disabled]="!isBaixaValida()" styleClass="!bg-green-600 hover:!bg-green-500 !border-green-600 !text-white !rounded-xl !px-5 !py-2.5 shadow-sm"></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- Modal de Rejeição -->
+<p-dialog [(visible)]="showRejeitarDialog" [modal]="true" header="Rejeitar Desconto" [style]="{ width: '90vw', maxWidth: '400px' }" [draggable]="false" [resizable]="false" class="custom-dialog">
+  <div class="flex flex-col gap-4 mt-2">
+    <p class="text-sm text-slate-600 dark:text-slate-300">Por favor, informe o motivo da rejeição desta solicitação. Esta ação é irreversível.</p>
+    <div class="flex flex-col gap-1">
+      <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px]">Motivo <span class="text-red-500">*</span></label>
+      <textarea pTextarea [(ngModel)]="motivoRejeicao" rows="4" class="w-full text-xs p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:outline-none resize-none" placeholder="Ex: Faltam informações, valores incorretos..."></textarea>
+    </div>
+  </div>
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 pt-4">
+      <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="cancelarRejeicao()" [disabled]="rejeitando()" styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-xs !px-4 !py-2.5"></p-button>
+      <p-button label="Confirmar Rejeição" icon="pi pi-check" severity="danger" (onClick)="confirmarRejeicao()" [loading]="rejeitando()" [disabled]="!motivoRejeicao().trim()" styleClass="!bg-red-600 hover:!bg-red-500 !border-red-600 !text-white !rounded-xl !px-5 !py-2.5 shadow-sm"></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- Modal de Visualização de Anexo (PDF / Imagem / Áudio / Vídeo) -->
+<p-dialog
+  [(visible)]="showPreviewModal"
+  [modal]="true"
+  [dismissableMask]="true"
+  [closable]="true"
+  (onHide)="fecharPreviewModal()"
+  [style]="{ width: '90vw', maxWidth: '950px' }"
+  styleClass="custom-dialog"
+  [header]="previewNomeArquivo()">
+  <div class="flex flex-col items-center justify-center min-h-[350px] max-h-[75vh] w-full bg-slate-900/5 dark:bg-slate-900/40 rounded-lg overflow-hidden relative">
+    @if (loadingPreview()) {
+      <div class="flex flex-col items-center gap-3 p-8">
+        <p-progressSpinner styleClass="w-10 h-10"></p-progressSpinner>
+        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Carregando visualização...</span>
+      </div>
+    } @else if (previewUrl()) {
+      @if (previewTipo() === 'pdf') {
+        <iframe [src]="previewUrl()" class="w-full h-[70vh] border-0 rounded-b-lg"></iframe>
+      } @else if (previewTipo() === 'image') {
+        <div class="p-4 flex items-center justify-center max-h-[70vh] overflow-auto">
+          <img [src]="previewUrl()" [alt]="previewNomeArquivo()" class="max-w-full max-h-[65vh] object-contain rounded shadow-md" />
+        </div>
+      } @else if (previewTipo() === 'audio') {
+        <div class="p-8 flex flex-col items-center justify-center gap-4 w-full max-w-lg mx-auto text-center">
+          <div class="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-sm">
+            <i class="pi pi-volume-up text-2xl"></i>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 break-all">{{ previewNomeArquivo() }}</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Reprodução de Áudio</p>
+          </div>
+          <audio controls autoplay [src]="previewUrl()" class="w-full mt-2"></audio>
+        </div>
+      } @else if (previewTipo() === 'video') {
+        <div class="p-4 flex items-center justify-center max-h-[70vh] w-full bg-black/5 dark:bg-black/40">
+          <video controls autoplay playsinline [src]="previewUrl()" class="max-w-full max-h-[65vh] rounded-lg shadow-md"></video>
+        </div>
+      } @else {
+        <div class="flex flex-col items-center gap-3 p-8 text-center">
+          <i class="pi pi-file text-4xl text-slate-400"></i>
+          <p class="text-xs text-slate-600 dark:text-slate-300">Este formato não possui pré-visualização direta integrada.</p>
+          <p-button label="Abrir em Nova Aba" icon="pi pi-external-link" size="small" (onClick)="abrirPreviewNovaAba()"></p-button>
+        </div>
+      }
+    }
+  </div>
+  <ng-template pTemplate="footer">
+    <div class="flex items-center justify-between w-full pt-3">
+      <p-button label="Abrir em Nova Aba" icon="pi pi-external-link" [text]="true" size="small" (onClick)="abrirPreviewNovaAba()"></p-button>
+      <p-button label="Fechar" [outlined]="true" severity="secondary" size="small" (onClick)="fecharPreviewModal()"></p-button>
+    </div>
+  </ng-template>
+</p-dialog>

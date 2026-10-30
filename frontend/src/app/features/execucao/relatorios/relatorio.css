@@ -1,0 +1,350 @@
+/*
+ * Relatórios de execução (turno e nota): mesmo padrão do relatório de movimentação
+ * de estoque (cabeçalho institucional, .kv, cards, tabelas, barra flutuante). Abaixo
+ * da base comum ficam só as peças próprias: linha do tempo, barras e mapa.
+ */
+
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--ces-surface);
+
+  /*
+   * Ação "neutra forte" (IMPRIMIR) da barra flutuante.
+   */
+  --report-action-strong-bg: var(--ces-foreground);
+  --report-action-strong-bg-hover: var(--ces-foreground-muted);
+}
+
+:host-context(.app-dark),
+:host-context(.dark) {
+  background-color: var(--ces-canvas);
+  --report-action-strong-bg: var(--ces-surface-muted);
+  --report-action-strong-bg-hover: var(--ces-border-strong);
+}
+
+/* ANIMAÇÃO DE ENTRADA SUAVE */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: riseIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+}
+
+/* PADRÃO CHAVE-VALOR (.KV) */
+.kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kv-l {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ces-foreground-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.kv-v {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ces-foreground);
+  text-align: right;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kv-v--muted {
+  color: var(--ces-foreground-subtle);
+}
+
+.kv-v--success {
+  color: var(--ces-success-text);
+}
+
+.kv-v--brand {
+  color: var(--ces-brand);
+}
+
+.kv-v--wrap {
+  white-space: normal;
+}
+
+.signature-slot {
+  display: flex;
+  width: 80%;
+  height: 3.25rem;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 0.375rem;
+  border-bottom: 1px solid var(--ces-border-strong);
+}
+
+.signature-image {
+  display: block;
+  width: auto;
+  max-width: 85%;
+  height: auto;
+  max-height: 2.5rem;
+  object-fit: contain;
+  background: #ffffff;
+  filter: none;
+  mix-blend-mode: normal;
+}
+
+
+/* REGRAS DE IMPRESSÃO A4 */
+@media print {
+  :host {
+    background-color: #ffffff !important;
+    min-height: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  html,
+  body {
+    background-color: #ffffff !important;
+    height: auto !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #000000 !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  .page-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .rise {
+    animation: none !important;
+  }
+
+  .kv-l {
+    font-size: 8.5px;
+    color: #475569 !important;
+  }
+
+  .kv-v {
+    font-size: 9.5px;
+    color: #0f172a !important;
+  }
+
+  .kv-v--muted {
+    color: #64748b !important;
+  }
+
+  .kv-v--success,
+  .kv-v--brand {
+    color: #0f172a !important;
+  }
+
+  .signature-slot {
+    height: 2.75rem;
+    border-bottom-color: #1e293b !important;
+  }
+
+  .signature-image {
+    max-height: 2.125rem;
+  }
+
+  @page {
+    margin: 10mm;
+    size: A4 portrait;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+  }
+}
+
+/* LINHA DO TEMPO DO TURNO */
+.trilho {
+  position: relative;
+  height: 2.25rem;
+}
+
+.trilho::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--ces-surface-muted);
+  transform: translateY(-50%);
+}
+
+.trilho-ponto {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  border: 2px solid var(--ces-surface);
+  border-radius: 999px;
+  background: var(--ces-brand);
+  color: var(--ces-surface);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.trilho-ponto:focus-visible {
+  outline: none;
+  box-shadow: var(--ces-focus-ring);
+}
+
+/* BARRA DE PROPORÇÃO (meta, frequência) */
+.barra {
+  position: relative;
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ces-surface-muted);
+}
+
+.barra > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  max-width: 100%;
+  border-radius: 999px;
+  background: var(--ces-brand);
+}
+
+.barra[data-tone='success'] > span {
+  background: var(--ces-success);
+}
+
+.barra[data-tone='warning'] > span {
+  background: var(--ces-warning);
+}
+
+.barra[data-tone='danger'] > span {
+  background: var(--ces-danger);
+}
+
+/* DESTAQUES (mesmo desenho do banner de natureza da operação) */
+.destaque {
+  border-color: var(--ces-border);
+  background: var(--ces-surface-subtle);
+  color: var(--ces-foreground);
+}
+
+.destaque[data-tone='success'] {
+  border-color: var(--ces-success);
+  background: var(--ces-success-soft);
+}
+
+.destaque[data-tone='warning'] {
+  border-color: var(--ces-warning);
+  background: var(--ces-warning-soft);
+}
+
+.destaque[data-tone='danger'] {
+  border-color: var(--ces-danger);
+  background: var(--ces-danger-soft);
+}
+
+.destaque[data-tone='info'] {
+  border-color: var(--ces-info);
+  background: var(--ces-info-soft);
+}
+
+.destaque__icone {
+  border-color: currentColor;
+}
+
+.destaque[data-tone='success'] .destaque__icone {
+  color: var(--ces-success-text);
+}
+
+.destaque[data-tone='warning'] .destaque__icone {
+  color: var(--ces-warning-text);
+}
+
+.destaque[data-tone='danger'] .destaque__icone {
+  color: var(--ces-danger-text);
+}
+
+.destaque[data-tone='info'] .destaque__icone {
+  color: var(--ces-info-text);
+}
+
+/* MAPA */
+.mapa {
+  height: 24rem;
+}
+
+@media print {
+  .mapa {
+    height: 18rem;
+  }
+
+  .destaque {
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+}
+
+/* Nota alterada depois de sincronizada: aviso que também sai na impressão. */
+.nota-alterada {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.75rem 1rem;
+  border-radius: var(--ces-radius-md);
+  border: 1px solid color-mix(in srgb, var(--ces-warning) 40%, transparent);
+  background: var(--ces-warning-soft);
+  color: var(--ces-foreground);
+  font-size: 0.8125rem;
+}
+.nota-alterada > i { color: var(--ces-warning); font-size: 1rem; margin-top: 0.1rem; }
+.nota-alterada > div { display: grid; gap: 0.15rem; }
+.nota-alterada span { color: var(--ces-foreground-muted); }
+@media print {
+  .nota-alterada { border-color: currentColor; }
+}

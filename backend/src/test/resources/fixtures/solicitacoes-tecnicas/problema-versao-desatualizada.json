@@ -1,0 +1,14 @@
+{
+  "type": "https://app.exemplo.com/errors/versao-desatualizada",
+  "title": "Conflito de Versao",
+  "status": 409,
+  "detail": "A versao conhecida do recurso esta desatualizada. Recarregue os dados e tente novamente.",
+  "instance": "/v1/solicitacoes-material/tecnicas/77777777-7777-7777-7777-777777777771/planejamento",
+  "code": "VERSAO_DESATUALIZADA",
+  "recurso": "SOLICITACAO",
+  "versaoEsperada": 2,
+  "versaoAtual": 3,
+  "timestamp": "2026-09-01T14:30:00Z",
+  "erros": null,
+  "fieldErrors": null
+}

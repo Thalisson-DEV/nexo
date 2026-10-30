@@ -1,0 +1,342 @@
+/*
+ * Relatório de saldo: mesmo padrão dos relatórios de nota, turno e movimentação
+ * (cabeçalho institucional, .kv, cards, destaques, barra flutuante). Abaixo da base
+ * comum ficam as peças próprias: cards que filtram a tabela e o recorte rápido.
+ */
+
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--ces-surface);
+
+  /*
+   * Ação "neutra forte" (IMPRIMIR) da barra flutuante.
+   */
+  --report-action-strong-bg: var(--ces-foreground);
+  --report-action-strong-bg-hover: var(--ces-foreground-muted);
+}
+
+:host-context(.app-dark),
+:host-context(.dark) {
+  background-color: var(--ces-canvas);
+  --report-action-strong-bg: var(--ces-surface-muted);
+  --report-action-strong-bg-hover: var(--ces-border-strong);
+}
+
+/* ANIMAÇÃO DE ENTRADA SUAVE */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: riseIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+}
+
+/* PADRÃO CHAVE-VALOR (.KV) */
+.kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kv-l {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ces-foreground-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.kv-v {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ces-foreground);
+  text-align: right;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kv-v--muted {
+  color: var(--ces-foreground-subtle);
+}
+
+.kv-v--success {
+  color: var(--ces-success-text);
+}
+
+.kv-v--brand {
+  color: var(--ces-brand);
+}
+
+.kv-v--wrap {
+  white-space: normal;
+}
+
+/* REGRAS DE IMPRESSÃO A4 */
+@media print {
+  :host {
+    background-color: #ffffff !important;
+    min-height: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  html,
+  body {
+    background-color: #ffffff !important;
+    height: auto !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #000000 !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  .page-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .rise {
+    animation: none !important;
+  }
+
+  .kv-l {
+    font-size: 8.5px;
+    color: #475569 !important;
+  }
+
+  .kv-v {
+    font-size: 9.5px;
+    color: #0f172a !important;
+  }
+
+  .kv-v--muted {
+    color: #64748b !important;
+  }
+
+  .kv-v--success,
+  .kv-v--brand {
+    color: #0f172a !important;
+  }
+
+
+  @page {
+    margin: 10mm;
+    size: A4 portrait;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+  }
+}
+
+/* DESTAQUES (mesmo desenho do banner de natureza da operação) */
+.destaque {
+  border-color: var(--ces-border);
+  background: var(--ces-surface-subtle);
+  color: var(--ces-foreground);
+}
+
+.destaque[data-tone='success'] {
+  border-color: var(--ces-success);
+  background: var(--ces-success-soft);
+}
+
+.destaque[data-tone='warning'] {
+  border-color: var(--ces-warning);
+  background: var(--ces-warning-soft);
+}
+
+.destaque[data-tone='danger'] {
+  border-color: var(--ces-danger);
+  background: var(--ces-danger-soft);
+}
+
+.destaque[data-tone='info'] {
+  border-color: var(--ces-info);
+  background: var(--ces-info-soft);
+}
+
+.destaque__icone {
+  border-color: currentColor;
+}
+
+.destaque[data-tone='success'] .destaque__icone {
+  color: var(--ces-success-text);
+}
+
+.destaque[data-tone='warning'] .destaque__icone {
+  color: var(--ces-warning-text);
+}
+
+.destaque[data-tone='danger'] .destaque__icone {
+  color: var(--ces-danger-text);
+}
+
+.destaque[data-tone='info'] .destaque__icone {
+  color: var(--ces-info-text);
+}
+
+/* CARDS DE RESUMO QUE FILTRAM A TABELA */
+.card-filtro {
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.card-filtro:hover {
+  border-color: var(--ces-border-strong);
+}
+
+.card-filtro:focus-visible {
+  outline: none;
+  box-shadow: var(--ces-focus-ring);
+}
+
+.card-filtro[aria-pressed='true'] {
+  border-color: var(--ces-brand);
+  box-shadow: inset 0 0 0 1px var(--ces-brand);
+}
+
+.card-filtro:disabled {
+  cursor: default;
+}
+
+.card-valor[data-tone='danger'] {
+  color: var(--ces-danger-text);
+}
+
+.card-valor[data-tone='warning'] {
+  color: var(--ces-warning-text);
+}
+
+/* RECORTE RÁPIDO (segmentado) */
+.recorte {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.1875rem;
+  border: 1px solid var(--ces-border);
+  border-radius: 0.625rem;
+  background: var(--ces-surface-subtle);
+}
+
+.recorte__opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ces-foreground-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recorte__opcao:hover {
+  color: var(--ces-foreground);
+  background: var(--ces-surface-muted);
+}
+
+.recorte__opcao:focus-visible {
+  outline: none;
+  box-shadow: var(--ces-focus-ring);
+}
+
+.recorte__opcao[aria-pressed='true'] {
+  background: var(--ces-surface);
+  color: var(--ces-foreground);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+}
+
+.recorte__contagem {
+  font-variant-numeric: tabular-nums;
+  color: var(--ces-foreground-subtle);
+}
+
+.quantidade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ces-foreground);
+}
+
+.quantidade[data-tone='danger'] {
+  color: var(--ces-danger-text);
+}
+
+.quantidade[data-tone='zero'] {
+  color: var(--ces-foreground-subtle);
+}
+
+@media (max-width: 39.99rem) {
+  .recorte {
+    width: 100%;
+  }
+
+  .recorte__opcao {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+}
+
+@media print {
+  .destaque {
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .card-filtro[aria-pressed='true'] {
+    border-color: #cbd5e1 !important;
+  }
+
+  .quantidade,
+  .card-valor {
+    color: #0f172a !important;
+  }
+}

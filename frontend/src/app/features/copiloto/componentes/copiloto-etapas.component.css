@@ -1,0 +1,347 @@
+:host {
+  display: block;
+}
+
+.etapas {
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-surface-subtle);
+  overflow: hidden;
+}
+
+.etapas__cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--ces-foreground-muted);
+  font: inherit;
+  font-size: var(--ces-font-control);
+  text-align: left;
+  cursor: pointer;
+}
+
+.etapas__cabecalho:hover {
+  background: var(--ces-surface-muted);
+  color: var(--ces-foreground);
+}
+
+.etapas__cabecalho:focus-visible,
+.etapa__detalhes-botao:focus-visible,
+.etapa__arquivo:focus-visible,
+.etapa__previa:focus-visible,
+.etapa__bloco pre:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: 2px;
+}
+
+.etapas__resumo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.etapas--andamento .etapas__resumo {
+  color: var(--ces-foreground);
+  font-weight: 500;
+}
+
+.etapas__icone--ok {
+  color: var(--ces-success-text);
+}
+
+.etapas__icone--aviso {
+  color: var(--ces-warning-text);
+}
+
+.etapas__seta {
+  font-size: 0.7rem;
+}
+
+.etapas__giro {
+  display: inline-block;
+  color: var(--ces-brand);
+  animation: etapas-giro 0.9s linear infinite;
+}
+
+@keyframes etapas-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.etapas__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0.8rem 0.75rem;
+  border-top: 1px solid var(--ces-border);
+}
+
+.etapa {
+  position: relative;
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.55rem 0 0.2rem;
+}
+
+.etapa:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 0.8rem;
+  top: 2.1rem;
+  bottom: -0.35rem;
+  width: 1px;
+  background: var(--ces-border);
+}
+
+.etapa__marcador,
+.etapa__icone {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: var(--ces-surface);
+  border: 1px solid var(--ces-border);
+  color: var(--ces-foreground-muted);
+  font-size: 0.72rem;
+}
+
+.etapa[data-status='executando'] .etapa__marcador {
+  border-color: var(--ces-brand);
+  color: var(--ces-brand);
+}
+
+.etapa[data-status='erro'] .etapa__marcador {
+  border-color: var(--ces-danger-text);
+  color: var(--ces-danger-text);
+}
+
+.etapa__corpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.etapa__linha {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.6rem;
+}
+
+.etapa__rotulo {
+  font-size: var(--ces-font-body);
+  color: var(--ces-foreground);
+  line-height: 1.35;
+}
+
+.etapa__estado {
+  font-size: 0.7rem;
+}
+
+.etapa__estado--ok {
+  color: var(--ces-success-text);
+}
+
+.etapa__estado--erro {
+  color: var(--ces-danger-text);
+}
+
+.etapa__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-subtle);
+}
+
+.etapa__codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--ces-foreground-muted);
+}
+
+.etapa__erro {
+  margin: 0.3rem 0 0;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-danger-text);
+}
+
+.etapa__observacao {
+  margin: 0.2rem 0 0;
+  font-size: var(--ces-font-body);
+  color: var(--ces-foreground-muted);
+  white-space: pre-wrap;
+}
+
+.etapa__arquivos {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+}
+
+.etapa__arquivo,
+.etapa__detalhes-botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--ces-border);
+  border-radius: 999px;
+  background: var(--ces-surface);
+  color: var(--ces-foreground-muted);
+  font: inherit;
+  font-size: var(--ces-font-caption);
+  cursor: pointer;
+}
+
+.etapa__detalhes-botao {
+  margin-top: 0.35rem;
+  border-style: dashed;
+}
+
+.etapa__arquivo:hover,
+.etapa__detalhes-botao:hover {
+  color: var(--ces-brand);
+  border-color: var(--ces-brand);
+}
+
+.etapa__detalhes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.etapa__args {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  font-size: var(--ces-font-caption);
+}
+
+.etapa__args div {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.etapa__args dt {
+  flex: 0 0 auto;
+  color: var(--ces-foreground-subtle);
+}
+
+.etapa__args dd {
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  overflow-wrap: anywhere;
+}
+
+.etapa__consultas {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-muted);
+}
+
+.etapa__bloco {
+  margin: 0;
+}
+
+.etapa__bloco figcaption {
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-subtle);
+  margin-bottom: 0.2rem;
+}
+
+.etapa__bloco pre {
+  margin: 0;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--ces-radius-sm);
+  border: 1px solid var(--ces-border);
+  background: var(--ces-surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ces-foreground);
+}
+
+.etapa__stderr {
+  color: var(--ces-danger-text);
+}
+
+.etapa__previa {
+  max-height: 14rem;
+  overflow: auto;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+  background: var(--ces-surface);
+}
+
+.etapa__previa table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ces-font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.etapa__previa th,
+.etapa__previa td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--ces-border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.etapa__previa thead th {
+  position: sticky;
+  top: 0;
+  background: var(--ces-surface-muted);
+  font-weight: 600;
+}
+
+.etapa__nota {
+  margin: 0;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-subtle);
+}
+
+.etapa__fontes {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.25rem;
+  font-size: var(--ces-font-caption);
+}
+
+.etapa__fontes a {
+  color: var(--ces-brand);
+}
+
+.etapa__fontes span {
+  margin-left: 0.35rem;
+  color: var(--ces-foreground-subtle);
+}
+
+.etapa--pensando .etapa__rotulo {
+  color: var(--ces-foreground-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .etapas__giro {
+    animation: none;
+  }
+}

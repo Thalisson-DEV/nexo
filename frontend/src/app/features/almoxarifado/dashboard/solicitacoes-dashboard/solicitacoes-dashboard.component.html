@@ -1,0 +1,681 @@
+<app-copiloto-area [contexto]="contextoCopiloto()">
+<main class="dash-page">
+  <div class="dash-shell">
+    <ces-page-header [title]="config.titulo" [icon]="config.icone"
+      [breadcrumb]="[{ label: 'Almoxarifado' }, { label: 'Relatórios' }, { label: config.titulo }]"
+      [description]="config.descricao">
+      <app-copiloto-gatilho actions></app-copiloto-gatilho>
+      @if (data(); as d) {
+        <span actions class="dash-updated">Atualizado às {{ d.geradoEm | date: 'HH:mm' }}</span>
+      }
+      <ces-button actions label="Exportar" icon="pi pi-file-excel" variant="outline" (pressed)="abrirExportacao()"></ces-button>
+      <ces-button actions label="Atualizar" icon="pi pi-refresh" [loading]="loading()" (pressed)="aplicar()"></ces-button>
+    </ces-page-header>
+
+    <nav class="sd-modos" aria-label="Processo analisado">
+      @for (aba of abas; track aba.modo) {
+        <a class="sd-modo" [class.is-active]="aba.modo === modo" [attr.aria-current]="aba.modo === modo ? 'page' : null"
+          [routerLink]="aba.rota" queryParamsHandling="merge" [queryParams]="{ drill: null }">
+          <i [class]="aba.icone" aria-hidden="true"></i>
+          <span>{{ aba.rotulo }}</span>
+        </a>
+      }
+    </nav>
+
+    <ces-filter-panel storageKey="dash-solicitacoes" [activeCount]="chips().length" [summary]="chips()" [loading]="loading()"
+      (applied)="aplicar()" (cleared)="limpar()" (chipRemoved)="removerFiltro($event)">
+      <div class="ces-filter-grid">
+        <ces-datepicker label="Início" inputId="sd-inicio" [value]="inicio()" (valueChange)="inicio.set($event)"
+          [maxDate]="fim() ?? hojeLocal"></ces-datepicker>
+        <ces-datepicker label="Fim" inputId="sd-fim" [value]="fim()" (valueChange)="fim.set($event)"
+          [minDate]="inicio()" [maxDate]="hojeLocal"></ces-datepicker>
+        <ces-select label="Base operacional" inputId="sd-base" placeholder="Todas" [filter]="true" [clearable]="true"
+          [options]="recorte.opcoesBases()" [loading]="recorte.carregando()" [value]="idBase()" (valueChange)="idBase.set($event)"></ces-select>
+        <ces-select label="Processo de negócio" inputId="sd-processo" placeholder="Todos" [filter]="true" [clearable]="true"
+          [options]="recorte.opcoesProcessos()" [loading]="recorte.carregando()" [value]="idProcesso()" (valueChange)="idProcesso.set($event)"></ces-select>
+        <ces-select label="Equipe" inputId="sd-equipe" placeholder="Todas" [filter]="true" [clearable]="true"
+          [options]="recorte.opcoesEquipes()" [loading]="recorte.carregandoEquipes()" [value]="idEquipe()" (valueChange)="idEquipe.set($event)"></ces-select>
+        <ces-select label="Almoxarifado" inputId="sd-almoxarifado" placeholder="Todos" [filter]="true" [clearable]="true"
+          [options]="opcoesAlmoxarifados()" [value]="idAlmoxarifado()" (valueChange)="idAlmoxarifado.set($event)"></ces-select>
+      </div>
+    </ces-filter-panel>
+
+    <div class="dash-tabs sd-periodos" role="group" aria-label="Período rápido">
+      @for (p of periodosRapidos; track p.valor) {
+        <button type="button" class="dash-tab" [class.is-active]="periodoAtivo() === p.valor" [attr.aria-pressed]="periodoAtivo() === p.valor"
+          (click)="usarPeriodo(p.valor)">{{ p.rotulo }}</button>
+      }
+    </div>
+
+    @if (loading() && !data()) {
+      <ces-async-state state="loading" title="Montando o painel de solicitações" description="Lendo solicitações, etapas, prazos e materiais do recorte."></ces-async-state>
+    } @else if (erro() && !data()) {
+      <ces-async-state state="error" title="Não foi possível carregar o painel" [description]="erro()!"
+        actionLabel="Tentar novamente" actionIcon="pi pi-refresh" (action)="aplicar()"></ces-async-state>
+    } @else if (data(); as d) {
+      @if (r(); as r) {
+        @if (d.truncado) {
+          <p class="sd-aviso" role="status">
+            <i class="pi pi-info-circle" aria-hidden="true"></i>
+            <span>O recorte passou de {{ inteiro(d.limite) }} solicitações; o painel mostra as mais recentes. Reduza o período ou filtre por base, equipe ou almoxarifado para ver tudo. A planilha segue o mesmo limite.</span>
+          </p>
+        }
+
+        @if (visao(); as vg) {
+          <app-dashboard-visao-gerencial [veredito]="vg.veredito" [leituras]="vg.leituras" [copiloto]="copilotoDisponivel"
+            (abrir)="analisar($event.dimension, $event.value)" (perguntar)="perguntarVisao(vg.pergunta)" />
+        }
+
+        <!-- ------------------------------------------------------------ indicadores -->
+        <section class="dash-metrics sd-metrics" aria-label="Indicadores do período" [attr.aria-busy]="loading()">
+          <app-dashboard-metric-card label="Solicitações no período" icon="pi-inbox" tone="primary"
+            [value]="inteiro(ind().total)" [detail]="detalheVolume()" actionLabel="Analisar volume" (activate)="analisar('kpi', 'volume')">
+            <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'total', rotulo: 'Solicitações no período' }" />
+          </app-dashboard-metric-card>
+
+          <app-dashboard-metric-card label="Concluídas" icon="pi-check-circle" [tone]="tomConclusao()"
+            [value]="percentual(ind().taxaConclusao)" [progress]="ind().taxaConclusao" [detail]="detalheConclusao()"
+            actionLabel="Analisar conclusão" (activate)="analisar('kpi', 'conclusao')">
+            <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'taxaConclusao', rotulo: 'Concluídas' }" />
+          </app-dashboard-metric-card>
+
+          <app-dashboard-metric-card label="Em aberto agora" icon="pi-clock" [tone]="atrasadas().length ? 'amber' : 'slate'"
+            [value]="inteiro(r.abertas.length)" [detail]="detalheAbertas()" actionLabel="Ver a fila" (activate)="analisar('kpi', 'abertas')">
+            <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'abertas', rotulo: 'Em aberto agora' }" />
+          </app-dashboard-metric-card>
+
+          <app-dashboard-metric-card label="Atrasadas" icon="pi-exclamation-triangle" [tone]="atrasadas().length ? 'red' : 'green'"
+            [value]="inteiro(atrasadas().length)"
+            [detail]="atrasadas().length ? percentual(r.abertas.length ? atrasadas().length / r.abertas.length * 100 : 0) + ' das abertas passaram da data prevista' : 'Nenhuma aberta passou da data prevista'"
+            actionLabel="Ver atrasadas" (activate)="analisar('kpi', 'atrasadas')">
+            <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'atrasadas', rotulo: 'Atrasadas' }" />
+          </app-dashboard-metric-card>
+
+          <app-dashboard-metric-card label="Ciclo mediano" icon="pi-stopwatch" [tone]="tomCiclo()"
+            [value]="tempo(ind().cicloMediana)" [detail]="detalheCiclo()" actionLabel="Analisar o ciclo" (activate)="analisar('kpi', 'ciclo')">
+            <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'cicloMediana', rotulo: 'Ciclo mediano' }" />
+          </app-dashboard-metric-card>
+
+          @switch (modo) {
+            @case ('COMERCIAL') {
+              <app-dashboard-metric-card label="Aprovação mediana" icon="pi-check" tone="slate"
+                [value]="tempo(ind().aprovacaoMediana)"
+                [detail]="ind().foraPrazoSaque ? plural(ind().foraPrazoSaque, 'pedido', 'pedidos') + ' com prazo de saque menor que 2 dias' : 'Da abertura à aprovação'"
+                actionLabel="Analisar aprovação" (activate)="analisar('kpi', 'aprovacao')">
+                <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'aprovacaoMediana', rotulo: 'Aprovação mediana' }" />
+              </app-dashboard-metric-card>
+            }
+            @case ('TECNICO') {
+              <app-dashboard-metric-card label="Separação mediana" icon="pi-box" tone="slate"
+                [value]="tempo(ind().separacaoMediana)"
+                [detail]="'Espera pela retirada: ' + tempo(ind().esperaRetiradaMediana)"
+                actionLabel="Analisar separação" (activate)="analisar('kpi', 'separacao')">
+                <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'separacaoMediana', rotulo: 'Separação mediana' }" />
+              </app-dashboard-metric-card>
+            }
+            @default {
+              <app-dashboard-metric-card label="Atendimento das quantidades" icon="pi-percentage" [tone]="tomAtendimento()"
+                [value]="percentual(ind().atendimento)" [progress]="ind().atendimento"
+                detail="Quantidade atendida ÷ solicitada nas concluídas"
+                actionLabel="Analisar atendimento" (activate)="analisar('kpi', 'atendimento')">
+                <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'atendimento', rotulo: 'Atendimento das quantidades' }" />
+              </app-dashboard-metric-card>
+            }
+          }
+        </section>
+
+        <!-- ------------------------------------------------------------ comercial × técnico (geral) -->
+        @if (processos().length) {
+          <section class="sd-processos" aria-label="Comparativo entre os processos">
+            @for (p of processos(); track p.contexto) {
+              <article class="sd-processo" [attr.data-processo]="p.contexto">
+                <header class="sd-processo__head">
+                  <span class="sd-processo__icone" aria-hidden="true"><i [class]="p.icone"></i></span>
+                  <div>
+                    <span class="sd-eyebrow">Processo</span>
+                    <h2>{{ p.rotulo }}</h2>
+                  </div>
+                  <span class="sd-processo__fatia" [attr.aria-label]="percentual(p.fatia) + ' do volume'">{{ percentual(p.fatia) }} <small>do volume</small></span>
+                </header>
+                <dl class="sd-processo__numeros">
+                  <div><dt>Solicitações</dt><dd>{{ inteiro(p.ind.total) }}</dd></div>
+                  <div><dt>Concluídas</dt><dd>{{ percentual(p.ind.taxaConclusao) }}</dd></div>
+                  <div><dt>Em aberto</dt><dd>{{ inteiro(p.abertas) }}</dd></div>
+                  <div><dt>Atrasadas</dt><dd [class.sd-alerta]="p.atrasadas > 0">{{ inteiro(p.atrasadas) }}</dd></div>
+                  <div><dt>Ciclo mediano</dt><dd>{{ tempo(p.ind.cicloMediana) }}</dd></div>
+                  <div><dt>Atendimento</dt><dd>{{ percentual(p.ind.atendimento) }}</dd></div>
+                </dl>
+                <div class="sd-processo__acoes">
+                  <button type="button" class="sd-link-botao" (click)="analisar('processo', p.contexto)">
+                    <i class="pi pi-chart-line" aria-hidden="true"></i> Analisar aqui
+                  </button>
+                  <a class="sd-link" [routerLink]="p.rota" queryParamsHandling="merge" [queryParams]="{ drill: null }">
+                    Abrir painel {{ p.rotulo.toLowerCase() }} <i class="pi pi-arrow-right" aria-hidden="true"></i>
+                  </a>
+                </div>
+              </article>
+            }
+          </section>
+        }
+
+        <!-- ------------------------------------------------------------ entrada × fluxo -->
+        <section class="dash-grid" aria-label="Entrada de solicitações e fluxo das abertas">
+          <article class="dash-panel dash-col-7">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-chart-bar sd-panel-icon" aria-hidden="true"></i> Entrada de solicitações</h2>
+                <p>{{ visaoSerie() === 'processo' ? 'Criadas por dia em cada processo.' : 'Criadas por dia e como estão hoje.' }} Clique num dia para abrir as solicitações dele.</p>
+              </div>
+              <div class="dash-panel__tools">
+                <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'entrada', rotulo: 'Entrada de solicitações' }" />
+                @if (modo === 'GERAL') {
+                  <div class="dash-tabs" role="group" aria-label="Agrupar o gráfico">
+                    <button type="button" class="dash-tab" [class.is-active]="visaoSerie() === 'situacao'" [attr.aria-pressed]="visaoSerie() === 'situacao'"
+                      (click)="visaoSerie.set('situacao')">Situação</button>
+                    <button type="button" class="dash-tab" [class.is-active]="visaoSerie() === 'processo'" [attr.aria-pressed]="visaoSerie() === 'processo'"
+                      (click)="visaoSerie.set('processo')">Processo</button>
+                  </div>
+                }
+              </div>
+            </header>
+            @if (serie(); as s) {
+              @if (ind().total) {
+                <ces-chart kind="bar-stacked" title="Solicitações criadas por dia" [showTitle]="false"
+                  [labels]="s.rotulos" [series]="s.series" valueFormat="integer" [height]="290"
+                  [selectable]="true" selectLabel="Analisar dia" (pointSelect)="selecionarDia($event)"></ces-chart>
+              } @else {
+                <p class="sd-vazio"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhuma solicitação criada no período.</p>
+              }
+            }
+          </article>
+
+          <article class="dash-panel dash-col-5">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-sitemap sd-panel-icon" aria-hidden="true"></i> Onde estão as abertas</h2>
+                <p>{{ plural(r.abertas.length, 'solicitação aberta', 'solicitações abertas') }} por etapa do fluxo, inclusive as de antes do período.</p>
+              </div>
+              <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'fluxo', rotulo: 'Abertas por etapa' }" />
+            </header>
+            @if (r.abertas.length) {
+              <ol class="sd-fluxo">
+                @for (e of fluxo(); track e.etapa; let i = $index) {
+                  <li>
+                    <button type="button" class="sd-fluxo__etapa" [class.is-vazia]="!e.total" (click)="analisar('etapa', e.etapa)"
+                      [attr.aria-label]="'Analisar a etapa ' + e.rotulo + ': ' + e.total + ' abertas, ' + e.atrasadas + ' atrasadas'">
+                      <span class="sd-fluxo__passo" aria-hidden="true">{{ i + 1 }}</span>
+                      <span class="sd-fluxo__corpo">
+                        <span class="sd-fluxo__linha">
+                          <span class="sd-fluxo__nome"><i [class]="e.icone" aria-hidden="true"></i> {{ e.rotulo }}</span>
+                          <strong class="sd-fluxo__total">{{ e.total }}</strong>
+                        </span>
+                        <span class="sd-barra" aria-hidden="true">
+                          <span class="sd-barra__ok" [style.width.%]="largura(e.total - e.atrasadas, maiorEtapa())"></span>
+                          <span class="sd-barra__atraso" [style.width.%]="largura(e.atrasadas, maiorEtapa())"></span>
+                        </span>
+                        <span class="sd-fluxo__meta">
+                          @if (e.total) {
+                            idade mediana {{ tempo((e.idadeMediana ?? 0) * 24) }}
+                            @if (e.atrasadas) { · <span class="sd-alerta">{{ e.atrasadas }} atrasada{{ e.atrasadas === 1 ? '' : 's' }}</span> }
+                          } @else {
+                            vazia
+                          }
+                        </span>
+                      </span>
+                      <i class="pi pi-angle-right sd-fluxo__seta" aria-hidden="true"></i>
+                    </button>
+                  </li>
+                }
+              </ol>
+              <p class="sd-legenda" aria-hidden="true">
+                <span><span class="sd-ponto sd-ponto--ok"></span> No prazo</span>
+                <span><span class="sd-ponto sd-ponto--atraso"></span> Atrasadas</span>
+              </p>
+            } @else {
+              <p class="sd-vazio sd-vazio--ok"><i class="pi pi-check-circle" aria-hidden="true"></i> Nenhuma solicitação em aberto. Fila zerada.</p>
+            }
+          </article>
+        </section>
+
+        <!-- ------------------------------------------------------------ idade × ciclo -->
+        <section class="dash-grid" aria-label="Idade das abertas e tempo até a entrega">
+          <article class="dash-panel dash-col-6">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-hourglass sd-panel-icon" aria-hidden="true"></i> Há quanto tempo estão abertas</h2>
+                <p>Aging da fila: quanto mais à direita, mais antigo o pedido. Clique numa faixa para ver quais são.</p>
+              </div>
+              <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'idade', rotulo: 'Idade das abertas' }" />
+            </header>
+            @if (r.abertas.length) {
+              <ul class="sd-idade">
+                @for (f of idade(); track f.id) {
+                  <li>
+                    <button type="button" class="sd-idade__faixa" [attr.data-tom]="f.tom" [disabled]="!f.total" (click)="analisar('idade', f.id)"
+                      [attr.aria-label]="f.rotulo + ': ' + f.total + ' abertas, ' + f.atrasadas + ' atrasadas'">
+                      <span class="sd-idade__valor">{{ f.total }}</span>
+                      <span class="sd-idade__coluna" aria-hidden="true">
+                        <span class="sd-idade__barra" [style.height.%]="largura(f.total, maiorIdade())">
+                          @if (f.atrasadas) { <span class="sd-idade__atraso" [style.height.%]="f.total ? f.atrasadas / f.total * 100 : 0"></span> }
+                        </span>
+                      </span>
+                      <span class="sd-idade__rotulo">{{ f.rotulo }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="sd-vazio sd-vazio--ok"><i class="pi pi-check-circle" aria-hidden="true"></i> Sem fila em aberto.</p>
+            }
+          </article>
+
+          <article class="dash-panel dash-col-6">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-stopwatch sd-panel-icon" aria-hidden="true"></i> Tempo até a entrega</h2>
+                <p>Concluídas do período por faixa de ciclo (abertura → entrega ou devolução final).</p>
+              </div>
+              <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'ciclo', rotulo: 'Tempo até a entrega' }" />
+            </header>
+            <dl class="sd-tempos">
+              <div><dt>Mediana</dt><dd>{{ tempo(ind().cicloMediana) }}</dd></div>
+              <div><dt>90% até</dt><dd>{{ tempo(ind().cicloP90) }}</dd></div>
+              <div><dt>Aprovação</dt><dd>{{ tempo(ind().aprovacaoMediana) }}</dd></div>
+              @if (modo !== 'COMERCIAL') {
+                <div><dt>Separação</dt><dd>{{ tempo(ind().separacaoMediana) }}</dd></div>
+              } @else {
+                <div><dt>Atendimento</dt><dd>{{ percentual(ind().atendimento) }}</dd></div>
+              }
+            </dl>
+            @if (ind().concluidas) {
+              <ces-chart kind="bar" title="Concluídas por faixa de ciclo" [showTitle]="false" [labels]="ciclo().rotulos" [series]="ciclo().series"
+                valueFormat="integer" [height]="200" [selectable]="true" selectLabel="Analisar ciclo" (pointSelect)="selecionarCiclo()"></ces-chart>
+            } @else {
+              <p class="sd-vazio"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhuma solicitação concluída no período.</p>
+            }
+          </article>
+        </section>
+
+        <!-- ------------------------------------------------------------ técnico: tipos, obras -->
+        @if (modo !== 'COMERCIAL' && porTipo().length) {
+          <section class="dash-grid" aria-label="Solicitações técnicas por tipo e obra">
+            <article class="dash-panel dash-col-6">
+              <header class="dash-panel__header">
+                <div>
+                  <h2><i class="pi pi-tags sd-panel-icon" aria-hidden="true"></i> Por tipo técnico</h2>
+                  <p>Adições (221/921) levam material à obra; devoluções (222/922) trazem de volta. Clique para analisar.</p>
+                </div>
+                <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'tiposTecnicos', rotulo: 'Por tipo técnico' }" />
+              </header>
+              <div class="dash-table-wrap">
+                <table class="sd-tabela">
+                  <caption class="sd-sr-only">Solicitações técnicas por tipo</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Tipo</th>
+                      <th scope="col" class="sd-num">Período</th>
+                      <th scope="col" class="sd-num">Abertas</th>
+                      <th scope="col" class="sd-num">Atrasadas</th>
+                      <th scope="col" class="sd-num">Ciclo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (t of porTipo(); track t.chave) {
+                      <tr>
+                        <th scope="row">
+                          <button type="button" class="sd-abrir" (click)="analisar('tipo', t.chave)" [attr.aria-label]="'Analisar ' + t.rotulo">
+                            <span class="sd-codigo">{{ t.chave }}</span> {{ tiposTecnicos[t.chave] ?? t.rotulo }} <i class="pi pi-angle-right" aria-hidden="true"></i>
+                          </button>
+                        </th>
+                        <td class="sd-num">{{ t.total }}</td>
+                        <td class="sd-num">{{ t.abertas }}</td>
+                        <td class="sd-num" [class.sd-alerta]="t.atrasadas > 0">{{ t.atrasadas }}</td>
+                        <td class="sd-num">{{ tempo(t.cicloMediana) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (porTipoObra().length) {
+                <div class="sd-chips" role="group" aria-label="Por tipo de obra">
+                  @for (o of porTipoObra(); track o.chave) {
+                    <button type="button" class="sd-chip" (click)="analisar('tipo-obra', o.chave)">
+                      {{ o.rotulo }} <strong>{{ o.total }}</strong>
+                      @if (o.atrasadas) { <span class="sd-alerta">· {{ o.atrasadas }} atrasada{{ o.atrasadas === 1 ? '' : 's' }}</span> }
+                    </button>
+                  }
+                </div>
+              }
+            </article>
+
+            <article class="dash-panel dash-col-6">
+              <header class="dash-panel__header">
+                <div>
+                  <h2><i class="pi pi-briefcase sd-panel-icon" aria-hidden="true"></i> Obras com mais pendências</h2>
+                  <p>Obras com mais solicitações abertas agora. Clique para ver o que falta.</p>
+                </div>
+                <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'obras', rotulo: 'Obras com mais pendências' }" />
+              </header>
+              @if (obras().length) {
+                <ul class="sd-ranking">
+                  @for (o of obras(); track o.chave) {
+                    <li>
+                      <button type="button" class="sd-ranking__item" (click)="analisar('obra', o.chave)" [attr.aria-label]="'Analisar ' + o.rotulo">
+                        <span class="sd-ranking__nome">
+                          <strong>{{ o.rotulo }}</strong>
+                          <small>{{ o.detalhe ?? 'Tipo não informado' }} · {{ plural(o.total, 'solicitação', 'solicitações') }} no período</small>
+                        </span>
+                        <span class="sd-ranking__numeros">
+                          <span>{{ o.abertas }} <small>abertas</small></span>
+                          @if (o.atrasadas) { <span class="sd-alerta">{{ o.atrasadas }} <small>atrasadas</small></span> }
+                        </span>
+                        <i class="pi pi-angle-right" aria-hidden="true"></i>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="sd-vazio"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhuma obra no recorte.</p>
+              }
+            </article>
+          </section>
+        }
+
+        <!-- ------------------------------------------------------------ fila de atenção -->
+        <section class="dash-grid" aria-label="Solicitações que pedem ação">
+          <article class="dash-panel dash-col-12">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-bell sd-panel-icon" aria-hidden="true"></i> Pedem ação agora</h2>
+                <p>As abertas mais críticas: atrasadas primeiro (mais dias de atraso), depois as mais antigas.</p>
+              </div>
+              <div class="dash-panel__tools">
+                <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'atencao', rotulo: 'Pedem ação agora' }" />
+                @if (r.abertas.length > atencao().length) {
+                  <button type="button" class="sd-link-botao" (click)="analisar('kpi', 'abertas')">Ver as {{ r.abertas.length }} abertas <i class="pi pi-arrow-right" aria-hidden="true"></i></button>
+                }
+              </div>
+            </header>
+            @if (atencao().length) {
+              <ul class="sd-atencao">
+                @for (l of atencao(); track l.id) {
+                  <li class="sd-atencao__item" [attr.data-tom]="tomEtapa(l)">
+                    <div class="sd-atencao__topo">
+                      <ces-status [tone]="tomEtapa(l)" [icon]="etapas[l.etapa!]?.icone ?? 'pi pi-circle'">{{ rotuloEtapa(l.etapa) }}</ces-status>
+                      @if (atrasoTexto(l); as atraso) { <span class="sd-atencao__atraso"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> {{ atraso }}</span> }
+                    </div>
+                    <strong class="sd-atencao__titulo">
+                      {{ l.equipe ?? 'Sem equipe' }}
+                      <small>{{ l.contexto === 'TECNICO' ? rotuloTipo(l.tipoTecnico) : 'Comercial' }}{{ l.numeroObra ? ' · Obra ' + l.numeroObra : '' }}</small>
+                    </strong>
+                    <dl class="sd-atencao__fatos">
+                      <div><dt>Aberta há</dt><dd>{{ idadeTexto(l) }}</dd></div>
+                      <div><dt>Prevista</dt><dd>{{ l.dataPrevista ? diaMes(l.dataPrevista) : '—' }}</dd></div>
+                      <div><dt>Itens</dt><dd>{{ l.itens }}</dd></div>
+                    </dl>
+                    @if (l.motivosPendencia) {
+                      <p class="sd-atencao__pendencia"><i class="pi pi-flag" aria-hidden="true"></i> {{ l.motivosPendencia }}</p>
+                    }
+                    <a class="sd-link" [routerLink]="rotaDaSolicitacao(l)">Abrir solicitação <i class="pi pi-arrow-right" aria-hidden="true"></i></a>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="sd-vazio sd-vazio--ok"><i class="pi pi-check-circle" aria-hidden="true"></i> Nada pendente: nenhuma solicitação aberta no recorte.</p>
+            }
+          </article>
+        </section>
+
+        <!-- ------------------------------------------------------------ equipes × almoxarifados -->
+        <section class="dash-grid" aria-label="Equipes e almoxarifados">
+          <article class="dash-panel dash-col-7">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-users sd-panel-icon" aria-hidden="true"></i> Equipes</h2>
+                <p>{{ totalEquipes() > equipes().length ? 'As 12 primeiras de ' + totalEquipes() + '.' : '' }} Abertas e atrasadas contam a fila inteira da equipe. Clique para analisar.</p>
+              </div>
+              <div class="dash-panel__tools">
+                <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'equipes', rotulo: 'Ranking de equipes' }" />
+                <div class="dash-tabs" role="group" aria-label="Ordenar equipes">
+                  @for (o of ordensRanking; track o.valor) {
+                    <button type="button" class="dash-tab" [class.is-active]="ordemEquipes() === o.valor" [attr.aria-pressed]="ordemEquipes() === o.valor"
+                      (click)="ordemEquipes.set(o.valor)">{{ o.rotulo }}</button>
+                  }
+                </div>
+              </div>
+            </header>
+            @if (equipes().length) {
+              <div class="dash-table-wrap">
+                <table class="sd-tabela">
+                  <caption class="sd-sr-only">Solicitações por equipe</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Equipe</th>
+                      <th scope="col" class="sd-num">Período</th>
+                      <th scope="col" class="sd-col-barra">Concluídas</th>
+                      <th scope="col" class="sd-num">Abertas</th>
+                      <th scope="col" class="sd-num">Atrasadas</th>
+                      <th scope="col" class="sd-num">Ciclo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (e of equipes(); track e.chave) {
+                      <tr>
+                        <th scope="row">
+                          <button type="button" class="sd-abrir" (click)="analisar('equipe', e.chave)" [attr.aria-label]="'Analisar a equipe ' + e.rotulo">
+                            <span class="sd-abrir__texto">
+                              {{ e.rotulo }}
+                              @if (e.detalhe) { <small>{{ e.detalhe }}</small> }
+                            </span>
+                            <i class="pi pi-angle-right" aria-hidden="true"></i>
+                          </button>
+                        </th>
+                        <td class="sd-num">{{ e.total }}</td>
+                        <td class="sd-col-barra">
+                          <div class="dash-progress">
+                            <div class="dash-progress__track" aria-hidden="true"><span [style.width.%]="e.taxaConclusao ?? 0"></span></div>
+                            <strong>{{ percentual(e.taxaConclusao, 0) }}</strong>
+                          </div>
+                        </td>
+                        <td class="sd-num">{{ e.abertas }}</td>
+                        <td class="sd-num" [class.sd-alerta]="e.atrasadas > 0">{{ e.atrasadas }}</td>
+                        <td class="sd-num">{{ tempo(e.cicloMediana) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="sd-vazio"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhuma equipe no recorte.</p>
+            }
+          </article>
+
+          <article class="dash-panel dash-col-5">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-warehouse sd-panel-icon" aria-hidden="true"></i> Almoxarifados</h2>
+                <p>Quem atende: volume, fila e velocidade de cada almoxarifado.</p>
+              </div>
+              <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'almoxarifados', rotulo: 'Almoxarifados' }" />
+            </header>
+            @if (almoxRanking().length) {
+              <ul class="sd-ranking">
+                @for (a of almoxRanking(); track a.chave) {
+                  <li>
+                    <button type="button" class="sd-ranking__item" (click)="analisar('almox', a.chave)" [attr.aria-label]="'Analisar o almoxarifado ' + a.rotulo">
+                      <span class="sd-ranking__nome">
+                        <strong>{{ a.rotulo }}</strong>
+                        <span class="sd-barra sd-barra--fina" aria-hidden="true"><span class="sd-barra__ok" [style.width.%]="a.fatia"></span></span>
+                        <small>{{ percentual(a.fatia) }} do volume · ciclo {{ tempo(a.cicloMediana) }}</small>
+                      </span>
+                      <span class="sd-ranking__numeros">
+                        <span>{{ a.total }} <small>no período</small></span>
+                        <span [class.sd-alerta]="a.atrasadas > 0">{{ a.abertas }} <small>abertas{{ a.atrasadas ? ' · ' + a.atrasadas + ' atras.' : '' }}</small></span>
+                      </span>
+                      <i class="pi pi-angle-right" aria-hidden="true"></i>
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="sd-vazio"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhum almoxarifado no recorte.</p>
+            }
+          </article>
+        </section>
+
+        <!-- ------------------------------------------------------------ materiais × motivos -->
+        <section class="dash-grid" aria-label="Materiais e motivos">
+          <article class="dash-panel dash-col-7">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-box sd-panel-icon" aria-hidden="true"></i> Materiais mais pedidos</h2>
+                <p>Demanda do período (sem recusadas) e quanto dela foi atendido. Atendimento baixo em material muito pedido indica falta de saldo.</p>
+              </div>
+              <div class="dash-panel__tools">
+                <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'materiais', rotulo: 'Materiais mais pedidos' }" />
+                @if (temDevolucoes()) {
+                  <div class="dash-tabs" role="group" aria-label="Sentido do material">
+                    <button type="button" class="dash-tab" [class.is-active]="sentidoMateriais() === 'SAIDA'" [attr.aria-pressed]="sentidoMateriais() === 'SAIDA'"
+                      (click)="sentidoMateriais.set('SAIDA')">Saídas</button>
+                    <button type="button" class="dash-tab" [class.is-active]="sentidoMateriais() === 'DEVOLUCAO'" [attr.aria-pressed]="sentidoMateriais() === 'DEVOLUCAO'"
+                      (click)="sentidoMateriais.set('DEVOLUCAO')">Devoluções</button>
+                  </div>
+                }
+              </div>
+            </header>
+            @if (listaMateriais().length) {
+              <div class="dash-table-wrap">
+                <table class="sd-tabela">
+                  <caption class="sd-sr-only">Materiais mais solicitados no período</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Material</th>
+                      <th scope="col" class="sd-num">Pedidos</th>
+                      <th scope="col" class="sd-num">Solicitado</th>
+                      <th scope="col" class="sd-col-barra">Atendido</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (m of listaMateriais(); track m.codigo) {
+                      <tr>
+                        <th scope="row">
+                          <span class="sd-material">
+                            <span class="sd-codigo">{{ m.codigo }}</span>
+                            <span class="sd-material__nome" [title]="m.descricao">{{ m.descricao }}</span>
+                          </span>
+                        </th>
+                        <td class="sd-num">{{ m.solicitacoes }}</td>
+                        <td class="sd-num">{{ quantidade(m.quantidadeSolicitada) }} <small class="sd-unidade">{{ m.unidade }}</small></td>
+                        <td class="sd-col-barra">
+                          <div class="dash-progress" [attr.data-baixo]="(m.atendimento ?? 100) < 80">
+                            <div class="dash-progress__track" aria-hidden="true"><span [style.width.%]="m.atendimento ?? 0"></span></div>
+                            <strong [class.sd-alerta]="(m.atendimento ?? 100) < 80">{{ percentual(m.atendimento, 0) }}</strong>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <p class="sd-vazio"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhum material pedido no período.</p>
+            }
+          </article>
+
+          <article class="dash-panel dash-col-5">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-flag sd-panel-icon" aria-hidden="true"></i> Pendências e recusas</h2>
+                <p>Por que pedidos travam ou são recusados. Clique num motivo para ver as solicitações.</p>
+              </div>
+              <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'motivos', rotulo: 'Pendências e recusas' }" />
+            </header>
+            <h3 class="sd-subtitulo">Pendências registradas <span>({{ ind().comPendencia }} no período)</span></h3>
+            @if (motivosPendencia().length) {
+              <ul class="sd-motivos" data-tipo="pendencia">
+                @for (m of motivosPendencia(); track m.rotulo) {
+                  <li>
+                    <button type="button" class="sd-motivo" (click)="analisar('pendencia', m.rotulo)">
+                      <span class="sd-motivo__nome">{{ m.rotulo }}</span>
+                      <span class="sd-barra sd-barra--fina" aria-hidden="true"><span class="sd-barra__aviso" [style.width.%]="m.fatia"></span></span>
+                      <strong>{{ m.total }}</strong>
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="sd-vazio sd-vazio--compacto"><i class="pi pi-check" aria-hidden="true"></i> Nenhuma pendência registrada.</p>
+            }
+            <h3 class="sd-subtitulo">Recusas <span>({{ percentual(ind().taxaRecusa) }} do período)</span></h3>
+            @if (motivosRejeicao().length) {
+              <ul class="sd-motivos" data-tipo="rejeicao">
+                @for (m of motivosRejeicao(); track m.rotulo) {
+                  <li>
+                    <button type="button" class="sd-motivo" (click)="analisar('rejeicao', m.rotulo)">
+                      <span class="sd-motivo__nome">{{ m.rotulo }}</span>
+                      <span class="sd-barra sd-barra--fina" aria-hidden="true"><span class="sd-barra__atraso" [style.width.%]="m.fatia"></span></span>
+                      <strong>{{ m.total }}</strong>
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="sd-vazio sd-vazio--compacto"><i class="pi pi-check" aria-hidden="true"></i> Nenhuma solicitação recusada no período.</p>
+            }
+          </article>
+        </section>
+
+        <p class="sd-rodape">
+          <i class="pi pi-info-circle" aria-hidden="true"></i>
+          Indicadores de volume, conclusão e ciclo contam as solicitações criadas no período; fila, idade e atrasos incluem também as abertas de antes dele.
+          Atrasada = aberta com a data prevista de retirada ou devolução vencida. A etapa segue a mesma regra do Kanban.
+        </p>
+      }
+    }
+  </div>
+</main>
+</app-copiloto-area>
+
+<ces-form-drawer [visible]="exportacaoAberta()" (visibleChange)="exportacaoAberta.set($event)" title="Exportar solicitações"
+  description="Solicitações, materiais, equipes ou almoxarifados do recorte escolhido, em Excel ou CSV." size="md">
+  <div class="ces-form-grid">
+    <ces-select label="Conteúdo" inputId="exp-conteudo" [options]="opcoesConteudo" [value]="expConteudo()"
+      (valueChange)="expConteudo.set($event ?? 'SOLICITACOES')"></ces-select>
+    @if (temNivel()) {
+      <ces-select label="Nível de detalhe" inputId="exp-nivel" [options]="opcoesNivel()" [value]="expNivel()"
+        (valueChange)="expNivel.set($event ?? 'RESUMO')"></ces-select>
+    }
+    <ces-select label="Arquivo" inputId="exp-arquivo" [options]="opcoesArquivo" [value]="expArquivo()"
+      (valueChange)="expArquivo.set($event ?? 'xlsx')"></ces-select>
+    <ces-select label="Situação" inputId="exp-situacao" [options]="opcoesSituacao" [value]="expSituacao()"
+      (valueChange)="expSituacao.set($event)" [clearable]="true" placeholder="Todas"></ces-select>
+    <ces-select label="Processo" inputId="exp-processo" [options]="opcoesProcessoSolicitacao" [value]="expProcesso()"
+      (valueChange)="expProcesso.set($event)" [clearable]="true" placeholder="Comercial e técnico"></ces-select>
+    <ces-datepicker label="Data inicial" inputId="exp-inicio" [value]="expInicio()" (valueChange)="expInicio.set($event)"
+      [clearable]="true" [maxDate]="expFim() ?? hojeLocal"></ces-datepicker>
+    <ces-datepicker label="Data final" inputId="exp-fim" [value]="expFim()" (valueChange)="expFim.set($event)"
+      [clearable]="true" [minDate]="expInicio()" [maxDate]="hojeLocal"></ces-datepicker>
+    <ces-select label="Base operacional" inputId="exp-base" placeholder="Todas" [filter]="true" [clearable]="true"
+      [options]="recorte.opcoesBases()" [value]="expBase()" (valueChange)="expBase.set($event)"></ces-select>
+    <ces-select label="Processo de negócio" inputId="exp-processo-negocio" placeholder="Todos" [filter]="true" [clearable]="true"
+      [options]="recorte.opcoesProcessos()" [value]="expProcessoNegocio()" (valueChange)="expProcessoNegocio.set($event)"></ces-select>
+    <ces-select label="Equipe" inputId="exp-equipe" placeholder="Todas" [filter]="true" [clearable]="true"
+      [options]="recorte.opcoesEquipes()" [value]="expEquipe()" (valueChange)="expEquipe.set($event)"></ces-select>
+    <ces-select label="Almoxarifado" inputId="exp-almoxarifado" placeholder="Todos" [filter]="true" [clearable]="true"
+      [options]="opcoesAlmoxarifados()" [value]="expAlmoxarifado()" (valueChange)="expAlmoxarifado.set($event)"></ces-select>
+  </div>
+  <ces-boolean-control label="Incluir as abertas criadas antes do período" kind="toggle" [value]="expBacklog()"
+    (valueChange)="expBacklog.set($event)"></ces-boolean-control>
+  <div drawer-footer class="ces-actions-row">
+    @if (copilotoDisponivel) {
+      <ces-button label="Relatório PDF com Copiloto" icon="pi pi-sparkles" variant="ghost" (pressed)="relatorioComCopiloto()"></ces-button>
+    }
+    <ces-button label="Cancelar" variant="ghost" (pressed)="exportacaoAberta.set(false)"></ces-button>
+    <ces-button [label]="expArquivo() === 'xlsx' ? 'Baixar Excel' : 'Baixar CSV'" icon="pi pi-download" [loading]="exportando()"
+      (pressed)="executarExportacao()"></ces-button>
+  </div>
+</ces-form-drawer>
+
+<app-dashboard-analise [vista]="vistaAnalise()" [trilha]="analise.trilha()" [copiloto]="copilotoDisponivel"
+  (fechar)="analise.fechar()" (navegar)="aprofundar($event)" (trocar)="analise.trocar($event)"
+  (voltar)="analise.voltar($event)" (perguntar)="perguntarAnalise($event)" />

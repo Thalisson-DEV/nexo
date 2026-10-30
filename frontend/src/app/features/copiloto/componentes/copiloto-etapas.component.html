@@ -1,0 +1,175 @@
+@if (etapas().length || emAndamento()) {
+  <section class="etapas" [class.etapas--andamento]="emAndamento()" aria-label="Etapas do trabalho do Copiloto">
+    <button
+      type="button"
+      class="etapas__cabecalho"
+      [attr.aria-expanded]="aberta()"
+      [attr.aria-controls]="idLista"
+      (click)="alternar()"
+    >
+      @if (emAndamento()) {
+        <i class="pi pi-spinner etapas__giro" aria-hidden="true"></i>
+      } @else if (falhas()) {
+        <i class="pi pi-exclamation-circle etapas__icone--aviso" aria-hidden="true"></i>
+      } @else {
+        <i class="pi pi-check-circle etapas__icone--ok" aria-hidden="true"></i>
+      }
+      <span class="etapas__resumo">
+        @if (emAndamento()) {
+          <span class="ces-sr-only">Trabalhando: </span>
+        }
+        {{ resumo() }}
+      </span>
+      @if (falhas() && !emAndamento()) {
+        <ces-status tone="warning" icon="pi-exclamation-triangle">
+          {{ falhas() }} {{ falhas() === 1 ? 'etapa com erro' : 'etapas com erro' }}
+        </ces-status>
+      }
+      <i class="pi etapas__seta" [class.pi-chevron-up]="aberta()" [class.pi-chevron-down]="!aberta()" aria-hidden="true"></i>
+    </button>
+
+    @if (aberta()) {
+      <ol class="etapas__lista" [id]="idLista">
+        @for (observacao of observacoes(); track $index) {
+          <li class="etapa etapa--observacao">
+            <i class="pi pi-comment etapa__icone" aria-hidden="true"></i>
+            <p class="etapa__observacao">{{ observacao }}</p>
+          </li>
+        }
+        @for (etapa of etapas(); track etapa.id) {
+          <li class="etapa" [attr.data-status]="etapa.status">
+            <span class="etapa__marcador" aria-hidden="true">
+              <i [class]="icone(etapa.tipo)"></i>
+            </span>
+            <div class="etapa__corpo">
+              <div class="etapa__linha">
+                <span class="etapa__rotulo">{{ etapa.rotulo }}</span>
+                @switch (etapa.status) {
+                  @case ('executando') {
+                    <span class="etapa__estado"><i class="pi pi-spinner etapas__giro" aria-hidden="true"></i><span class="ces-sr-only">em execução</span></span>
+                  }
+                  @case ('ok') {
+                    <span class="etapa__estado etapa__estado--ok"><i class="pi pi-check" aria-hidden="true"></i><span class="ces-sr-only">concluída</span></span>
+                  }
+                  @default {
+                    <span class="etapa__estado etapa__estado--erro"><i class="pi pi-times" aria-hidden="true"></i><span class="ces-sr-only">com erro</span></span>
+                  }
+                }
+              </div>
+              <div class="etapa__meta">
+                <span>{{ categoria(etapa.tipo) }}</span>
+                @if (etapa.resumo && etapa.status !== 'erro') {
+                  <span aria-hidden="true">·</span><span>{{ etapa.resumo }}</span>
+                }
+                @if (etapa.resultado) {
+                  <span aria-hidden="true">·</span><span class="etapa__codigo" title="Resultado registrado na conversa">{{ etapa.resultado }}</span>
+                }
+                @if (etapa.duracaoMs !== undefined) {
+                  <span aria-hidden="true">·</span><span>{{ formatarDuracao(etapa.duracaoMs) }}</span>
+                }
+              </div>
+              @if (etapa.status === 'erro' && etapa.erro) {
+                <p class="etapa__erro">{{ etapa.erro }}</p>
+              }
+              @if (etapa.arquivos.length) {
+                <ul class="etapa__arquivos">
+                  @for (arquivo of etapa.arquivos; track arquivo.id) {
+                    <li>
+                      <button type="button" class="etapa__arquivo" (click)="baixarArquivo.emit(arquivo)">
+                        <i class="pi pi-download" aria-hidden="true"></i>{{ arquivo.nome }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+              @if (temDetalhes(etapa)) {
+                <button
+                  type="button"
+                  class="etapa__detalhes-botao"
+                  [attr.aria-expanded]="detalheAberto(etapa.id)"
+                  (click)="alternarDetalhe(etapa.id)"
+                >
+                  {{ detalheAberto(etapa.id) ? 'Ocultar detalhes' : 'Ver detalhes' }}
+                </button>
+                @if (detalheAberto(etapa.id)) {
+                  <div class="etapa__detalhes">
+                    @if (argumentosSimples(etapa).length) {
+                      <dl class="etapa__args">
+                        @for (arg of argumentosSimples(etapa); track arg.chave) {
+                          <div><dt>{{ arg.chave }}</dt><dd>{{ arg.valor }}</dd></div>
+                        }
+                      </dl>
+                    }
+                    @if (consultas(etapa).length) {
+                      <ul class="etapa__consultas">
+                        @for (consulta of consultas(etapa); track $index) {
+                          <li>{{ consulta }}</li>
+                        }
+                      </ul>
+                    }
+                    @if (codigo(etapa); as bloco) {
+                      <figure class="etapa__bloco">
+                        <figcaption>{{ bloco.linguagem }}</figcaption>
+                        <pre tabindex="0"><code>{{ bloco.texto }}</code></pre>
+                      </figure>
+                    }
+                    @if (etapa.saida.length) {
+                      <figure class="etapa__bloco">
+                        <figcaption>Saída</figcaption>
+                        <pre tabindex="0" class="etapa__saida">@for (parte of etapa.saida; track $index) {<span [class.etapa__stderr]="parte.fluxo === 'stderr'">{{ parte.texto }}</span>}</pre>
+                      </figure>
+                    }
+                    @if (etapa.previa; as previa) {
+                      @if (previa.colunas.length) {
+                        <div class="etapa__previa" role="region" tabindex="0" [attr.aria-label]="'Prévia de ' + etapa.rotulo">
+                          <table>
+                            <caption class="ces-sr-only">Prévia com {{ previa.linhas.length }} de {{ previa.total }} linhas</caption>
+                            <thead>
+                              <tr>
+                                @for (coluna of previa.colunas; track $index) {
+                                  <th scope="col">{{ rotuloColuna(coluna) }}</th>
+                                }
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (linha of previa.linhas; track $index) {
+                                <tr>
+                                  @for (celula of linha; track $index) {
+                                    <td>{{ formatarCelula(celula, undefined, previa.colunas[$index]) }}</td>
+                                  }
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                        @if (previa.total > previa.linhas.length) {
+                          <p class="etapa__nota">Prévia de {{ previa.linhas.length }} de {{ previa.total }} linhas.</p>
+                        }
+                      }
+                    }
+                    @if (etapa.fontes.length) {
+                      <ol class="etapa__fontes">
+                        @for (fonte of etapa.fontes; track fonte.numero) {
+                          <li>
+                            <a [href]="fonte.url" target="_blank" rel="noopener noreferrer">[{{ fonte.numero }}] {{ fonte.titulo }}</a>
+                            <span>{{ fonte.dominio }}</span>
+                          </li>
+                        }
+                      </ol>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          </li>
+        }
+        @if (emAndamento() && !atual()) {
+          <li class="etapa etapa--pensando">
+            <span class="etapa__marcador" aria-hidden="true"><i class="pi pi-sparkles"></i></span>
+            <span class="etapa__rotulo">Analisando e decidindo o próximo passo…</span>
+          </li>
+        }
+      </ol>
+    }
+  </section>
+}

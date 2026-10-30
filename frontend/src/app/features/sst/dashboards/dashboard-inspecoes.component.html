@@ -1,0 +1,358 @@
+<app-copiloto-area [contexto]="contextoCopiloto()">
+<main class="dash-page">
+  <div class="dash-shell">
+    <ces-page-header title="Cobertura e qualidade das inspeções" icon="pi pi-shield"
+      [breadcrumb]="[{ label: 'Segurança' }, { label: 'Painel de inspeções' }]"
+      description="Entenda se o plano está sendo executado, quanto da meta foi cumprido e qual parte do efetivo já foi alcançada.">
+      <app-copiloto-gatilho actions></app-copiloto-gatilho>
+        @if (atualizadoEm()) { <span actions class="dash-updated">Atualizado às {{ atualizadoEm() | date: 'HH:mm' }}</span> }
+        <ces-button actions label="Exportar" icon="pi pi-file-excel" variant="outline" (pressed)="abrirModalExportacao()"></ces-button>
+        <ces-button actions label="Atualizar" icon="pi pi-refresh" [loading]="loading()" (pressed)="aplicar()"></ces-button>
+    </ces-page-header>
+
+    <ces-filter-panel storageKey="dash-sst-inspecoes" [activeCount]="chips().length" [summary]="chips()" [loading]="loading()"
+      (applied)="aplicar()" (cleared)="limpar()" (chipRemoved)="removerFiltro($event)">
+      <div class="ces-filter-grid">
+        <ces-datepicker label="Início" [(value)]="dataInicio" [clearable]="true"></ces-datepicker>
+        <ces-datepicker label="Fim" [(value)]="dataFim" [clearable]="true"></ces-datepicker>
+        <ces-multiselect label="Processo da inspeção" [options]="opcoes.processos()" [value]="$any(filter.idProcesso ?? [])" (valueChange)="filter.idProcesso = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Processo do inspetor" [options]="opcoes.processos()" [value]="$any(filter.idProcessoInspetor ?? [])" (valueChange)="filter.idProcessoInspetor = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Tipo de inspeção" [options]="opcoes.tiposInspecao()" [value]="$any(filter.idTipoInspecao ?? [])" (valueChange)="filter.idTipoInspecao = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Equipe" [options]="opcoes.equipes()" [value]="$any(filter.idEquipe ?? [])" (valueChange)="filter.idEquipe = $event" placeholder="Todas" [loading]="equipesLoading()" (opened)="openEquipes()" (search)="searchEquipes({ filter: $event })"></ces-multiselect>
+        <ces-multiselect label="Centro de custo" [options]="opcoes.centrosCusto()" [value]="$any(filter.idCentroCusto ?? [])" (valueChange)="filter.idCentroCusto = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Base operacional" [options]="opcoes.basesOperacionais()" [value]="$any(filter.idBaseOperacional ?? [])" (valueChange)="filter.idBaseOperacional = $event" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Formulário" [options]="opcoes.formularios()" [value]="$any(filter.idFormulario ?? [])" (valueChange)="filter.idFormulario = $event" placeholder="Todos"></ces-multiselect>
+        <ces-select label="Agrupamento do gráfico" [options]="granularidadeOptions" [value]="filter.granularidade ?? null" (valueChange)="filter.granularidade = $any($event); onGranularidadeChange()"></ces-select>
+      </div>
+    </ces-filter-panel>
+
+    @if (loading()) {
+      <div class="dash-metrics">@for (item of [1,2,3,4]; track item) { <p-skeleton height="156px" borderRadius="16px" /> }</div>
+      <p-skeleton height="430px" borderRadius="16px" />
+    } @else if (data(); as d) {
+      @if (visaoGerencial(); as vg) {
+        <app-dashboard-visao-gerencial [veredito]="vg.veredito" [leituras]="vg.leituras" [copiloto]="copilotoDisponivel"
+          (abrir)="analisar($event.dimension, $event.value)" (perguntar)="perguntarVisao(vg.pergunta)" />
+      }
+
+      <!-- Resumo -->
+      <section class="dash-metrics" aria-label="Indicadores principais">
+        <app-dashboard-metric-card label="Inspeções realizadas" [value]="d.resumo.totalInspecoes" icon="pi-clipboard"
+          [detail]="variacao(d.resumo)" tone="primary" actionLabel="Analisar volume" (activate)="analisar('kpi', 'inspecoes')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'totalInspecoes', rotulo: 'Inspeções realizadas' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Inspeções sem desvio" [value]="percentualOuSemAmostra(d.resumo.totalInspecoes, d.resumo.percentualSemDesvio)"
+          icon="pi-shield" [detail]="d.resumo.inspecoesSemDesvio + ' de ' + d.resumo.totalInspecoes + ' inspeções'"
+          tone="primary" [progress]="d.resumo.percentualSemDesvio" actionLabel="Ver onde estão os desvios" (activate)="analisar('kpi', 'conformidade')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'percentualSemDesvio', rotulo: 'Inspeções sem desvio' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Desvios registrados" [value]="d.resumo.totalDesvios" icon="pi-exclamation-triangle"
+          [detail]="(d.resumo.mediaDesviosPorInspecao | number:'1.0-2') + ' por inspeção em média'" tone="amber"
+          actionLabel="Analisar desvios" (activate)="analisar('kpi', 'desvios')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'totalDesvios', rotulo: 'Desvios registrados' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Inspetores ativos" [value]="d.resumo.inspetoresAtivos" icon="pi-users"
+          [detail]="(d.resumo.mediaInspecoesPorInspetor | number:'1.0-1') + ' inspeções por inspetor · ' + (d.resumo.mediaInspecoesPorDia | number:'1.0-1') + ' por dia'"
+          tone="slate" actionLabel="Comparar inspetores" (activate)="analisar('kpi', 'inspetores')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'inspetoresAtivos', rotulo: 'Inspetores ativos' }" />
+        </app-dashboard-metric-card>
+      </section>
+
+      <!-- Série temporal + meta -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <h2>Realizado × meta ao longo do período</h2>
+              <p>{{ descricaoSerie(d.granularidade) }}</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'realizadoMeta', rotulo: 'Realizado × meta ao longo do período' }" />
+            <div class="dash-tabs" aria-label="Período rápido">
+              @for (period of [{label:'7 dias',value:'semanal'}, {label:'30 dias',value:'mensal'}, {label:'1 ano',value:'anual'}]; track period.value) {
+                <button class="dash-tab" [class.is-active]="periodoAtivo() === period.value" (click)="setPeriodo($any(period.value))">{{ period.label }}</button>
+              }
+            </div>
+          </header>
+
+          <div class="dash-chart-controls">
+            <div class="dash-tabs" aria-label="Modo de leitura do gráfico">
+              @for (modo of serieModoTabs; track modo.value) {
+                <button class="dash-tab" [class.is-active]="serieModo() === modo.value" (click)="onSerieModoChange(modo.value)">{{ modo.label }}</button>
+              }
+            </div>
+            <button type="button" class="dash-toggle" [class.is-active]="mostrarDesvios()"
+              [attr.aria-pressed]="mostrarDesvios()" (click)="alternarDesvios()">
+              <i class="pi" [class.pi-eye]="!mostrarDesvios()" [class.pi-eye-slash]="mostrarDesvios()"></i>
+              {{ mostrarDesvios() ? 'Ocultar desvios' : 'Sobrepor desvios' }}
+            </button>
+          </div>
+
+          @if (d.serieTemporal.length) {
+            <div class="dash-chart dash-chart--drill">
+              <p-chart type="bar" [data]="serieData" [options]="serieOptions" height="310px"
+                [ariaLabel]="'Realizado por ' + granularidadeLabels[d.granularidade] + '. Use o seletor Detalhar abaixo do gráfico para ver um período.'"
+                (onDataSelect)="onSerieDataSelect($event)" />
+            </div>
+            <div class="dash-drill-bar">
+              <span class="dash-drill-hint"><i class="pi pi-hand-pointer" aria-hidden="true"></i> Clique numa barra para analisar o período</span>
+              <ces-select [label]="d.granularidade === 'DIA' ? 'Analisar um dia' : d.granularidade === 'MES' ? 'Analisar um mês' : 'Analisar um ano'"
+                inputId="inspecoes-analisar-periodo" placeholder="Escolha…" [filter]="true" [options]="opcoesPeriodo()" [value]="null"
+                (valueChange)="analisarPeriodo($any($event))"></ces-select>
+            </div>
+            @if (d.resumo.totalInspecoes === 0) {
+              <p class="dash-note">Nenhuma inspeção no período — os intervalos aparecem zerados para manter o gráfico contínuo.</p>
+            } @else if (!metaComparavel()) {
+              <p class="dash-note">A meta não é comparável com os filtros de processo, equipe ou formulário ativos, por isso não aparece no gráfico.</p>
+            } @else if (!d.meta.possuiMeta) {
+              <p class="dash-note">Nenhuma meta vigente cobre o período, por isso o gráfico mostra apenas o realizado.</p>
+            }
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-bar"></i>Sem movimentação no período selecionado.</div>
+          }
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Metas de inspeção</span>
+              <h2>Atingimento no período</h2>
+            </div>
+            <div class="dash-panel__tools">
+              <app-copiloto-perguntar [foco]="{ tipo: 'metrica', id: 'metaPercentualAtingido', rotulo: 'Meta de inspeções atingida' }" />
+              <ces-button size="sm" variant="outline" icon="pi pi-chart-bar" label="Analisar" (pressed)="analisar('kpi', 'meta')"></ces-button>
+            </div>
+          </header>
+
+          @if (!metaComparavel()) {
+            <div class="dash-empty dash-empty--tight">
+              <i class="pi pi-filter"></i>
+              <strong class="block text-slate-600 text-sm">Não comparável neste filtro</strong>
+              <span class="block mt-2 text-xs leading-relaxed">
+                Processo, equipe e formulário restringem apenas o realizado — a meta continua cheia, então o percentual ficaria distorcido.
+                Remova esses filtros para ver o atingimento.
+              </span>
+            </div>
+          } @else if (!d.meta.possuiMeta) {
+            <div class="dash-empty dash-empty--tight">
+              <i class="pi pi-flag"></i>
+              <strong class="block text-slate-600 text-sm">Nenhuma meta vigente</strong>
+              <span class="block mt-2 text-xs leading-relaxed">Não há meta cobrindo o período consultado.</span>
+              <div class="pt-4"><ces-button label="Cadastrar metas" icon="pi pi-plus" size="sm" (pressed)="irParaMetas()"></ces-button></div>
+            </div>
+          } @else {
+            <div class="dash-gauge-wrap">
+              <div class="dash-gauge" [style.--dash-gauge-pct]="barWidth(d.meta.percentualAtingido)">
+                <div class="dash-gauge__inner">
+                  <strong>{{ d.meta.percentualAtingido | number:'1.0-1' }}%</strong>
+                  <span>da meta</span>
+                </div>
+              </div>
+              <div class="dash-gauge__legend">
+                <div><span>Realizado</span><strong>{{ d.meta.realizadoPeriodo }}</strong></div>
+                <div><span>Meta do período</span><strong>{{ d.meta.metaPeriodo | number:'1.0-1' }}</strong></div>
+                <div><span>Falta</span><strong>{{ d.meta.saldoParaMeta | number:'1.0-1' }}</strong></div>
+                <div><span>Colaboradores na meta</span><strong>{{ d.meta.inspetoresNaMeta }}/{{ d.meta.colaboradoresComMeta }}</strong></div>
+              </div>
+            </div>
+            @if (d.meta.colaboradoresSemAcesso > 0) {
+              <div class="dash-quality !mt-4 !mb-0" role="status">
+                <i class="pi pi-user-minus"></i>
+                <div>
+                  <strong>{{ d.meta.colaboradoresSemAcesso }} colaborador(es) sem acesso ao sistema</strong>
+                  <span>Têm meta, mas não conseguem lançar inspeções — o realizado deles fica em zero.</span>
+                </div>
+              </div>
+            }
+          }
+        </aside>
+      </section>
+
+      <!-- Cobertura do efetivo + comparativo por inspetor (50% / 50%) -->
+      <section class="dash-grid">
+        <aside class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Colaboradores</span>
+              <h2>Cobertura do efetivo</h2>
+              <p>Quanto do efetivo ativo foi alcançado por alguma inspeção no período.</p>
+            </div>
+            <div class="dash-panel__tools">
+              <app-copiloto-perguntar [foco]="{ tipo: 'secao', id: 'coberturaEfetivo', rotulo: 'Cobertura do efetivo' }" />
+              <ces-button size="sm" variant="outline" icon="pi pi-chart-bar" label="Analisar" (pressed)="analisar('kpi', 'cobertura')"></ces-button>
+            </div>
+          </header>
+          <div class="dash-summary">
+            <div class="dash-summary__total">
+              <strong>{{ d.colaboradores.colaboradoresInspecionados }}<span class="text-slate-400 text-xl"> / {{ d.colaboradores.colaboradoresAtivos }}</span></strong>
+              <span>colaboradores inspecionados</span>
+              <div class="dash-progress !mt-3">
+                <div class="dash-progress__track"><span [style.width.%]="barWidth(d.colaboradores.percentualCobertura)"></span></div>
+                <strong>{{ d.colaboradores.percentualCobertura | number:'1.0-1' }}%</strong>
+              </div>
+            </div>
+            <div class="dash-summary__items">
+              <div class="dash-summary__item"><i class="dash-summary__dot" style="background:#c2413b"></i><span>Sem nenhuma inspeção</span><strong>{{ d.colaboradores.colaboradoresSemInspecao }}</strong></div>
+              <div class="dash-summary__item"><i class="dash-summary__dot" style="background:#c57a16"></i><span>Com desvio no período</span><strong>{{ d.colaboradores.colaboradoresComDesvio }} ({{ d.colaboradores.percentualComDesvio | number:'1.0-1' }}%)</strong></div>
+              <div class="dash-summary__item"><i class="dash-summary__dot" style="background:#9f1239"></i><span>Reincidentes (2+ desvios)</span><strong>{{ d.colaboradores.colaboradoresReincidentes }}</strong></div>
+              <div class="dash-summary__item"><i class="dash-summary__dot" style="background:var(--p-primary-400)"></i><span>Média de inspeções por colaborador</span><strong>{{ d.colaboradores.mediaInspecoesPorColaborador | number:'1.0-2' }}</strong></div>
+            </div>
+          </div>
+        </aside>
+
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Produtividade · Inspetores</span>
+              <h2>Quem está lançando as inspeções</h2>
+              <p>Ranking de realização e atingimento da meta individual no período.</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'inspetores', rotulo: 'Produtividade · Inspetores' }"
+              pergunta="Quais inspetores estão abaixo da meta neste recorte e o que explica isso? Se fizer sentido, filtre a tabela." />
+            @if (d.porInspetor.length > 5) {
+              <span class="dash-badge">{{ d.porInspetor.length }} inspetores</span>
+            }
+          </header>
+          @if (d.porInspetor.length) {
+            <ces-data-table
+              id="dash-inspetores"
+              caption="Produtividade dos inspetores"
+              [(filters)]="filtrosInspetores"
+              storageKey="sst-dashboard-inspetores"
+              exportFileName="produtividade-inspetores"
+              searchPlaceholder="Buscar inspetor"
+              rowActionLabel="Ver histórico"
+              rowActionIcon="pi pi-history"
+              [columns]="colunasInspetores"
+              [rows]="linhasInspetores()"
+              [rowKey]="chaveInspetor"
+              [rowLabel]="rotuloInspetor"
+              (rowActivate)="abrirInspetor($event)"
+            >
+              <ng-template cesCell="posicao" let-item>
+                <ces-rank-badge [position]="item.posicao" />
+              </ng-template>
+              <ng-template cesCell="percentualAtingido" let-item>
+                @if (item.meta > 0 && item.percentualAtingido !== null && metaComparavel()) {
+                  <ces-meter [value]="item.percentualAtingido" [detail]="item.realizado + '/' + (item.meta | number:'1.0-1')"
+                    [label]="'Atingimento da meta de ' + nomeOuPlaceholder(item.nomeInspetor)" />
+                } @else {
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400 italic">{{ metaComparavel() ? 'Sem meta' : 'Não comparável' }}</span>
+                }
+              </ng-template>
+              <ng-template cesCell="desvios" let-item>
+                @if (item.desvios > 0) {
+                  <ces-status tone="danger" icon="pi-exclamation-triangle">{{ item.desvios }}</ces-status>
+                } @else {
+                  <ces-status tone="success" icon="pi-check">0</ces-status>
+                }
+              </ng-template>
+            </ces-data-table>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-user"></i>Nenhum inspetor lançou inspeções no período.</div>
+          }
+        </article>
+      </section>
+
+      <!-- Equipes -->
+      <section class="dash-panel">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Equipes</span>
+            <h2>Cobertura e conformidade por equipe</h2>
+            <p>Equipes com muitos dias sem inspeção podem parecer "sem desvios" apenas por falta de amostra — confira a coluna de dias sem inspeção antes de concluir.</p>
+          </div>
+        </header>
+        <ces-data-table caption="Cobertura e conformidade por equipe" storageKey="sst-dashboard-equipes" exportFileName="inspecoes-por-equipe"
+          searchPlaceholder="Buscar equipe" rowActionLabel="Analisar" rowActionIcon="pi pi-chart-bar"
+          [columns]="colunasEquipes" [rows]="d.porEquipe" [rowKey]="chaveEquipe" [rowLabel]="rotuloEquipe"
+          stateTitle="Nenhuma equipe inspecionada no período" (rowActivate)="analisar('equipe', $event.idEquipe)">
+          <ng-template cesCell="percentualSemDesvio" let-item>
+            <div class="dash-progress">
+              <div class="dash-progress__track" aria-hidden="true"><span [style.width.%]="barWidth(item.percentualSemDesvio)"></span></div>
+              <strong class="text-xs">{{ item.percentualSemDesvio | number:'1.0-1' }}%</strong>
+            </div>
+          </ng-template>
+          <ng-template cesCell="diasSemInspecao" let-item>
+            <span class="dash-days" [attr.data-alert]="item.diasSemInspecao > 30 ? 'high' : item.diasSemInspecao > 14 ? 'medium' : 'low'">{{ item.diasSemInspecao }} d</span>
+          </ng-template>
+        </ces-data-table>
+        <div class="flex justify-end pt-5"><ces-button variant="link" label="Ver todas as inspeções" icon="pi pi-arrow-right" (pressed)="verListagem()"></ces-button></div>
+      </section>
+
+      <!-- Colaboradores inspecionados + distribuição -->
+      <section class="dash-grid mt-4">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Colaboradores inspecionados</span>
+              <h2>Quem foi alcançado pelas inspeções</h2>
+              <p>Ordenado por número de vezes inspecionado no período. Clique para ver as inspeções e desvios de cada um.</p>
+            </div>
+          </header>
+          <ces-data-table caption="Colaboradores inspecionados" storageKey="sst-dashboard-colaboradores" exportFileName="colaboradores-inspecionados"
+            searchPlaceholder="Buscar colaborador" rowActionLabel="Analisar" rowActionIcon="pi pi-chart-bar"
+            [columns]="colunasColaboradores" [rows]="d.porColaborador" [rowKey]="chaveColaborador" [rowLabel]="rotuloColaborador"
+            stateTitle="Nenhum colaborador foi inspecionado no período" (rowActivate)="analisar('colaborador', $event.idColaborador)">
+            <ng-template cesCell="desviosRecebidos" let-item>
+              @if (item.desviosRecebidos > 0) {
+                <ces-status [tone]="item.desviosRecebidos > 1 ? 'danger' : 'warning'" icon="pi-exclamation-triangle">{{ item.desviosRecebidos }}</ces-status>
+              } @else {
+                <ces-status tone="success" icon="pi-check">0</ces-status>
+              }
+            </ng-template>
+          </ces-data-table>
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div><span class="dash-eyebrow">Distribuição do volume</span><h2>Onde as inspeções aconteceram</h2></div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'distribuicao.' + distributionDimension(), rotulo: 'Onde as inspeções aconteceram' }" />
+          </header>
+          <div class="dash-tabs mb-4" aria-label="Forma de agrupamento">
+            @for (tab of distributionTabs; track tab.value) {
+              <button class="dash-tab" [class.is-active]="distributionDimension() === tab.value" (click)="onDistributionChange(tab.value)">{{ tab.label }}</button>
+            }
+          </div>
+          @if (distributionRows().length) {
+            <div class="dash-chart dash-chart--short dash-chart--drill"><p-chart type="doughnut" [data]="distribuicaoData" [options]="distribuicaoOptions" height="260px"
+              [ariaLabel]="'Distribuição por ' + distributionLabel().toLowerCase() + '. Clique numa fatia para analisar.'" (onDataSelect)="onDistribuicaoSelect($event)" /></div>
+            <p class="dash-drill-hint"><i class="pi pi-hand-pointer" aria-hidden="true"></i> Clique numa fatia para analisar o grupo</p>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-pie"></i>Sem dados de {{ distributionLabel().toLowerCase() }} no período.</div>
+          }
+        </aside>
+      </section>
+    } @else {
+      <div class="dash-panel dash-empty"><i class="pi pi-inbox"></i>Não há dados disponíveis para os filtros selecionados.</div>
+    }
+  </div>
+</main>
+</app-copiloto-area>
+
+<ces-form-drawer [visible]="showExportDialog" (visibleChange)="showExportDialog = $event" title="Exportar dados de SST"
+  description="Inspeções ou desvios do recorte escolhido, em Excel ou CSV." size="md">
+  <div class="ces-form-grid">
+    <ces-select label="Conteúdo" [options]="exportOptions" [value]="exportTipo" (valueChange)="exportTipo = $any($event)"></ces-select>
+    <ces-select label="Nível de detalhe" [options]="formatOptions" [value]="exportFormato" (valueChange)="exportFormato = $any($event)"></ces-select>
+    <ces-select label="Arquivo" [options]="arquivoOptions" [value]="exportArquivo" (valueChange)="exportArquivo = $any($event)"></ces-select>
+    <ces-select label="Resultado" [options]="desvioOptions" [value]="exportFilters.apenasComDesvios ?? null" (valueChange)="exportFilters.apenasComDesvios = $any($event)" [clearable]="true" placeholder="Todos"></ces-select>
+    <ces-datepicker label="Data inicial" [(value)]="exportDataDe" [clearable]="true"></ces-datepicker>
+    <ces-datepicker label="Data final" [(value)]="exportDataAte" [clearable]="true"></ces-datepicker>
+    <ces-multiselect label="Centro de custo" [options]="opcoes.centrosCusto()" [value]="$any(exportFilters.idCentroCusto ?? [])" (valueChange)="exportFilters.idCentroCusto = $event" placeholder="Todos"></ces-multiselect>
+    <ces-multiselect label="Base operacional" [options]="opcoes.basesOperacionais()" [value]="$any(exportFilters.idBaseOperacional ?? [])" (valueChange)="exportFilters.idBaseOperacional = $event" placeholder="Todas"></ces-multiselect>
+    <ces-multiselect label="Status" [options]="statusOptions" [value]="$any(exportFilters.status ?? [])" (valueChange)="exportFilters.status = $event" [filter]="false" placeholder="Todos"></ces-multiselect>
+  </div>
+  <ces-boolean-control label="Somente as minhas inspeções" kind="toggle" [value]="exportApenasMinhas" (valueChange)="exportApenasMinhas = $event"></ces-boolean-control>
+  <div drawer-footer class="ces-actions-row">
+    @if (copilotoDisponivel) {
+      <ces-button label="Relatório PDF com Copiloto" icon="pi pi-sparkles" variant="ghost" (pressed)="relatorioComCopiloto()"></ces-button>
+    }
+    <ces-button label="Cancelar" variant="ghost" (pressed)="showExportDialog = false"></ces-button>
+    <ces-button [label]="exportArquivo === 'xlsx' ? 'Baixar Excel' : 'Baixar CSV'" icon="pi pi-download" [loading]="exportando()" (pressed)="executarExportacao()"></ces-button>
+  </div>
+</ces-form-drawer>
+
+
+<app-dashboard-analise [vista]="vistaAnalise()" [trilha]="analise.trilha()" [copiloto]="copilotoDisponivel"
+  (fechar)="analise.fechar()" (navegar)="aprofundar($event)" (trocar)="analise.trocar($event)"
+  (voltar)="analise.voltar($event)" (perguntar)="perguntarAnalise($event)" />

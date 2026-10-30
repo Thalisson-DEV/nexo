@@ -1,0 +1,171 @@
+<div class="mapa" role="group" [attr.aria-label]="descricaoAcessivel()">
+  <section class="mapa__prancha" aria-labelledby="titulo-mapa-anatomico">
+    <header class="mapa__prancha-header">
+      <div>
+        <span class="mapa__eyebrow">Prancha anatômica interativa</span>
+        <h3 id="titulo-mapa-anatomico">Frente e costas</h3>
+      </div>
+      <span class="mapa__cobertura">
+        <i class="pi pi-verified"></i>
+        {{ totalLocaisCatalogo }} locais compatíveis
+      </span>
+    </header>
+
+    <div class="mapa__anatomia">
+      <img
+        [src]="assetCorpo"
+        alt="Manequim anatômico realista em vistas frontal e posterior"
+        width="1024"
+        height="1536"
+      />
+
+      <span class="mapa__vista mapa__vista--frente">Frente</span>
+      <span class="mapa__vista mapa__vista--costas">Costas</span>
+
+      @for (regiao of regioesCorporais(); track regiao.regiao) {
+        @for (ponto of regiao.config.pontos; track $index) {
+          @if ($first) {
+            <button
+              type="button"
+              class="mapa__ponto"
+              [class.is-ativo]="destacada() === regiao.regiao"
+              [style.left.%]="ponto.x"
+              [style.top.%]="ponto.y"
+              [style.width.px]="tamanhoPonto(ponto, regiao.intensidade)"
+              [style.height.px]="tamanhoPonto(ponto, regiao.intensidade)"
+              [style.--mapa-cor]="corDaIntensidade(regiao.intensidade)"
+              [attr.aria-label]="titulo(regiao)"
+              [attr.aria-pressed]="destacada() === regiao.regiao"
+              [title]="titulo(regiao)"
+              (mouseenter)="destacar(regiao.regiao)"
+              (mouseleave)="destacar(null)"
+              (focus)="destacar(regiao.regiao)"
+              (blur)="destacar(null)"
+              (click)="selecionar(regiao.regiao)"
+            >
+              <span>{{ regiao.total }}</span>
+            </button>
+          } @else {
+            <i
+              class="mapa__referencia"
+              [class.is-ativo]="destacada() === regiao.regiao"
+              [style.left.%]="ponto.x"
+              [style.top.%]="ponto.y"
+              [style.--mapa-cor]="corDaIntensidade(regiao.intensidade)"
+              aria-hidden="true"
+            ></i>
+          }
+        }
+      }
+
+      @if (!totalLesoes()) {
+        <div class="mapa__sem-dados">
+          <i class="pi pi-check-circle"></i>
+          <span>Sem lesões no período</span>
+        </div>
+      }
+    </div>
+
+    <footer class="mapa__escala" aria-label="Escala de intensidade">
+      <span>Menor incidência</span>
+      <div>
+        @for (nivel of [0.12, 0.3, 0.5, 0.7, 0.88, 1]; track nivel) {
+          <i [style.background]="corDaIntensidade(nivel)"></i>
+        }
+      </div>
+      <span>Maior incidência</span>
+    </footer>
+    <p class="mapa__orientacao">
+      <i class="pi pi-info-circle"></i>
+      O número aparece uma única vez por região; os contornos indicam a mesma área nas outras vistas e lados.
+    </p>
+  </section>
+
+  <aside class="mapa__painel" aria-label="Detalhamento dos locais de lesão">
+    <div class="mapa__resumo">
+      <div>
+        <span>Registros</span>
+        <strong>{{ totalLesoes() }}</strong>
+      </div>
+      <div>
+        <span>Regiões atingidas</span>
+        <strong>{{ regioesComLesao().length }}</strong>
+      </div>
+    </div>
+
+    @if (regioesCorporais().length) {
+      <section class="mapa__secao">
+        <header>
+          <span>Regiões anatômicas</span>
+          <small>Passe o cursor para localizar</small>
+        </header>
+        <ol class="mapa__lista">
+          @for (regiao of regioesCorporais(); track regiao.regiao) {
+            <li>
+              <button
+                type="button"
+                [class.is-ativo]="destacada() === regiao.regiao"
+                (mouseenter)="destacar(regiao.regiao)"
+                (mouseleave)="destacar(null)"
+                (focus)="destacar(regiao.regiao)"
+                (blur)="destacar(null)"
+                (click)="selecionar(regiao.regiao)"
+              >
+                <i [style.background]="corDaIntensidade(regiao.intensidade)"></i>
+                <span>
+                  <strong>{{ regiao.config.rotulo }}</strong>
+                  <small>
+                    @for (detalhe of regiao.detalhes; track detalhe.id) {
+                      <span>{{ detalhe.nome }} ({{ detalhe.total }})</span>
+                    }
+                  </small>
+                </span>
+                <b>{{ regiao.total }}</b>
+              </button>
+            </li>
+          }
+        </ol>
+      </section>
+    }
+
+    @if (regioesComplementares().length) {
+      <section class="mapa__secao mapa__secao--sistemas">
+        <header>
+          <span>Sistemas e abrangências</span>
+          <small>Condições sem ponto externo único</small>
+        </header>
+        <div class="mapa__sistemas">
+          @for (regiao of regioesComplementares(); track regiao.regiao) {
+            <button type="button" (click)="selecionar(regiao.regiao)" [title]="titulo(regiao)">
+              <i [class]="regiao.config.icone || 'pi pi-circle'"></i>
+              <span>{{ regiao.config.rotulo }}</span>
+              <b>{{ regiao.total }}</b>
+            </button>
+          }
+        </div>
+      </section>
+    }
+
+    @if (naoMapeados().length) {
+      <section class="mapa__secao mapa__secao--pendencias">
+        <header>
+          <span>Cadastro personalizado</span>
+          <small>Sem correspondência anatômica segura</small>
+        </header>
+        <ul>
+          @for (item of naoMapeados(); track item.id) {
+            <li><span>{{ item.nome }}</span><b>{{ item.total }}</b></li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (!totalLesoes()) {
+      <div class="mapa__vazio">
+        <i class="pi pi-heart"></i>
+        <strong>Nenhuma lesão registrada</strong>
+        <span>A prancha está pronta para receber os dados do período selecionado.</span>
+      </div>
+    }
+  </aside>
+</div>

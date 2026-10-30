@@ -1,0 +1,919 @@
+:host {
+  display: block;
+}
+
+/* ==========================================================================
+   SIDEBAR CONTAINER (FIXO DO TOPO AO FIM NA LATERAL ESQUERDA)
+   ========================================================================== */
+.ces-report-nav-sidebar {
+  position: fixed;
+  inset-y: 0;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  width: 3.5rem;
+  background: var(--ces-surface);
+  color: var(--ces-foreground);
+  border-right: 1px solid var(--ces-border);
+  transition: width 240ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 240ms ease;
+  will-change: width;
+  overflow: hidden;
+  user-select: none;
+}
+
+.ces-report-nav-sidebar--open {
+  width: 28rem;
+  max-width: min(30rem, 92vw);
+  box-shadow: var(--ces-shadow-lg, 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1));
+  user-select: auto;
+}
+
+/* ==========================================================================
+   ESTADO RECOLHIDO: TODA A SIDEBAR É CLICÁVEL COM > NO CENTRO
+   ========================================================================== */
+.ces-report-nav-rail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--ces-foreground-muted);
+  transition: background-color var(--ces-duration-fast) var(--ces-ease-standard),
+              color var(--ces-duration-fast) var(--ces-ease-standard);
+  outline: none;
+}
+
+.ces-report-nav-rail:hover {
+  background: var(--ces-surface-subtle);
+  color: var(--ces-brand);
+}
+
+.ces-report-nav-rail:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: -2px;
+}
+
+/* Handle com ícone > e tag Ctrl K */
+.ces-report-nav-rail__handle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--ces-foreground);
+  transition: all var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.ces-report-nav-rail__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: var(--ces-brand);
+  transition: transform var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.ces-report-nav-rail__shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--ces-foreground-muted);
+  background: var(--ces-surface-muted);
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  transition: all var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.ces-report-nav-rail:hover .ces-report-nav-rail__handle {
+  background: transparent;
+  box-shadow: none;
+}
+
+.ces-report-nav-rail:hover .ces-report-nav-rail__shortcut {
+  color: var(--ces-brand);
+  border-color: var(--ces-brand);
+  background: var(--ces-brand-soft);
+}
+
+/* Tooltip flutuante ao passar o mouse */
+.ces-report-nav-rail__tooltip {
+  position: absolute;
+  left: calc(100% + 0.5rem);
+  top: 50%;
+  transform: translateY(-50%) translateX(-8px);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ces-foreground);
+  background: var(--ces-surface);
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  box-shadow: var(--ces-shadow-md);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+  z-index: 60;
+}
+
+.ces-report-nav-rail:hover .ces-report-nav-rail__tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+.ces-report-nav-rail__tooltip-kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 500;
+  color: var(--ces-foreground-muted);
+  background: var(--ces-surface-muted);
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+  line-height: 1.2;
+}
+
+/* ==========================================================================
+   ESTADO EXPANDIDO: SIDEBAR COMPLETA
+   ========================================================================== */
+.ces-report-nav-expanded {
+  display: flex;
+  flex-direction: column;
+  width: 28rem;
+  max-width: min(30rem, 92vw);
+  height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+  animation: cesNavFadeIn 180ms ease-out forwards;
+}
+
+@keyframes cesNavFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Header */
+.ces-report-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--ces-border);
+  background: var(--ces-surface);
+  flex-shrink: 0;
+}
+
+.ces-report-nav-header__collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--ces-radius-md);
+  background: transparent;
+  color: var(--ces-foreground-muted);
+  border: 0;
+  cursor: pointer;
+  font-size: 1rem;
+  flex-shrink: 0;
+  transition: all var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.ces-report-nav-header__collapse:hover {
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+}
+
+.ces-report-nav-header__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.ces-report-nav-header__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  color: var(--ces-brand);
+  background: var(--ces-brand-soft);
+  border-radius: var(--ces-radius-md);
+  flex-shrink: 0;
+  font-size: 0.95rem;
+}
+
+.ces-report-nav-header__text {
+  min-width: 0;
+}
+
+.ces-report-nav-header__eyebrow {
+  display: block;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  margin-bottom: 0.15rem;
+}
+
+.ces-report-nav-header h2 {
+  margin: 0;
+  color: var(--ces-foreground);
+  font-size: 0.925rem;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ces-report-nav-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   PAINEL DE FILTROS (LIMPO E CONFORTÁVEL)
+   ========================================================================== */
+.ces-report-nav-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ces-border);
+  background: var(--ces-surface-subtle);
+  flex-shrink: 0;
+}
+
+/* Segmented Control de Tipo / Escopo */
+.ces-report-nav-type-selector {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  background: var(--ces-surface-muted);
+  border-radius: var(--ces-radius-md);
+  border: 1px solid var(--ces-border);
+}
+
+.ces-report-nav-type-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--ces-radius-sm);
+  background: transparent;
+  color: var(--ces-foreground-muted);
+  border: 0;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all var(--ces-duration-fast) var(--ces-ease-standard);
+  white-space: nowrap;
+}
+
+.ces-report-nav-type-btn i {
+  font-size: 0.75rem;
+}
+
+.ces-report-nav-type-btn:hover {
+  color: var(--ces-foreground);
+}
+
+.ces-report-nav-type-btn--active {
+  background: var(--ces-surface);
+  color: var(--ces-brand);
+  font-weight: 500;
+  box-shadow: var(--ces-shadow-sm);
+}
+
+.ces-report-nav-search {
+  width: 100%;
+}
+
+/* Quick Status Chips */
+.ces-report-nav-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scrollbar-width: none;
+}
+
+.ces-report-nav-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.ces-report-nav-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3rem 0.625rem;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--ces-foreground-muted);
+  background: var(--ces-surface);
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--ces-duration-fast) var(--ces-ease-standard);
+  line-height: 1.25;
+}
+
+.ces-report-nav-chip i {
+  font-size: 0.7rem;
+}
+
+.ces-report-nav-chip:hover {
+  color: var(--ces-foreground);
+  border-color: var(--ces-border-strong);
+  background: var(--ces-surface-muted);
+}
+
+.ces-report-nav-chip--active {
+  color: var(--ces-brand);
+  background: var(--ces-brand-soft);
+  border-color: color-mix(in srgb, var(--ces-brand) 35%, transparent);
+  font-weight: 500;
+}
+
+.ces-report-nav-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--ces-foreground-subtle);
+}
+
+.ces-report-nav-chip__dot[data-tone='success'] {
+  background: var(--ces-success);
+}
+.ces-report-nav-chip__dot[data-tone='warning'] {
+  background: var(--ces-warning);
+}
+.ces-report-nav-chip__dot[data-tone='danger'] {
+  background: var(--ces-danger);
+}
+
+/* Controles Secundários: Ordenação e Minhas */
+.ces-report-nav-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ces-report-nav-sort-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.35rem;
+  background: var(--ces-surface);
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+}
+
+.ces-report-nav-control-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.25rem;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.75rem;
+}
+
+.ces-report-nav-control-btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ces-foreground-muted);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--ces-radius-sm) - 2px);
+  cursor: pointer;
+  transition: all var(--ces-duration-fast) var(--ces-ease-standard);
+  white-space: nowrap;
+}
+
+.ces-report-nav-control-btn:hover {
+  color: var(--ces-foreground);
+}
+
+.ces-report-nav-control-btn--active {
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+  font-weight: 500;
+}
+
+.ces-report-nav-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.275rem 0.625rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ces-foreground-muted);
+  background: var(--ces-surface);
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+  cursor: pointer;
+  transition: all var(--ces-duration-fast) var(--ces-ease-standard);
+  white-space: nowrap;
+}
+
+.ces-report-nav-toggle-btn i {
+  font-size: 0.725rem;
+}
+
+.ces-report-nav-toggle-btn:hover {
+  color: var(--ces-foreground);
+  border-color: var(--ces-border-strong);
+}
+
+.ces-report-nav-toggle-btn--active {
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+  border-color: color-mix(in srgb, var(--ces-brand) 35%, transparent);
+  font-weight: 500;
+}
+
+/* Summary Bar */
+.ces-report-nav-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--ces-border);
+}
+
+.ces-report-nav-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.725rem;
+  font-weight: 500;
+}
+
+.ces-report-nav-count i {
+  font-size: 0.75rem;
+}
+
+.ces-report-nav-clear-btn,
+.ces-report-nav-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.725rem;
+  font-weight: 500;
+  color: var(--ces-brand);
+  background: transparent;
+  border: 0;
+  border-radius: var(--ces-radius-sm);
+  cursor: pointer;
+  transition: all var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.ces-report-nav-clear-btn:hover,
+.ces-report-nav-link-btn:hover {
+  background: var(--ces-brand-soft);
+  text-decoration: none;
+}
+
+/* ==========================================================================
+   LISTA DE RESULTADOS
+   ========================================================================== */
+.ces-report-nav-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ces-border) transparent;
+}
+
+.ces-report-nav-results::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ces-report-nav-results::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ces-report-nav-results::-webkit-scrollbar-thumb {
+  background: var(--ces-border);
+  border-radius: 9999px;
+}
+
+.ces-report-nav-results::-webkit-scrollbar-thumb:hover {
+  background: var(--ces-border-strong);
+}
+
+/* Refresh Indicator */
+.ces-report-nav-refresh-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--ces-brand);
+  background: var(--ces-brand-soft);
+  border-radius: var(--ces-radius-sm);
+  font-size: 0.725rem;
+  font-weight: 500;
+}
+
+/* Skeletons */
+.ces-report-nav-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.25rem;
+}
+
+.ces-report-nav-skeleton-card {
+  padding: 0.875rem;
+  border-radius: var(--ces-radius-md);
+  border: 1px solid var(--ces-border);
+  background: var(--ces-surface);
+}
+
+.ces-report-nav-skeleton-line {
+  background: var(--ces-surface-muted);
+  border-radius: 0.25rem;
+  opacity: 0.7;
+  animation: cesSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes cesSkeletonPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+
+/* Lista de Itens */
+.ces-report-nav-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 0.5rem;
+}
+
+/* ==========================================================================
+   CARD DO ITEM (LAYOUT COMPACTO DE 3 LINHAS E AMPLA LEITURA)
+   ========================================================================== */
+.ces-report-nav-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 0.35rem;
+  padding: 0.75rem 0.925rem;
+  border-radius: var(--ces-radius-md);
+  border: 1px solid var(--ces-border);
+  background: var(--ces-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--ces-duration-fast) var(--ces-ease-standard),
+              border-color var(--ces-duration-fast) var(--ces-ease-standard),
+              transform var(--ces-duration-fast) var(--ces-ease-standard),
+              box-shadow var(--ces-duration-fast) var(--ces-ease-standard);
+  overflow: hidden;
+}
+
+.ces-report-nav-item:hover {
+  border-color: color-mix(in srgb, var(--ces-brand) 55%, var(--ces-border));
+  background: var(--ces-surface-subtle);
+  transform: translateY(-1px);
+  box-shadow: var(--ces-shadow-sm);
+}
+
+.ces-report-nav-item:active {
+  transform: translateY(0);
+}
+
+.ces-report-nav-item--current {
+  border-color: color-mix(in srgb, var(--ces-brand) 45%, transparent);
+  background: var(--ces-brand-soft);
+}
+
+.ces-report-nav-item--current::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  background: var(--ces-brand);
+  content: '';
+  border-radius: 0 2px 2px 0;
+}
+
+.ces-report-nav-item:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Linha 1: Top (Número + Tipo + Valor) */
+.ces-report-nav-item__row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ces-report-nav-item__number {
+  color: var(--ces-brand);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.ces-report-nav-item__type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.675rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: var(--ces-radius-sm);
+  background: var(--ces-surface-muted);
+  color: var(--ces-foreground-muted);
+}
+
+.ces-report-nav-item__type-pill i {
+  font-size: 0.65rem;
+}
+
+.ces-report-nav-item__type-pill--compra,
+.ces-report-nav-item__type-pill--info {
+  background: var(--ces-info-soft, #e0f2fe);
+  color: var(--ces-info, #0284c7);
+  border-color: #bfdbfe;
+}
+
+.ces-report-nav-item__type-pill--pagamento,
+.ces-report-nav-item__type-pill--brand {
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+  border-color: color-mix(in srgb, var(--ces-brand) 30%, transparent);
+}
+
+.ces-report-nav-item__type-pill--success {
+  background: var(--ces-success-soft, #dcfce7);
+  color: var(--ces-success, #16a34a);
+  border-color: #bbf7d0;
+}
+
+.ces-report-nav-item__type-pill--warning {
+  background: var(--ces-warning-soft, #fef3c7);
+  color: var(--ces-warning, #d97706);
+  border-color: #fde68a;
+}
+
+.ces-report-nav-item__type-pill--danger {
+  background: var(--ces-danger-soft, #fee2e2);
+  color: var(--ces-danger, #dc2626);
+  border-color: #fecaca;
+}
+
+.ces-report-nav-item__type-pill--devolucao {
+  background: #e0e7ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+
+:host-context(.app-dark) .ces-report-nav-item__type-pill--compra,
+:host-context(.app-dark) .ces-report-nav-item__type-pill--info,
+:host-context(.dark) .ces-report-nav-item__type-pill--compra,
+:host-context(.dark) .ces-report-nav-item__type-pill--info {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+:host-context(.app-dark) .ces-report-nav-item__type-pill--pagamento,
+:host-context(.app-dark) .ces-report-nav-item__type-pill--brand,
+:host-context(.dark) .ces-report-nav-item__type-pill--pagamento,
+:host-context(.dark) .ces-report-nav-item__type-pill--brand {
+  border-color: color-mix(in srgb, var(--ces-brand) 40%, transparent);
+}
+
+:host-context(.app-dark) .ces-report-nav-item__type-pill--success,
+:host-context(.dark) .ces-report-nav-item__type-pill--success {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+:host-context(.app-dark) .ces-report-nav-item__type-pill--warning,
+:host-context(.dark) .ces-report-nav-item__type-pill--warning {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+:host-context(.app-dark) .ces-report-nav-item__type-pill--danger,
+:host-context(.dark) .ces-report-nav-item__type-pill--danger {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+:host-context(.app-dark) .ces-report-nav-item__type-pill--devolucao,
+:host-context(.dark) .ces-report-nav-item__type-pill--devolucao {
+  background: rgba(49, 46, 129, 0.45);
+  color: #c7d2fe;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.ces-report-nav-item__value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ces-foreground);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Linha 2: Título */
+.ces-report-nav-item__title {
+  margin: 0;
+  color: var(--ces-foreground);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Linha 3: Bottom (Status + Solicitante + Data + Badge Atual) */
+.ces-report-nav-item__row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.ces-report-nav-item__meta-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--ces-foreground-muted);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ces-report-nav-item__requester {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ces-report-nav-item__requester i {
+  font-size: 0.675rem;
+  color: var(--ces-foreground-subtle);
+}
+
+.ces-report-nav-item__dot-sep {
+  color: var(--ces-foreground-subtle);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.ces-report-nav-item__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  color: var(--ces-foreground-subtle);
+}
+
+.ces-report-nav-item__date i {
+  font-size: 0.675rem;
+}
+
+.ces-report-nav-item__active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--ces-brand);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.ces-report-nav-item__active-badge i {
+  font-size: 0.675rem;
+}
+
+/* ==========================================================================
+   RESPONSIVIDADE (MOBILE VS DESKTOP)
+   ========================================================================== */
+@media (max-width: 767.98px) {
+  .ces-report-nav-sidebar {
+    position: fixed;
+    top: 50%;
+    bottom: auto;
+    left: 0;
+    transform: translateY(-50%);
+    width: auto;
+    height: auto;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    z-index: 50;
+    transition: all 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .ces-report-nav-rail {
+    width: 2.25rem;
+    height: 3.25rem;
+    padding: 0;
+    background: var(--ces-surface);
+    border: 1px solid var(--ces-border);
+    border-left: 0;
+    border-radius: 0 var(--ces-radius-md) var(--ces-radius-md) 0;
+    box-shadow: var(--ces-shadow-md);
+  }
+
+  .ces-report-nav-rail__handle {
+    font-size: 0.95rem;
+  }
+
+  .ces-report-nav-sidebar--open {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    width: 90vw;
+    max-width: 26rem;
+    height: 100vh;
+    height: 100dvh;
+    background: var(--ces-surface);
+    border-right: 1px solid var(--ces-border);
+    box-shadow: 0 0 0 100vmax rgba(15, 23, 42, 0.45);
+  }
+
+  .ces-report-nav-expanded {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media print {
+  :host,
+  .ces-report-nav-sidebar {
+    display: none !important;
+  }
+}

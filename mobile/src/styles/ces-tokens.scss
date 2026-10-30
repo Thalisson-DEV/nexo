@@ -1,0 +1,136 @@
+// Design system do Nexo Campo — tokens.
+// Fonte única de cor, tipo, espaço, raio, elevação e movimento do app de campo.
+// Telas novas usam SOMENTE estas variáveis (lint em docs/mobile/CHECKLIST.md).
+// Tema: CLARO por padrão (decisão do dono do produto). O escuro só entra quando o usuário
+// escolhe em Conta, via `data-tema="escuro"` no <html>; `data-contraste="alto"` para sol forte.
+
+:root {
+  color-scheme: light;
+
+  // Cor — superfícies
+  --ces-fundo: #F4F6F9;
+  --ces-superficie: #FFFFFF;
+  --ces-superficie-2: #EDF0F4;
+  --ces-linha: #E2E7EE;
+  --ces-linha-forte: #C9D1DC;
+  --ces-veu: rgba(14, 23, 38, .38);
+
+  // Cor — texto
+  --ces-texto: #0E1726;
+  --ces-texto-2: #5A687C;
+  --ces-texto-3: #7C8899;
+
+  // Cor — destaque (azul da empresa): só ação e seleção
+  --ces-destaque: #0052A5;
+  --ces-destaque-texto: #FFFFFF;
+  --ces-destaque-suave: #E6EFFA;
+  --ces-destaque-pressionado: #00428A;
+
+  // Cor — status (sempre com ícone e texto, nunca só cor)
+  --ces-ok: #0F7A48;
+  --ces-ok-suave: #E3F4EB;
+  --ces-atencao: #9A5A00;
+  --ces-atencao-suave: #FDF1DC;
+  --ces-erro: #B42318;
+  --ces-erro-suave: #FDE8E6;
+
+  // Tipo — fonte do sistema (Roboto no Android): nada a baixar, funciona offline
+  --ces-fonte: Roboto, 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --ces-fonte-mono: 'Roboto Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  --ces-t-titulo: 700 1.875rem/1.15 var(--ces-fonte);     // 30 — título grande da aba
+  --ces-t-barra: 600 1.0625rem/1.3 var(--ces-fonte);      // 17 — barra superior, título de folha
+  --ces-t-secao: 600 0.8125rem/1.3 var(--ces-fonte);      // 13 — cabeçalho de grupo
+  --ces-t-corpo: 400 0.9375rem/1.45 var(--ces-fonte);     // 15
+  --ces-t-corpo-forte: 500 0.9375rem/1.45 var(--ces-fonte);
+  --ces-t-apoio: 400 0.8125rem/1.4 var(--ces-fonte);      // 13
+  --ces-t-campo: 600 1.375rem/1.2 var(--ces-fonte);       // 22 — campo de valor principal
+  --ces-t-numero: 700 1.375rem/1.2 var(--ces-fonte);
+
+  // Espaço — grade de 4 px
+  --ces-e1: 4px;
+  --ces-e2: 8px;
+  --ces-e3: 12px;
+  --ces-e4: 16px;
+  --ces-e5: 20px;
+  --ces-e6: 24px;
+  --ces-e8: 32px;
+  --ces-margem: 16px;
+
+  // Toque
+  --ces-alvo: 48px;
+  --ces-alvo-principal: 54px;
+
+  // Raios
+  --ces-r-campo: 10px;
+  --ces-r-grupo: 14px;
+  --ces-r-folha: 22px;
+  --ces-r-pilula: 999px;
+
+  // Elevação — só folha inferior e barra de abas
+  --ces-sombra-folha: 0 -8px 32px rgba(14, 23, 38, .12);
+  --ces-sombra-flutuante: 0 6px 20px rgba(14, 23, 38, .16);
+
+  // Movimento — entrar 200 ms, sair 160 ms, desaceleração
+  --ces-curva: cubic-bezier(.2, .8, .2, 1);
+  --ces-curva-saida: cubic-bezier(.4, 0, 1, 1);
+  --ces-m-entrar: 200ms;
+  --ces-m-sair: 160ms;
+  --ces-m-folha: 280ms;
+
+  // Estrutura
+  --ces-barra-abas: 64px;
+  --ces-barra-topo: 56px;
+  --ces-safe-topo: env(safe-area-inset-top, 0px);
+  --ces-safe-base: env(safe-area-inset-bottom, 0px);
+}
+
+@mixin tema-escuro {
+  color-scheme: dark;
+  --ces-fundo: #0B1017;
+  --ces-superficie: #141B25;
+  --ces-superficie-2: #1B2431;
+  --ces-linha: #232D3B;
+  --ces-linha-forte: #34404F;
+  --ces-veu: rgba(0, 0, 0, .55);
+  --ces-texto: #E7EDF5;
+  --ces-texto-2: #95A3B6;
+  --ces-texto-3: #7A8799;
+  --ces-destaque: #5C9DFF;
+  --ces-destaque-texto: #06121F;
+  --ces-destaque-suave: #15253C;
+  --ces-destaque-pressionado: #7FB2FF;
+  --ces-ok: #4CC38A;
+  --ces-ok-suave: #10281D;
+  --ces-atencao: #F0B04A;
+  --ces-atencao-suave: #2A1F0C;
+  --ces-erro: #FF7A6E;
+  --ces-erro-suave: #2E1414;
+  --ces-sombra-folha: 0 -8px 32px rgba(0, 0, 0, .5);
+  --ces-sombra-flutuante: 0 6px 20px rgba(0, 0, 0, .5);
+}
+
+:root[data-tema='escuro'] { @include tema-escuro; }
+
+// Sol forte: texto preto puro, linhas mais grossas, sem cinzas claros para texto.
+:root[data-contraste='alto'] {
+  --ces-fundo: #FFFFFF;
+  --ces-superficie: #FFFFFF;
+  --ces-superficie-2: #F0F2F5;
+  --ces-linha: #5A687C;
+  --ces-linha-forte: #0E1726;
+  --ces-texto: #000000;
+  --ces-texto-2: #1F2937;
+  --ces-texto-3: #374151;
+  --ces-destaque: #003E7E;
+  --ces-ok: #0A5C36;
+  --ces-atencao: #6B3E00;
+  --ces-erro: #8F1A12;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ces-m-entrar: 0ms;
+    --ces-m-sair: 0ms;
+    --ces-m-folha: 0ms;
+  }
+}

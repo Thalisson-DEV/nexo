@@ -1,0 +1,63 @@
+name: Design System
+
+on:
+  pull_request:
+    paths:
+      - 'src/app/design-system/**'
+      - 'src/app/shared/components/**'
+      - 'src/styles.css'
+      - 'docs/design-system/**'
+      - 'tools/design-system/**'
+      - 'e2e/design-system/**'
+      - 'playwright.config.ts'
+      - 'package*.json'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.github/workflows/design-system.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/app/design-system/**'
+      - 'src/app/shared/components/**'
+      - 'src/styles.css'
+      - 'docs/design-system/**'
+      - 'tools/design-system/**'
+      - 'e2e/design-system/**'
+      - 'playwright.config.ts'
+      - 'package*.json'
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.github/workflows/design-system.yml'
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+
+      - name: Verify Design System Nexo
+        run: npm run verify:design-system
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,30 @@
+{
+  "content": [{
+    "id": "77777777-7777-7777-7777-777777777771",
+    "estoqueOrigemNome": null,
+    "estoqueDestinoNome": "OBRA 2026-0042",
+    "status": "ENTREGUE_PARCIAL",
+    "dataSolicitacao": "2026-08-24T09:00:00-03:00",
+    "dataVerificacao": "2026-08-24T09:00:00-03:00",
+    "dataEntrega": "2026-09-01T10:15:00-03:00",
+    "idRequisitante": "12121212-1212-1212-1212-121212121212",
+    "idAprovador": "12121212-1212-1212-1212-121212121212",
+    "idEntregadorAlmox": "13131313-1313-1313-1313-131313131313",
+    "totalItens": 1, "versao": 7, "contexto": "TECNICO", "statusSeparacao": "SEPARADO",
+    "acoesPermitidas": ["ENTREGAR", "ESTORNAR", "VER_HISTORICO"],
+    "tecnico": {
+      "tipoTecnico": "ADICAO_COMUM", "tipoObra": "CORRETIVA",
+      "idObra": "11111111-1111-1111-1111-111111111111",
+      "ocorrencia": {"id": "12121212-1212-1212-1212-121212121212", "codigo": "OC 1042"},
+      "idAlmoxarifadoAtendimento": "22222222-2222-2222-2222-222222222222",
+      "idEquipe": "33333333-3333-3333-3333-333333333333", "dataPrevista": "2026-09-01",
+      "observacao": "Submissao tecnica", "statusSeparacao": "SEPARADO", "reserva": null,
+      "totais": {"solicitada": 2.500, "entregaBruta": 1.500, "entregaEstornada": 0.500,
+        "entregaLiquida": 1.000, "devolucaoBruta": 0, "devolucaoEstornada": 0,
+        "devolucaoLiquida": 0, "pendente": 1.500}, "operacoes": [], "versao": 7,
+      "acoesPermitidas": ["ENTREGAR", "ESTORNAR", "VER_HISTORICO"], "atrasada": false,
+      "encerradaEm": null, "idUsuarioEncerramento": null, "motivoEncerramento": null
+    }
+  }],
+  "page": {"size": 20, "number": 0, "totalElements": 1, "totalPages": 1}
+}

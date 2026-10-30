@@ -1,0 +1,27 @@
+{
+  "idLote": "18181818-1818-1818-1818-181818181818",
+  "resultados": [
+    {
+      "chave": "SOL-001",
+      "tipo": "221",
+      "solicitacoes": [
+        {"tipo": "221", "id": "77777777-7777-7777-7777-777777777771"}
+      ],
+      "erro": null
+    },
+    {
+      "chave": "SOL-001",
+      "tipo": "922",
+      "solicitacoes": [
+        {"tipo": "922", "id": "77777777-7777-7777-7777-777777777774"}
+      ],
+      "erro": null
+    },
+    {
+      "chave": "SOL-002",
+      "tipo": "221",
+      "solicitacoes": [],
+      "erro": "A equipe foi desativada depois da validacao."
+    }
+  ]
+}

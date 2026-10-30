@@ -1,0 +1,25 @@
+{
+  "content": [
+    {
+      "ocorrencia": "OC 1042",
+      "rotulo": "OC 1042",
+      "totalAgrupamentos": 2,
+      "totalSolicitacoes": 4,
+      "quantidadeSolicitada": 8.500,
+      "quantidadePendente": 3.000,
+      "estados": ["APROVADO", "ENTREGUE_PARCIAL"],
+      "ultimaAtividade": "2026-09-01T11:00:00-03:00"
+    },
+    {
+      "ocorrencia": "OS 2048",
+      "rotulo": "OS 2048",
+      "totalAgrupamentos": 1,
+      "totalSolicitacoes": 1,
+      "quantidadeSolicitada": 1.000,
+      "quantidadePendente": 1.000,
+      "estados": ["APROVADO"],
+      "ultimaAtividade": "2026-08-31T08:00:00-03:00"
+    }
+  ],
+  "page": {"size": 20, "number": 0, "totalElements": 2, "totalPages": 1}
+}

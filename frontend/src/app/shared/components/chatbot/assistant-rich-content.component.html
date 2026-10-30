@@ -1,0 +1,86 @@
+<div class="rich-content">
+  @for (block of blocks(); track block.id) {
+    @if (block.kind === 'text') {
+      @if (block.format === 'MARKDOWN_CES_V1') {
+        <app-assistant-markdown [content]="block.content" />
+      } @else {
+        <p class="plain-content">{{ block.content }}</p>
+      }
+    } @else {
+      <section
+        class="visualization-card"
+        [attr.aria-labelledby]="'visual-title-' + block.id"
+        [attr.aria-describedby]="'visual-description-' + block.id"
+      >
+        <header>
+          <div class="visualization-heading">
+            <i
+              [class]="block.visualization.tipo === 'INDICADOR' ? 'pi pi-chart-bar' : 'pi pi-chart-line'"
+              aria-hidden="true"
+            ></i>
+            <div>
+              <h4 [id]="'visual-title-' + block.id">{{ block.visualization.titulo }}</h4>
+              <p [id]="'visual-description-' + block.id">{{ block.visualization.descricao }}</p>
+            </div>
+          </div>
+        </header>
+
+        @if (block.visualization.tipo === 'INDICADOR') {
+          <div class="indicator-grid">
+            @for (series of block.visualization.series; track series.nome) {
+              <div class="indicator-value">
+                <strong>{{ formatValue(series.valores[0], series.unidade) }}</strong>
+                <span>{{ series.nome }}</span>
+                <small>{{ block.visualization.categorias[0] }}</small>
+              </div>
+            }
+          </div>
+        } @else if (block.chartType && block.chartData && block.chartOptions) {
+          <div class="visualization-chart" aria-hidden="true">
+            @defer {
+              <p-chart
+                [type]="block.chartType"
+                [data]="block.chartData"
+                [options]="block.chartOptions"
+                height="13rem"
+              />
+            } @placeholder {
+              <div class="chart-placeholder" role="status">
+                <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                <span>Preparando gráfico...</span>
+              </div>
+            }
+          </div>
+        }
+
+        <details class="visualization-table">
+          <summary>
+            <span><i class="pi pi-table" aria-hidden="true"></i> Ver dados em tabela</span>
+            <i class="pi pi-chevron-down table-chevron" aria-hidden="true"></i>
+          </summary>
+          <div class="visualization-table-scroll" tabindex="0">
+            <table>
+              <caption class="sr-only">{{ block.visualization.titulo }}</caption>
+              <thead>
+                <tr>
+                  @for (column of block.visualization.alternativaTabular.colunas; track $index) {
+                    <th scope="col">{{ column }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of block.visualization.alternativaTabular.linhas; track $index) {
+                  <tr>
+                    @for (cell of row; track $index) {
+                      <td>{{ cell }}</td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+    }
+  }
+</div>

@@ -1,0 +1,665 @@
+# Camada semantica do Copiloto.
+#
+# Descreve o significado de negocio das views do schema `copiloto` (V152) e a permissao do Nexo
+# exigida para cada uma. Tipos de coluna sao lidos do banco (information_schema); aqui ficam somente
+# significado, valores de enum, relacionamentos, sinonimos e exemplos. O agente descobre estas
+# informacoes sob demanda (listar_fontes_dados / descrever_fonte_dados); nada disto vai inteiro ao prompt.
+#
+# autoridades: o usuario precisa de QUALQUER uma delas. "@autenticado" = qualquer usuario logado.
+# escopo: "todos" (RBAC por permissao) ou "proprio" (a view filtra pelo usuario da sessao).
+
+versao: "1.0.0"
+
+dominios:
+  - id: almoxarifado
+    nome: Almoxarifado e estoque
+    descricao: Saldos de materiais por estoque, movimentacoes, solicitacoes de material (comerciais e tecnicas), itens, reservas, entregas e devolucoes.
+  - id: obras
+    nome: Obras e projetos
+    descricao: Obras (projetos de engenharia), status, prazos, valores, vinculos entre projetos, equipes e anexos.
+  - id: rh
+    nome: RH e estrutura operacional
+    descricao: Colaboradores (tecnicos), funcoes, equipes, membros, supervisores, coordenadores, bases operacionais, municipios, veiculos e processos.
+  - id: execucao
+    nome: Execução em campo
+    descricao: Turnos das equipes e execucoes comerciais (notas executadas, acoes, materiais aplicados e valor faturado).
+  - id: contratos
+    nome: Contratos
+    descricao: Contratos com clientes, acoes contratuais e tabela de valores por acao.
+  - id: descontos
+    nome: Descontos (departamento pessoal)
+    descricao: Descontos em folha de colaboradores por perda, mau uso ou dano de equipamentos, seus itens, valores e ciclo de aprovacao.
+  - id: financeiro
+    nome: Financeiro
+    descricao: Solicitacoes de compra e de pagamento, aprovacoes, fornecedores e documentos financeiros (notas, boletos, recibos).
+  - id: sst
+    nome: Segurança do trabalho (SST)
+    descricao: Inspecoes de seguranca, desvios, eventos (acidentes e incidentes), metas de inspecao, CIPA/brigada (corpos, membros, reunioes, acoes) e documentos de governanca.
+  - id: chamados
+    nome: Chamados de suporte
+    descricao: Chamados abertos pelos usuarios, topicos, prioridades, status e SLA de primeira resposta e resolucao.
+  - id: comunicacao
+    nome: Comunicação
+    descricao: Comunicados publicados no mural e notificacoes do proprio usuario.
+  - id: iam
+    nome: Acessos e auditoria
+    descricao: Usuarios (sem dados pessoais), perfis de acesso, permissoes e trilha de auditoria de alteracoes.
+  - id: sincronizacao
+    nome: Sincronização offline
+    descricao: Operacoes enviadas pelo app de campo e casos de tratamento de pendencias de sincronizacao.
+
+fontes:
+  # ------------------------------------------------------------------ ALMOXARIFADO
+  saldos:
+    dominio: almoxarifado
+    nome: Saldos de estoque
+    descricao: Quantidade atual de cada material em cada estoque (almoxarifado, equipe ou obra), por condicao. E a fotografia "como esta o estoque hoje".
+    autoridades: [estoque:saldo:read]
+    palavras_chave: [estoque, saldo, inventario, quantidade disponivel, almoxarifado, o que temos]
+    coluna_data: atualizado_em
+    colunas:
+      condicao: {descricao: Condicao fisica do material, valores: [NOVO, SUCATA]}
+      quantidade: Quantidade em saldo na unidade de medida do material
+      tipo_estoque: Tipo do estoque (ex. almoxarifado central, equipe, obra)
+      equipe: Codigo da equipe dona do estoque (quando estoque de equipe)
+    relacionamentos:
+      - saldos.material_id = materiais.material_id
+      - saldos.estoque_id = estoques.estoque_id
+    exemplos:
+      - Como esta nosso estoque hoje?
+      - Quais materiais tem mais saldo por base?
+      - Quanto temos de sucata por estoque?
+  saldos_seriais:
+    dominio: almoxarifado
+    nome: Saldos seriados
+    descricao: Itens controlados por numero de serie presentes em cada estoque.
+    autoridades: [estoque:saldo:read]
+    palavras_chave: [numero de serie, seriado, equipamento serializado]
+    colunas:
+      condicao: {descricao: Condicao fisica, valores: [NOVO, SUCATA]}
+  movimentacoes:
+    dominio: almoxarifado
+    nome: Movimentações de estoque
+    descricao: Historico de todas as entradas, saidas, transferencias, entregas, devolucoes e estornos de materiais entre estoques. Cada linha e um material movimentado.
+    autoridades: [estoque:movimentacao:read]
+    palavras_chave: [movimentacao, entrada, saida, transferencia, entrega, devolucao, estorno, retirada, fluxo de material]
+    coluna_data: data_hora
+    colunas:
+      tipo_movimentacao: {descricao: Natureza da movimentacao, valores: [ENTRADA_AVULSA, BAIXA_AVULSA, TRANSFERENCIA, ENTREGA, ESTORNO, APLICACAO, RETIRADA, DEVOLUCAO]}
+      data: Data da movimentacao no fuso America/Sao_Paulo
+      mes: Primeiro dia do mes da movimentacao (para agrupar por mes)
+      tipo_tecnico: {descricao: Tipo da solicitacao tecnica que originou a movimentacao, valores: [ADICAO_COMUM, ADICAO_CONCRETO, DEVOLUCAO_COMUM, DEVOLUCAO_CONCRETO]}
+      tipo_obra: {descricao: Tipo de obra vinculada, valores: [OBRA, CORRETIVA, PREVENTIVA, LPT]}
+      operacao_id: Agrupa as linhas de uma mesma operacao (uma entrega com varios materiais)
+      operador: Nome do usuario que registrou a movimentacao
+    relacionamentos:
+      - movimentacoes.material_id = materiais.material_id
+      - movimentacoes.solicitacao_id = solicitacoes.solicitacao_id
+      - movimentacoes.reserva_id = reservas.reserva_id
+      - movimentacoes.obra_id = obras.obra_id
+    exemplos:
+      - Quais materiais tiveram mais movimentacao este mes?
+      - Compare as entregas de agosto e setembro.
+      - Quais materiais desta obra ainda nao foram movimentados?
+  solicitacoes:
+    dominio: almoxarifado
+    nome: Solicitações de material
+    descricao: Pedidos de material ao almoxarifado. Contexto COMERCIAL (equipes de servico) ou TECNICO (obras, com reserva e separacao).
+    autoridades: [estoque:solicitacao:read]
+    palavras_chave: [solicitacao, pedido de material, requisicao, aprovacao, separacao, saque, retirada]
+    coluna_data: data_solicitacao
+    colunas:
+      contexto: {descricao: Origem da solicitacao, valores: [COMERCIAL, TECNICO]}
+      status: {descricao: Status da solicitacao, valores: [PENDENTE, APROVADO, REJEITADO, ENTREGUE_PARCIAL, ENTREGUE, DEVOLVIDO_PARCIAL, DEVOLVIDO, ESTORNADO, CANCELADO]}
+      status_separacao: {descricao: Etapa da separacao no almoxarifado, valores: [AGUARDANDO_AGENDAMENTO, PRONTO_PARA_SEPARACAO, EM_SEPARACAO, SEPARADO]}
+      tipo_tecnico: {descricao: Tipo da solicitacao tecnica, valores: [ADICAO_COMUM, ADICAO_CONCRETO, DEVOLUCAO_COMUM, DEVOLUCAO_CONCRETO]}
+      data_decisao: Data da aprovacao ou rejeicao
+      data_prevista_retirada: Data prevista para o saque (retirada) do material
+      fora_prazo_saque: Verdadeiro quando a retirada foi pedida com menos de 48h de antecedencia (prazo recomendado)
+      retirada_atrasada: Verdadeiro quando a data prevista de retirada passou e o material ainda nao foi entregue
+      expiracao_entrega_parcial_em: Momento em que uma entrega parcial expira (72h apos a entrega) e o saldo pendente e encerrado
+      horas_ate_decisao: Horas entre a solicitacao e a aprovacao/rejeicao
+      horas_ate_entrega: Horas entre a solicitacao e a entrega
+      requisitante: Nome do usuario que pediu o material
+    relacionamentos:
+      - itens_solicitacao.solicitacao_id = solicitacoes.solicitacao_id
+      - reservas.solicitacao_id = solicitacoes.solicitacao_id
+    exemplos:
+      - Quantas solicitacoes estao pendentes de aprovacao?
+      - Qual o tempo medio entre solicitacao e entrega por base?
+  itens_solicitacao:
+    dominio: almoxarifado
+    nome: Itens das solicitações
+    descricao: Materiais e quantidades pedidos em cada solicitacao, com quantidades entregue, devolvida e pendente.
+    autoridades: [estoque:solicitacao:read]
+    palavras_chave: [itens, material solicitado, pendente de entrega]
+    coluna_data: data_solicitacao
+    colunas:
+      status_solicitacao: {descricao: Status da solicitacao, valores: [PENDENTE, APROVADO, REJEITADO, ENTREGUE_PARCIAL, ENTREGUE, DEVOLVIDO_PARCIAL, DEVOLVIDO, ESTORNADO, CANCELADO]}
+      quantidade_pendente: Quantidade solicitada ainda nao entregue
+  reservas:
+    dominio: almoxarifado
+    nome: Reservas de solicitações técnicas
+    descricao: Reservas registradas para solicitacoes tecnicas de obra, com prazo de retirada e situacao do prazo (SLA de atendimento).
+    autoridades: [estoque:solicitacao:read]
+    palavras_chave: [reserva, SLA, prazo, atraso, estourar prazo, vencendo]
+    coluna_data: registrada_em
+    colunas:
+      situacao_prazo: {descricao: Situacao do prazo de retirada (SLA), valores: [ATRASADA, VENCE_EM_ATE_2_DIAS, NO_PRAZO, SEM_DATA_PREVISTA, ENTREGA_PARCIAL, CONCLUIDA]}
+      dias_para_retirada: Dias ate a data prevista de retirada (negativo = atrasada)
+      dias_desde_reserva: Dias desde o registro da reserva
+      status_solicitacao: {descricao: Status da solicitacao vinculada, valores: [PENDENTE, APROVADO, REJEITADO, ENTREGUE_PARCIAL, ENTREGUE, DEVOLVIDO_PARCIAL, DEVOLVIDO, ESTORNADO, CANCELADO]}
+    exemplos:
+      - Quais reservas estao perto de estourar o SLA?
+      - Quantas reservas estao atrasadas por obra?
+  operacoes_solicitacao:
+    dominio: almoxarifado
+    nome: Operações das solicitações
+    descricao: Entregas, devolucoes, estornos e encerramentos realizados nas solicitacoes, com quem executou e quantidades.
+    autoridades: [estoque:solicitacao:read]
+    palavras_chave: [entrega, devolucao, estorno, encerramento, atendimento do almoxarifado]
+    coluna_data: realizada_em
+    colunas:
+      tipo_operacao: {descricao: Tipo da operacao, valores: [ENTREGA, DEVOLUCAO, ESTORNO, ENCERRAMENTO]}
+  historico_solicitacoes:
+    dominio: almoxarifado
+    nome: Histórico de eventos das solicitações
+    descricao: Trilha auditavel (append-only) de cada evento do ciclo de vida das solicitacoes.
+    autoridades: [estoque:solicitacao:audit:read, estoque:solicitacao:read]
+    palavras_chave: [historico, auditoria, linha do tempo, quem aprovou]
+    coluna_data: ocorrido_em
+    colunas:
+      tipo_evento: {descricao: Evento registrado, valores: [SOLICITACAO_CRIADA, APROVACAO_CONFIRMADA, REJEICAO_CONFIRMADA, PLANEJAMENTO_ALTERADO, MATERIAL_ALTERADO, RESERVA_REGISTRADA, RESERVA_ALTERADA, SEPARACAO_INICIADA, SEPARACAO_CONCLUIDA, ENTREGA_CONFIRMADA, DEVOLUCAO_CONFIRMADA, ESTORNO_CONFIRMADO, ENCERRAMENTO_CONFIRMADO, EXPIRACAO_CONFIRMADA, IMPORTACAO_CONFIRMADA]}
+  materiais:
+    dominio: almoxarifado
+    nome: Materiais
+    descricao: Cadastro de materiais (codigo, descricao, unidade, controle de serie, processo e avaliacao tecnica).
+    autoridades: [estoque:material:read]
+    palavras_chave: [material, item, codigo do material, catalogo]
+  estoques:
+    dominio: almoxarifado
+    nome: Estoques
+    descricao: Estoques cadastrados (almoxarifados, estoques de equipe e de obra) com base e equipe.
+    autoridades: [estoque:estoque:read]
+    palavras_chave: [estoque, almoxarifado, deposito]
+
+  # ------------------------------------------------------------------ OBRAS
+  obras:
+    dominio: obras
+    nome: Obras
+    descricao: Obras e projetos com numero, titulo, tipo, status, valor do projeto, prazos, base, municipio, supervisor, coordenador e agente responsavel.
+    autoridades: [obras:obra:read]
+    palavras_chave: [obra, projeto, prazo da obra, atraso de obra, valor do projeto]
+    coluna_data: data_inicio
+    colunas:
+      tipo_obra: {descricao: Tipo de obra, valores: [OBRA, CORRETIVA, PREVENTIVA, LPT]}
+      atrasada: Verdadeiro quando a previsao de fim passou sem conclusao
+      tipo_vinculo_pai: {descricao: Vinculo com a obra pai (subprojeto), valores: [KIT, MEDIDOR]}
+    relacionamentos:
+      - obras.obra_id = movimentacoes.obra_id
+      - obras.obra_id = solicitacoes.obra_id
+      - obras.obra_numero = solicitacoes_compra.obra_numero
+  obras_relacionamentos:
+    dominio: obras
+    nome: Projetos relacionados
+    descricao: Vinculos entre obras/projetos (kits e medidores).
+    autoridades: [obras:obra:read]
+    colunas:
+      tipo: {descricao: Tipo do vinculo, valores: [KIT, MEDIDOR]}
+  obras_equipes:
+    dominio: obras
+    nome: Equipes das obras
+    descricao: Equipes vinculadas a cada obra.
+    autoridades: [obras:obra:read]
+  obras_anexos:
+    dominio: obras
+    nome: Anexos das obras
+    descricao: Metadados dos anexos enviados para cada obra (tipo, nome, tamanho, data).
+    autoridades: [obras:anexos:read]
+
+  # ------------------------------------------------------------------ RH
+  colaboradores:
+    dominio: rh
+    nome: Colaboradores (técnicos)
+    descricao: Colaboradores com nome, funcao, base, processo, data de contratacao e equipe atual. Tecnicos sao colaboradores de funcoes tecnicas. Nunca expoe CPF.
+    autoridades: [rh:colaborador:read]
+    palavras_chave: [colaborador, tecnico, eletricista, funcionario, efetivo, pessoal]
+  equipes:
+    dominio: rh
+    nome: Equipes
+    descricao: Equipes de campo com tipo, base, processo, contrato, veiculo, supervisor, coordenador e numero de membros ativos.
+    autoridades: [rh:equipe:read]
+    palavras_chave: [equipe, turma, time de campo]
+  equipe_membros:
+    dominio: rh
+    nome: Membros das equipes
+    descricao: Historico de participacao dos colaboradores nas equipes.
+    autoridades: [rh:equipe:read]
+    colunas:
+      papel_na_equipe: {descricao: Papel do membro, valores: [RESPONSAVEL, PARCEIRO]}
+  bases_operacionais:
+    dominio: rh
+    nome: Bases operacionais
+    descricao: Bases operacionais (unidades regionais) com UF e centro de faturamento.
+    autoridades: [rh:base-operacional:read]
+    palavras_chave: [base, unidade, regional, filial]
+  supervisores:
+    dominio: rh
+    nome: Supervisores
+    descricao: Supervisores, seus coordenadores e vigencia.
+    autoridades: [rh:supervisor:read]
+  coordenadores:
+    dominio: rh
+    nome: Coordenadores
+    descricao: Coordenadores e vigencia.
+    autoridades: [rh:coordenador:read]
+  veiculos:
+    dominio: rh
+    nome: Veículos
+    descricao: Veiculos da frota com placa, modelo, fabricante, base e equipe vinculada.
+    autoridades: [rh:veiculo:read]
+    palavras_chave: [veiculo, carro, caminhao, placa, frota]
+  municipios:
+    dominio: rh
+    nome: Municípios
+    descricao: Municipios atendidos e a base responsavel.
+    autoridades: [rh:municipio:read]
+  funcoes:
+    dominio: rh
+    nome: Funções
+    descricao: Funcoes (cargos) dos colaboradores.
+    autoridades: [rh:funcao:read]
+  processos_negocio:
+    dominio: rh
+    nome: Processos de negócio
+    descricao: Processos de negocio (linhas de servico) usados para classificar equipes, materiais, obras e despesas.
+    autoridades: [rh:processo-negocio:read]
+
+  # ------------------------------------------------------------------ EXECUCAO
+  turnos:
+    dominio: execucao
+    nome: Turnos
+    descricao: Turnos de trabalho das equipes de campo com inicio, fim, duracao e quantidade de execucoes.
+    autoridades: [execucao:comercial:read]
+    coluna_data: data_inicio
+    colunas:
+      status: {descricao: Status do turno, valores: [ABERTO, FECHADO]}
+      encerrado_automaticamente: Verdadeiro quando a equipe esqueceu o turno aberto e o sistema o encerrou no horario de corte; o fim e o do ultimo lancamento
+      motivo_encerramento: Informativo do encerramento automatico
+  execucoes_comerciais:
+    dominio: execucao
+    nome: Execuções comerciais
+    descricao: Servicos comerciais executados em campo (notas), com equipe, municipio, tipo de servico, data de lancamento e valor faturado. O lancamento e feito de uma so vez (nao ha inicio, fim nem duracao).
+    autoridades: [execucao:comercial:read]
+    palavras_chave: [execucao, nota executada, nota lancada, servico comercial, faturamento de producao, tipo de servico, tipo de nota]
+    coluna_data: data_lancamento
+    colunas:
+      status_execucao: {descricao: Status da execucao, valores: [INICIADO, CONCLUIDO, EDITADO]}
+      tipo_servico: Tipo de servico da nota (ex. LIGAÇÃO NOVA, CORTE, RELIGAÇÃO); NÃO INFORMADO nas notas lancadas antes do cadastro de tipos
+      tipo_servico_codigo: Codigo da classificacao da nota (ex. CL, CS, CR); se repete entre tipos e e nulo quando o tipo nao foi informado
+      tipo_nota: {descricao: "Tipo do lancamento: COMUM (nota com numero), AVULSA (nota sem numero, com numero provisorio gerado pelo app) ou OCORRENCIA (ocorrencia comercial). Todos contam faturamento e meta", valores: [COMUM, AVULSA, OCORRENCIA]}
+      aguardando_numero_oficial: Nota avulsa que ainda esta com o numero provisorio, esperando o numero oficial
+  execucoes_acoes:
+    dominio: execucao
+    nome: Ações executadas
+    descricao: Acoes contratuais executadas em cada execucao comercial, com a equipe e a base operacional da equipe.
+    autoridades: [execucao:comercial:read]
+    coluna_data: data_lancamento
+    colunas:
+      base_operacional: Base operacional da equipe que executou (use para filtrar por base, ex. JUAZEIRO)
+  execucoes_materiais:
+    dominio: execucao
+    nome: Materiais aplicados nas execuções
+    descricao: Materiais aplicados ou retirados em cada execucao comercial, com a equipe e a base operacional da equipe.
+    autoridades: [execucao:comercial:read]
+    coluna_data: data_lancamento
+    colunas:
+      operacao: Se o material foi aplicado ou retirado na execucao
+      origem: {descricao: "De onde veio o material. EQUIPE movimenta o saldo da equipe; CONCESSIONARIA (material da Concessionária, so em ocorrencia comercial) e apenas registro e nao entra no consumo nem no saldo da equipe", valores: [EQUIPE, CONCESSIONARIA]}
+      tipo_nota: Tipo do lancamento (COMUM, AVULSA ou OCORRENCIA)
+      base_operacional: Base operacional da equipe que executou (use para filtrar por base, ex. JUAZEIRO)
+  metas_faturamento:
+    dominio: execucao
+    nome: Metas de faturamento das equipes
+    descricao: Meta de faturamento (R$) de cada equipe, com base, processo, periodicidade e vigencia. Para o atingimento, some valor_total_faturado de execucoes_comerciais da equipe dentro da janela da meta.
+    autoridades: [rh:meta-faturamento:read]
+    palavras_chave: [meta, meta de faturamento, atingimento, ciclo comercial, objetivo da equipe]
+    colunas:
+      periodicidade: {descricao: Janela de apuracao. CICLO_COMERCIAL vai do dia 26 ao dia 25 do mes seguinte; MENSAL e o mes civil, valores: [CICLO_COMERCIAL, MENSAL]}
+      meta_valor: Valor da meta em reais para uma janela inteira
+      vigente: Verdadeiro quando a meta vale hoje
+    exemplos:
+      - Qual o atingimento da meta das equipes de Juazeiro no ciclo atual?
+
+  # ------------------------------------------------------------------ CONTRATOS
+  contratos:
+    dominio: contratos
+    nome: Contratos
+    descricao: Contratos com clientes, vigencia, encerramento, coeficiente de faturamento e equipes ativas.
+    autoridades: [contrato:contrato:read]
+  acoes:
+    dominio: contratos
+    nome: Ações contratuais
+    descricao: Catalogo de acoes (servicos) faturaveis.
+    autoridades: [contrato:acao:read]
+  acoes_valores:
+    dominio: contratos
+    nome: Valores das ações
+    descricao: Valor base de cada acao por contrato e data de vigencia.
+    autoridades: [contrato:acao-valor:read]
+
+  # ------------------------------------------------------------------ DESCONTOS
+  descontos:
+    dominio: descontos
+    nome: Descontos de colaboradores
+    descricao: Descontos em folha por perda, mau uso ou dano, com colaborador, motivo, parcelas, valores (sugerido, validado, baixado) e ciclo SOLICITADO -> VALIDADO -> BAIXADO ou REJEITADO.
+    autoridades: [desconto:read]
+    palavras_chave: [desconto, desconto em folha, perda, mau uso, dano, equipamento, parcela, departamento pessoal]
+    coluna_data: data_ocorrencia
+    colunas:
+      status: {descricao: Status do desconto, valores: [SOLICITADO, VALIDADO, BAIXADO, REJEITADO]}
+      valor_sugerido: Valor proposto na solicitacao
+      valor_validado: Valor confirmado na validacao
+      valor_baixado: Valor efetivamente descontado (baixado)
+      valor_referencia: Valor mais atual do ciclo (baixado, senao validado, senao sugerido)
+      dias_ate_validacao: Dias entre a solicitacao e a validacao
+    exemplos:
+      - Qual o valor total de descontos baixados por motivo este ano?
+      - Quais colaboradores tem mais descontos?
+  descontos_itens:
+    dominio: descontos
+    nome: Itens dos descontos
+    descricao: Equipamentos/materiais que originaram cada desconto e seus valores.
+    autoridades: [desconto:read]
+    coluna_data: data_ocorrencia
+    colunas:
+      status_desconto: {descricao: Status do desconto, valores: [SOLICITADO, VALIDADO, BAIXADO, REJEITADO]}
+  motivos_desconto:
+    dominio: descontos
+    nome: Motivos de desconto
+    descricao: Motivos cadastrados e teto de parcelas.
+    autoridades: [desconto:motivo:read, desconto:read]
+
+  # ------------------------------------------------------------------ FINANCEIRO
+  solicitacoes_compra:
+    dominio: financeiro
+    nome: Solicitações de compra
+    descricao: Pedidos de compra com formulario, status, prioridade, tipo de despesa, forma de pagamento, base, processo, obra, fornecedor, valores, vencimento e tempos de decisao.
+    autoridades: [financeiro:compra:read]
+    palavras_chave: [compra, solicitacao de compra, pedido de compra, despesa, gasto, aprovacao financeira]
+    coluna_data: data_submissao
+    colunas:
+      status: {descricao: Status da solicitacao, valores: [RASCUNHO, SOLICITADO, APROVADO, REJEITADO, CANCELADO]}
+      prioridade: {descricao: Prioridade, valores: [BAIXA, NORMAL, ALTA, URGENTE]}
+      tipo_despesa: {descricao: Tipo de despesa, valores: [MATERIAL, SERVICO, COMBUSTIVEL, LOCACAO, UTILIDADES, TRIBUTOS, MANUTENCAO, OUTRA]}
+      forma_pagamento: {descricao: Forma de pagamento, valores: [A_VISTA_ESPECIE, PIX_TRANSFERENCIA, BOLETO, CARTAO_CREDITO, CARTAO_DEBITO, OUTRA]}
+      local_aquisicao: {descricao: Onde a compra e feita, valores: [LOCAL, CENTRAL]}
+      regime_veiculo: {descricao: Regime do veiculo (despesas de frota), valores: [PROPRIO, LOCADO]}
+      natureza_servico: Natureza do servico de frota (pneus, freios, mecanica...)
+      valor: Valor solicitado
+      valor_aprovado: Valor aprovado na decisao
+      horas_ate_decisao: Horas entre a submissao e a aprovacao/rejeicao
+      mes: Mes da submissao (ou criacao, se rascunho)
+    exemplos:
+      - Quanto foi gasto em compras aprovadas por base este mes?
+      - Quais solicitacoes de compra urgentes aguardam aprovacao?
+  solicitacoes_pagamento:
+    dominio: financeiro
+    nome: Solicitações de pagamento
+    descricao: Pedidos de pagamento (a fornecedores, utilidades, tributos, frota), com vinculo opcional a uma compra previa, valores, vencimento, status e tempos de decisao.
+    autoridades: [financeiro:pagamento:read]
+    palavras_chave: [pagamento, solicitacao de pagamento, contas a pagar, vencimento, boleto]
+    coluna_data: data_submissao
+    colunas:
+      status: {descricao: Status da solicitacao, valores: [RASCUNHO, SOLICITADO, APROVADO, REJEITADO, CANCELADO]}
+      prioridade: {descricao: Prioridade, valores: [BAIXA, NORMAL, ALTA, URGENTE]}
+      tipo_despesa: {descricao: Tipo de despesa, valores: [MATERIAL, SERVICO, COMBUSTIVEL, LOCACAO, UTILIDADES, TRIBUTOS, MANUTENCAO, OUTRA]}
+      forma_pagamento: {descricao: Forma de pagamento, valores: [A_VISTA_ESPECIE, PIX_TRANSFERENCIA, BOLETO, CARTAO_CREDITO, CARTAO_DEBITO, OUTRA]}
+      motivo_sem_compra: {descricao: Motivo de pagamento sem compra previa, valores: [COMBUSTIVEL_FORNECEDOR_CADASTRADO, DESPESA_MENSAL_RECORRENTE, OUTRA]}
+      dias_para_vencimento: Dias ate o vencimento (negativo = vencido)
+  documentos_financeiros:
+    dominio: financeiro
+    nome: Documentos financeiros
+    descricao: Notas fiscais, boletos, recibos, comprovantes e outros documentos enviados, com situacao de conferencia, valores e vencimentos.
+    autoridades: [financeiro:documento:read]
+    palavras_chave: [nota fiscal, NF, boleto, recibo, comprovante, conferencia de documento]
+    coluna_data: data_emissao
+    colunas:
+      tipo: {descricao: Tipo de documento, valores: [NOTA_FISCAL, BOLETO, RECIBO, COMPROVANTE_PAGAMENTO, ORCAMENTO, CONTRATO, EXTRATO, FOTO, OUTRO]}
+      situacao: {descricao: Situacao da conferencia, valores: [PENDENTE, CONFERIDO, COM_PENDENCIA, ARQUIVADO]}
+      em_aberto: Verdadeiro quando o documento ainda exige acao (PENDENTE ou COM_PENDENCIA)
+      origem_tipo: Tipo da solicitacao de origem (COMPRA ou PAGAMENTO)
+      origem_numero: Numero da solicitacao de origem
+  fornecedores:
+    dominio: financeiro
+    nome: Fornecedores
+    descricao: Fornecedores cadastrados, status de homologacao e volume de solicitacoes. Nunca expoe documento ou dados bancarios.
+    autoridades: [financeiro:fornecedor:read]
+    palavras_chave: [fornecedor, prestador, homologacao]
+    colunas:
+      status: {descricao: Status do fornecedor, valores: [PENDENTE, HOMOLOGADO, BLOQUEADO]}
+
+  # ------------------------------------------------------------------ SST
+  inspecoes:
+    dominio: sst
+    nome: Inspeções de segurança
+    descricao: Inspecoes de seguranca realizadas com tipo, formulario, base, equipe, veiculo, inspetor, processo da inspecao, processo do inspetor, desvios encontrados e colaboradores inspecionados.
+    autoridades: [sst:inspecao:read, sst:dashboard:read]
+    palavras_chave: [inspecao, checklist de seguranca, inspetor, auditoria de campo]
+    coluna_data: data_realizacao
+    colunas:
+      status: {descricao: Status da inspecao, valores: [EM_ANDAMENTO, CONCLUIDA, CANCELADA]}
+      processo: Nome do processo de negócio da inspeção (atividade operacional)
+      processo_inspecao: Nome do processo de negócio da inspeção (atividade operacional)
+      processo_inspetor: Nome do processo de negócio do inspetor (quem realizou a inspeção)
+  desvios:
+    dominio: sst
+    nome: Desvios de segurança
+    descricao: Nao conformidades encontradas nas inspecoes, com gravidade, status de tratamento, prazo, item verificado, descricao e acao corretiva.
+    autoridades: [sst:inspecao:read, sst:dashboard:read]
+    palavras_chave: [desvio, nao conformidade, irregularidade, acao corretiva]
+    coluna_data: data_inspecao
+    colunas:
+      gravidade: {descricao: Gravidade, valores: [BAIXA, MEDIA, ALTA, CRITICA]}
+      status: {descricao: Status do tratamento, valores: [ABERTO, EM_TRATAMENTO, RESOLVIDO]}
+      prazo_vencido: Verdadeiro quando o prazo passou sem resolucao
+      processo: Nome do processo de negócio da inspeção (atividade operacional)
+      processo_inspecao: Nome do processo de negócio da inspeção (atividade operacional)
+      processo_inspetor: Nome do processo de negócio do inspetor (quem realizou a inspeção)
+  eventos_sst:
+    dominio: sst
+    nome: Eventos de segurança
+    descricao: Acidentes e incidentes registrados, com tipo, status, atividade, base, equipe, classificacao, lesao, agente causador, dias perdidos e CAT.
+    autoridades: [sst:evento:read, sst:dashboard:read]
+    palavras_chave: [acidente, incidente, evento de seguranca, CAT, dias perdidos, lesao]
+    coluna_data: data_ocorrencia
+    colunas:
+      tipo: {descricao: Tipo do evento, valores: [ACIDENTE_TIPICO, ACIDENTE_TRAJETO, INCIDENTE_SEM_LESAO, DANO_MATERIAL, DOENCA_OCUPACIONAL]}
+      status: {descricao: Status do evento (CANCELADO nao conta nos indicadores), valores: [REGISTRADO, EM_TRATATIVA, CONCLUIDO, CANCELADO]}
+      tipo_cat: {descricao: Tipo da CAT emitida, valores: [INICIAL, REABERTURA, COMUNICACAO_OBITO]}
+  metas_inspecao:
+    dominio: sst
+    nome: Metas de inspeção
+    descricao: Metas de quantidade de inspecoes por funcao ou colaborador, por periodicidade e vigencia.
+    autoridades: [sst:meta:read]
+    colunas:
+      escopo: {descricao: A quem a meta se aplica, valores: [FUNCAO, COLABORADOR]}
+      periodicidade: {descricao: Periodicidade, valores: [SEMANAL, QUINZENAL, MENSAL, BIMESTRAL, TRIMESTRAL, SEMESTRAL, ANUAL, PERSONALIZADO]}
+  corpos_governanca:
+    dominio: sst
+    nome: CIPA e brigadas
+    descricao: Corpos de governanca de SST (CIPA e brigada de emergencia) por base, periodo, status e membros ativos.
+    autoridades: [sst:governanca:read]
+    palavras_chave: [CIPA, brigada, comissao, governanca SST]
+    colunas:
+      tipo: {descricao: Tipo do corpo, valores: [CIPA, BRIGADA]}
+      status: {descricao: Status, valores: [EM_PREPARACAO, ATIVO, ENCERRADO]}
+  membros_governanca:
+    dominio: sst
+    nome: Membros de CIPA e brigadas
+    descricao: Membros dos corpos de governanca com papel, representacao e titularidade.
+    autoridades: [sst:governanca:read]
+    colunas:
+      papel: {descricao: Papel, valores: [PRESIDENTE, VICE_PRESIDENTE, MEMBRO, REPRESENTANTE_NOMEADO, COORDENADOR_GERAL, CHEFE, LIDER, BRIGADISTA]}
+      titularidade: {descricao: Titularidade na CIPA, valores: [TITULAR, SUPLENTE]}
+  reunioes_governanca:
+    dominio: sst
+    nome: Reuniões de CIPA e brigada
+    descricao: Reunioes ordinarias, extraordinarias e simulados, com status, data, corpo, duracao e participantes.
+    autoridades: [sst:governanca:read]
+    coluna_data: data_hora
+    colunas:
+      tipo: {descricao: Tipo da reuniao, valores: [ORDINARIA, EXTRAORDINARIA, SIMULADO, OUTRO]}
+      status: {descricao: Status, valores: [AGENDADA, EM_REALIZACAO, AGUARDANDO_ATA, AGUARDANDO_ASSINATURAS, FINALIZADA, CANCELADA]}
+  acoes_governanca:
+    dominio: sst
+    nome: Ações de governança SST
+    descricao: Acoes corretivas/preventivas definidas pela CIPA/brigada com prazo, prioridade, responsavel e situacao do prazo.
+    autoridades: [sst:governanca:read]
+    coluna_data: prazo
+    colunas:
+      status: {descricao: Status, valores: [ABERTA, EM_ANDAMENTO, CONCLUIDA, CANCELADA]}
+      prioridade: {descricao: Prioridade, valores: [BAIXA, MEDIA, ALTA, CRITICA]}
+      tipo: {descricao: Tipo, valores: [CORRETIVA, PREVENTIVA, INSPECAO, OUTRA]}
+      situacao_prazo: {descricao: Situacao do prazo, valores: [SEM_PRAZO, NO_PRAZO, VENCE_HOJE, VENCIDA, ENCERRADA]}
+  documentos_sst:
+    dominio: sst
+    nome: Documentos de governança SST
+    descricao: Registros, licencas, alvaras, atestados e certificados de treinamento com validade e conferencia.
+    autoridades: [sst:governanca:read]
+    coluna_data: data_validade
+    colunas:
+      situacao_validade: {descricao: Situacao da validade, valores: [SEM_VALIDADE, REGULAR, A_VENCER, VENCIDO]}
+      situacao_conferencia: {descricao: Conferencia, valores: [PENDING_REVIEW, APPROVED, REJECTED]}
+      contexto: {descricao: Contexto, valores: [CIPA, BRIGADA, AMBOS]}
+  treinamentos_sst:
+    dominio: sst
+    nome: Treinamentos de SST
+    descricao: Catalogo de treinamentos de governanca (CIPA/brigada).
+    autoridades: [sst:governanca:read]
+
+  # ------------------------------------------------------------------ CHAMADOS
+  chamados:
+    dominio: chamados
+    nome: Chamados
+    descricao: Chamados de suporte com topico, prioridade, status, equipe de atendimento e SLA. Quem gerencia chamados ve todos; os demais usuarios veem apenas os proprios.
+    autoridades: [chamado:manage, chamado:dashboard:read, chamado:read]
+    escopo: proprio_ou_todos
+    palavras_chave: [chamado, suporte, ticket, SLA, atendimento, protocolo]
+    coluna_data: data_abertura
+    colunas:
+      status: {descricao: Status, valores: [ABERTO, EM_ATENDIMENTO, AGUARDANDO_SOLICITANTE, RESOLVIDO, FECHADO, CANCELADO]}
+      prioridade: {descricao: Prioridade, valores: [BAIXA, NORMAL, ALTA, CRITICA]}
+      sla_primeira_resposta_vencido: Primeira resposta fora do prazo
+      sla_resolucao_vencido: Resolucao fora do prazo (considera pausas por aguardar o solicitante)
+      horas_para_vencer_resolucao: Horas restantes ate estourar o SLA de resolucao (negativo = estourado)
+      aberto_por_mim: Chamado aberto pelo proprio usuario
+
+  # ------------------------------------------------------------------ COMUNICACAO
+  comunicados:
+    dominio: comunicacao
+    nome: Comunicados publicados
+    descricao: Comunicados publicados no mural (avisos, manutencoes, novidades, urgentes).
+    autoridades: ["@autenticado"]
+    coluna_data: publicado_em
+    colunas:
+      tipo: {descricao: Tipo, valores: [DICA, CHANGELOG, AVISO, MANUTENCAO, URGENTE]}
+  minhas_notificacoes:
+    dominio: comunicacao
+    nome: Minhas notificações
+    descricao: Notificacoes recebidas pelo proprio usuario.
+    autoridades: ["@autenticado"]
+    escopo: proprio
+    coluna_data: recebida_em
+    colunas:
+      categoria: Categoria (APROVACAO, SEGURANCA, OPERACIONAL, CHAMADO, MENCAO, COMUNICADO, SISTEMA)
+      prioridade: {descricao: Prioridade, valores: [BAIXA, NORMAL, ALTA, CRITICA]}
+
+  # ------------------------------------------------------------------ IAM
+  usuarios:
+    dominio: iam
+    nome: Usuários
+    descricao: Usuarios do Nexo com perfil, tipo e situacao. Nunca expoe login, e-mail ou telefone.
+    autoridades: [iam:usuario:read]
+    colunas:
+      tipo_usuario: {descricao: Tipo, valores: [ADMINISTRATIVO, CAMPO]}
+  perfis_permissoes:
+    dominio: iam
+    nome: Perfis e permissões
+    descricao: Permissoes concedidas a cada perfil de acesso.
+    autoridades: [iam:perfil:read]
+  auditoria:
+    dominio: iam
+    nome: Auditoria de alterações
+    descricao: Trilha de auditoria (tabela, registro, operacao e momento) de todas as alteracoes do sistema, sem os dados alterados.
+    autoridades: [iam:audit:read]
+    coluna_data: ocorrido_em
+
+  # ------------------------------------------------------------------ SINCRONIZACAO
+  sincronizacao_operacoes:
+    dominio: sincronizacao
+    nome: Operações sincronizadas
+    descricao: Operacoes enviadas pelo app de campo (turnos, execucoes, solicitacoes, transferencias, inspecoes, anexos) e seu status no servidor.
+    autoridades: [sincronizacao:read]
+    coluna_data: recebida_em
+    colunas:
+      tipo: {descricao: Tipo, valores: [TURNO, EXECUCAO, SOLICITACAO, TRANSFERENCIA, INSPECAO, ANEXO]}
+      status: {descricao: Status, valores: [SALVO_NO_SERVIDOR, EM_TRATAMENTO, RESOLVIDO, REJEITADO]}
+  sincronizacao_casos:
+    dominio: sincronizacao
+    nome: Casos de pendência de sincronização
+    descricao: Casos abertos para tratar operacoes que nao puderam ser aplicadas automaticamente.
+    autoridades: [sincronizacao:read]
+    coluna_data: aberto_em
+    colunas:
+      status: {descricao: Status, valores: [ABERTO, EM_ANALISE, AGUARDANDO_REPROCESSAMENTO, RESOLVIDO, REJEITADO]}
+
+glossario:
+  - termo: Saída de material
+    sinonimos: [saída, saídas, consumo, retirada, baixa, material usado]
+    definicao: Saídas brutas de material incluem ENTREGA, APLICACAO, RETIRADA e BAIXA_AVULSA. DEVOLUCAO e ESTORNO reduzem o consumo líquido; TRANSFERENCIA e ENTRADA_AVULSA não representam consumo. Ao comparar períodos, explicite se o cálculo é bruto ou líquido.
+    fontes: [movimentacoes]
+  - termo: SLA de reservas e retiradas
+    sinonimos: [SLA, prazo de retirada, estourar o prazo, vencendo]
+    definicao: Solicitacoes tecnicas tem data prevista de retirada. A reserva esta ATRASADA quando a data passou sem entrega e VENCE_EM_ATE_2_DIAS quando faltam ate 2 dias. O prazo recomendado entre pedido e saque e de 48h (fora_prazo_saque).
+    fontes: [reservas, solicitacoes]
+  - termo: Entrega parcial expirada
+    sinonimos: [parcial, saldo pendente]
+    definicao: Uma entrega parcial (ENTREGUE_PARCIAL) expira 72h apos a entrega; o saldo pendente e encerrado automaticamente.
+    fontes: [solicitacoes, reservas]
+  - termo: Tipo tecnico
+    sinonimos: ["221", "921", "222", "922", adicao, devolucao, concreto]
+    definicao: 221 = ADICAO_COMUM, 921 = ADICAO_CONCRETO, 222 = DEVOLUCAO_COMUM, 922 = DEVOLUCAO_CONCRETO.
+    fontes: [solicitacoes, movimentacoes, reservas]
+  - termo: Contexto da solicitacao
+    sinonimos: [comercial, tecnico]
+    definicao: COMERCIAL atende equipes de servico; TECNICO atende obras (com planejamento, reserva e separacao).
+    fontes: [solicitacoes]
+  - termo: Condicao do material
+    sinonimos: [novo, sucata]
+    definicao: NOVO e material apto ao uso; SUCATA e material retirado/danificado controlado separadamente no saldo.
+    fontes: [saldos, movimentacoes]
+  - termo: Ciclo do desconto
+    sinonimos: [desconto em folha, baixa, validacao]
+    definicao: SOLICITADO -> VALIDADO (valor confirmado) -> BAIXADO (efetivamente descontado); pode ser REJEITADO. O valor efetivo e o baixado.
+    fontes: [descontos, descontos_itens]
+  - termo: Ciclo das solicitacoes financeiras
+    sinonimos: [aprovacao de compra, aprovacao de pagamento]
+    definicao: RASCUNHO (em preenchimento) -> SOLICITADO (aguardando aprovacao) -> APROVADO ou REJEITADO; pode ser CANCELADO. Compras aprovadas podem originar solicitacoes de pagamento.
+    fontes: [solicitacoes_compra, solicitacoes_pagamento]
+  - termo: SLA de chamados
+    sinonimos: [primeira resposta, resolucao, estouro de SLA]
+    definicao: Cada topico define prazos de primeira resposta e resolucao; o SLA de resolucao pausa enquanto aguarda o solicitante. FECHADO e CANCELADO sao finalizados.
+    fontes: [chamados]
+  - termo: Eventos de SST nos indicadores
+    sinonimos: [acidentalidade, taxa de acidentes]
+    definicao: Eventos CANCELADOS nao contam nos indicadores; a contagem usa a data da ocorrencia. Para indicadores oficiais prefira as metricas oficiais de SST.
+    fontes: [eventos_sst]
+  - termo: Obra atrasada
+    sinonimos: [atraso de obra, fora do prazo]
+    definicao: Obra sem data de fim efetiva, com status nao concluido e previsao de fim no passado.
+    fontes: [obras]
+  - termo: Processo em inspeções e desvios de SST
+    sinonimos: [processo do inspetor, processo na inspeção, processo no desvio, processo SST]
+    definicao: Em inspeções e desvios de segurança (SST), o processo de negócio associado refere-se sempre ao processo do inspetor (quem realizou a inspeção), e não ao do colaborador inspecionado.
+    fontes: [inspecoes, desvios]

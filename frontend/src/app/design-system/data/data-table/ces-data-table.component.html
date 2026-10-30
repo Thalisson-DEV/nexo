@@ -1,0 +1,374 @@
+<ng-template #toolbar>
+    <ces-table-toolbar
+      [showSearch]="searchable()"
+      [searchPlaceholder]="searchPlaceholder()"
+      [searchLabel]="searchPlaceholder()"
+      [keyShortcut]="searchShortcut()"
+      [(query)]="query"
+      (searchChanged)="onSearchChanged()"
+    >
+      <ng-container ngProjectAs="[table-filters]">
+        <ng-content select="[table-filters]"></ng-content>
+        @if (filterChips().length) {
+          <ul class="ces-data-table__chips" aria-label="Filtros aplicados na tabela">
+            @for (chip of filterChips(); track chip.index) {
+              <li class="ces-data-table__chip">
+                <i class="pi pi-filter" aria-hidden="true"></i>
+                <span>{{ chip.label }}</span>
+                <button type="button" [attr.aria-label]="'Remover filtro ' + chip.label" (click)="removeFilter(chip.index)">
+                  <i class="pi pi-times" aria-hidden="true"></i>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </ng-container>
+      @if (compact() && sortableColumns().length) {
+        <label class="ces-data-table__sort-select">
+          <span>Ordenar por</span>
+          <select [value]="sortSelectValue()" (change)="onSortSelect($any($event.target).value)">
+            <option value="">Padrão</option>
+            @for (column of sortableColumns(); track column.key) {
+              <option [value]="column.key + ':asc'">{{ column.header }} ↑</option>
+              <option [value]="column.key + ':desc'">{{ column.header }} ↓</option>
+            }
+          </select>
+        </label>
+      }
+      <ng-content select="[table-actions]"></ng-content>
+      @if (exportFileName()) {
+        <ces-button
+          size="sm"
+          variant="outline"
+          icon="pi pi-download"
+          [label]="exportLabel()"
+          [ariaLabel]="exportAriaLabel()"
+          [loading]="exporting()"
+          [disabled]="!total()"
+          (pressed)="exportCsv()"
+        ></ces-button>
+      }
+    </ces-table-toolbar>
+</ng-template>
+
+<ces-table-shell
+  [title]="title()"
+  [description]="description()"
+  [state]="shellState()"
+  [density]="density()"
+  [stateTitle]="stateTitle()"
+  [stateDescription]="stateDescription()"
+  [stateActionLabel]="shellActionLabel()"
+  [stateActionIcon]="shellActionIcon()"
+  (stateAction)="onShellAction()"
+>
+  @if (hasToolbar() && hasHeading()) {
+    <div table-toolbar class="ces-data-table__toolbar-slot">
+      <ng-container *ngTemplateOutlet="toolbar"></ng-container>
+    </div>
+  }
+
+  @if (hasToolbar() && !hasHeading()) {
+    <div class="ces-data-table__toolbar-bar">
+      <ng-container *ngTemplateOutlet="toolbar"></ng-container>
+    </div>
+  }
+
+  @if (refreshing()) {
+    <div class="ces-data-table__progress" role="progressbar" aria-label="Atualizando registros"></div>
+  }
+
+  @if (selectable() && selection().length) {
+    <div class="ces-data-table__selection" role="status">
+      <strong>{{ selection().length }} {{ selection().length === 1 ? 'selecionado' : 'selecionados' }}</strong>
+      @if (selectionFull()) {
+        <span class="ces-data-table__selection-limit">limite de {{ selectionLimit() }}</span>
+      }
+      <ng-content select="[selection-actions]"></ng-content>
+      <ces-button size="sm" variant="ghost" icon="pi pi-times" label="Limpar seleção" (pressed)="clearSelection()"></ces-button>
+    </div>
+  }
+
+  @if (noResults()) {
+    <ces-async-state
+      class="ces-data-table__no-results"
+      state="empty"
+      [icon]="filtered() ? 'pi-filter-slash' : 'pi-search'"
+      [title]="noResultsTitle() || 'Nenhum registro encontrado'"
+      [description]="noResultsDescription()"
+      [actionLabel]="filtered() ? 'Ajustar filtros' : undefined"
+      actionIcon="pi pi-sliders-h"
+      [secondaryActionLabel]="noResultsClearLabel()"
+      secondaryActionIcon="pi pi-filter-slash"
+      (action)="adjustFilters.emit()"
+      (secondaryAction)="clearNarrowing()"
+    ></ces-async-state>
+  } @else if (compact()) {
+    <ul class="ces-data-table__cards" [attr.aria-label]="caption() || title() || 'Registros'" [attr.aria-busy]="refreshing() || null">
+      @for (row of pageRows(); track key(row, $index); let i = $index) {
+        <li class="ces-data-table__card" [class.is-selected]="selectable() && isSelected(row, i)" [class.is-clickable]="clickable()" (click)="activateFromClick($event, row)">
+          @if (selectable()) {
+            <label class="ces-data-table__check">
+              <input type="checkbox" [checked]="isSelected(row, i)" [disabled]="!isSelected(row, i) && selectionFull()" (change)="toggleRow(row, i)" />
+              <span>Selecionar {{ labelOf(row) }}</span>
+            </label>
+          }
+          <div class="ces-data-table__card-main">
+            @for (column of cardPrimary(); track column.key) {
+              <div class="ces-data-table__card-field" [class.ces-data-table__card-field--lead]="$first">
+                @if (!$first) {
+                  <span class="ces-data-table__card-label">{{ column.header }}</span>
+                }
+                <span class="ces-data-table__card-value">
+                  @if (templates().get(column.key); as tpl) {
+                    <ng-container *ngTemplateOutlet="tpl; context: { $implicit: row, index: i }"></ng-container>
+                  } @else {
+                    {{ text(column, row) }}
+                  }
+                </span>
+              </div>
+            }
+          </div>
+
+          @if (cardSecondary().length || canExpand(row)) {
+            <button
+              type="button"
+              class="ces-data-table__card-toggle"
+              [attr.aria-expanded]="isExpanded(row, i)"
+              [attr.aria-controls]="id + '-card-' + i"
+              (click)="toggleExpanded(row, i)"
+            >
+              <i class="pi" [class.pi-chevron-down]="!isExpanded(row, i)" [class.pi-chevron-up]="isExpanded(row, i)" aria-hidden="true"></i>
+              {{ isExpanded(row, i) ? 'Menos detalhes' : 'Mais detalhes' }}
+            </button>
+            @if (isExpanded(row, i)) {
+              <div class="ces-data-table__card-more" [id]="id + '-card-' + i">
+                <dl>
+                  @for (column of cardSecondary(); track column.key) {
+                    <div>
+                      <dt>{{ column.header }}</dt>
+                      <dd>
+                        @if (templates().get(column.key); as tpl) {
+                          <ng-container *ngTemplateOutlet="tpl; context: { $implicit: row, index: i }"></ng-container>
+                        } @else {
+                          {{ text(column, row) }}
+                        }
+                      </dd>
+                    </div>
+                  }
+                </dl>
+                @if (canExpand(row)) {
+                  <ng-container *ngTemplateOutlet="detailTemplate()!.template; context: { $implicit: row, index: i }"></ng-container>
+                }
+              </div>
+            }
+          }
+
+          @if (hasActions()) {
+            <div class="ces-data-table__card-actions">
+              @if (actionsTemplate(); as acoes) {
+                <span class="ces-data-table__row-actions">
+                  <ng-container *ngTemplateOutlet="acoes.template; context: { $implicit: row, index: i }"></ng-container>
+                </span>
+              }
+              @if (rowActionLabel()) {
+                <ces-button
+                  class="ces-data-table__card-action"
+                  size="sm"
+                  variant="ghost"
+                  [icon]="rowActionIcon()"
+                  iconPosition="right"
+                  [label]="rowActionLabel()!"
+                  [ariaLabel]="rowActionLabel() + ': ' + labelOf(row)"
+                  (pressed)="rowActivate.emit(row)"
+                ></ces-button>
+              }
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <table class="ces-data-table__table" [attr.aria-describedby]="id + '-range'" [attr.aria-busy]="refreshing() || null">
+      @if (caption() || title()) {
+        <caption class="ces-sr-only">{{ caption() || title() }}</caption>
+      }
+      <thead>
+        <tr>
+          @if (selectable()) {
+            <th scope="col" class="ces-data-table__select-col">
+              <input
+                type="checkbox"
+                class="ces-data-table__checkbox"
+                aria-label="Selecionar todos desta página"
+                [checked]="pageSelection().all"
+                [indeterminate]="pageSelection().some"
+                [disabled]="!pageRows().length"
+                (change)="togglePage()"
+              />
+            </th>
+          }
+          @if (detailTemplate()) {
+            <th scope="col" class="ces-data-table__expander-col"><span class="ces-sr-only">Expandir</span></th>
+          }
+          @for (column of columns(); track column.key) {
+            <th
+              scope="col"
+              [style.width]="column.width"
+              [class.ces-data-table__numeric]="isNumeric(column)"
+              [attr.aria-sort]="ariaSort(column.key)"
+            >
+              @if (sortableColumns().includes(column)) {
+                <button
+                  type="button"
+                  class="ces-data-table__sort"
+                  [title]="'Ordenar por ' + column.header + ' (Shift+clique adiciona critério)'"
+                  (click)="toggleSort(column.key, $event)"
+                >
+                  <span>{{ column.header }}</span>
+                  @if (sortState(column.key); as estado) {
+                    <i
+                      class="pi"
+                      [class.pi-sort-amount-up-alt]="estado.direction === 'asc'"
+                      [class.pi-sort-amount-down]="estado.direction === 'desc'"
+                      aria-hidden="true"
+                    ></i>
+                    @if (sort().length > 1) {
+                      <span class="ces-data-table__sort-order" aria-hidden="true">{{ estado.order }}</span>
+                    }
+                  } @else {
+                    <i class="pi pi-sort-alt ces-data-table__sort-idle" aria-hidden="true"></i>
+                  }
+                </button>
+              } @else {
+                {{ column.header }}
+              }
+            </th>
+          }
+          @if (hasActions()) {
+            <th scope="col" class="ces-data-table__action-col">Ações</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of pageRows(); track key(row, $index); let i = $index) {
+          <tr
+            [class.is-expanded]="canExpand(row) && isExpanded(row, i)"
+            [class.is-selected]="selectable() && isSelected(row, i)"
+            [class.is-clickable]="clickable()"
+            (click)="activateFromClick($event, row)"
+          >
+            @if (selectable()) {
+              <td class="ces-data-table__select-col">
+                <input
+                  type="checkbox"
+                  class="ces-data-table__checkbox"
+                  [attr.aria-label]="'Selecionar ' + labelOf(row)"
+                  [checked]="isSelected(row, i)"
+                  [disabled]="!isSelected(row, i) && selectionFull()"
+                  (change)="toggleRow(row, i)"
+                />
+              </td>
+            }
+            @if (detailTemplate()) {
+              <td class="ces-data-table__expander-col">
+                @if (canExpand(row)) {
+                  <button
+                    type="button"
+                    class="ces-data-table__expander"
+                    [attr.aria-expanded]="isExpanded(row, i)"
+                    [attr.aria-controls]="id + '-detail-' + i"
+                    [attr.aria-label]="(isExpanded(row, i) ? 'Recolher ' : 'Expandir ') + labelOf(row)"
+                    (click)="toggleExpanded(row, i)"
+                  >
+                    <i class="pi" [class.pi-chevron-right]="!isExpanded(row, i)" [class.pi-chevron-down]="isExpanded(row, i)" aria-hidden="true"></i>
+                  </button>
+                }
+              </td>
+            }
+            @for (column of columns(); track column.key) {
+              <td [class.ces-data-table__numeric]="isNumeric(column)">
+                @if (templates().get(column.key); as tpl) {
+                  <ng-container *ngTemplateOutlet="tpl; context: { $implicit: row, index: i }"></ng-container>
+                } @else {
+                  {{ text(column, row) }}
+                }
+              </td>
+            }
+            @if (hasActions()) {
+              <td class="ces-data-table__action-col">
+                <span class="ces-data-table__row-actions">
+                  @if (actionsTemplate(); as acoes) {
+                    <ng-container *ngTemplateOutlet="acoes.template; context: { $implicit: row, index: i }"></ng-container>
+                  }
+                  @if (rowActionLabel()) {
+                    <ces-button
+                      size="sm"
+                      variant="ghost"
+                      [icon]="rowActionIcon()"
+                      iconPosition="right"
+                      [label]="rowActionLabel()!"
+                      [ariaLabel]="rowActionLabel() + ': ' + labelOf(row)"
+                      (pressed)="rowActivate.emit(row)"
+                    ></ces-button>
+                  }
+                </span>
+              </td>
+            }
+          </tr>
+          @if (canExpand(row) && isExpanded(row, i)) {
+            <tr class="ces-data-table__detail-row">
+              <td [attr.colspan]="columnCount()" [id]="id + '-detail-' + i">
+                <ng-container *ngTemplateOutlet="detailTemplate()!.template; context: { $implicit: row, index: i }"></ng-container>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  }
+
+  @if (shellState() === 'ready' && !noResults()) {
+    <footer table-footer class="ces-data-table__footer">
+      <span class="ces-data-table__range" [id]="id + '-range'" aria-live="polite">{{ rangeLabel() }}</span>
+      @if (compact()) {
+        @if (hasMore()) {
+          <ces-button size="sm" variant="outline" label="Carregar mais" icon="pi pi-angle-down" [loading]="refreshing()" (pressed)="loadMore()"></ces-button>
+        }
+      } @else {
+        <label class="ces-data-table__page-size">
+          <span>Linhas por página</span>
+          <select [value]="pageSize()" (change)="setPageSize($any($event.target).value)">
+            @for (opcao of pageSizeOptions(); track opcao) {
+              <option [value]="opcao" [selected]="opcao === pageSize()">{{ opcao }}</option>
+            }
+          </select>
+        </label>
+        <nav class="ces-data-table__pager" [attr.aria-label]="'Paginação de ' + (title() || 'registros')">
+          <ces-button size="icon-sm" variant="ghost" icon="pi pi-angle-double-left" ariaLabel="Primeira página" [disabled]="safePageIndex() === 0" (pressed)="goTo(0)"></ces-button>
+          <ces-button size="icon-sm" variant="ghost" icon="pi pi-angle-left" ariaLabel="Página anterior" [disabled]="safePageIndex() === 0" (pressed)="goTo(safePageIndex() - 1)"></ces-button>
+          <ol class="ces-data-table__pages">
+            @for (item of pageNumbers(); track $index) {
+              <li>
+                @if (item === null) {
+                  <span class="ces-data-table__page-gap" aria-hidden="true">…</span>
+                } @else {
+                  <button
+                    type="button"
+                    class="ces-data-table__page"
+                    [attr.aria-current]="item === safePageIndex() ? 'page' : null"
+                    [attr.aria-label]="'Página ' + (item + 1)"
+                    (click)="goTo(item)"
+                  >{{ item + 1 }}</button>
+                }
+              </li>
+            }
+          </ol>
+          <span class="ces-data-table__page-label">Página {{ safePageIndex() + 1 }} de {{ pageCount() }}</span>
+          <ces-button size="icon-sm" variant="ghost" icon="pi pi-angle-right" ariaLabel="Próxima página" [disabled]="safePageIndex() >= pageCount() - 1" (pressed)="goTo(safePageIndex() + 1)"></ces-button>
+          <ces-button size="icon-sm" variant="ghost" icon="pi pi-angle-double-right" ariaLabel="Última página" [disabled]="safePageIndex() >= pageCount() - 1" (pressed)="goTo(pageCount() - 1)"></ces-button>
+        </nav>
+      }
+    </footer>
+  }
+</ces-table-shell>

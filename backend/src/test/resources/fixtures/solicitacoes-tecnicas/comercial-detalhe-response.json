@@ -1,0 +1,64 @@
+{
+  "id": "22222222-1111-1111-1111-111111111111",
+  "estoqueOrigem": {
+    "id": "19191919-1919-1919-1919-191919191919",
+    "nomeIdentificador": "ALMOX CENTRAL",
+    "tipoEstoque": null,
+    "idBaseOperacional": "15151515-1515-1515-1515-151515151515",
+    "idEquipe": null,
+    "idObra": null,
+    "ativo": true
+  },
+  "estoqueDestino": {
+    "id": "20202020-2020-2020-2020-202020202020",
+    "nomeIdentificador": "EQUIPE EQ-042",
+    "tipoEstoque": null,
+    "idBaseOperacional": "15151515-1515-1515-1515-151515151515",
+    "idEquipe": "33333333-3333-3333-3333-333333333333",
+    "idObra": null,
+    "ativo": true
+  },
+  "idRequisitante": "12121212-1212-1212-1212-121212121212",
+  "idAprovador": "13131313-1313-1313-1313-131313131313",
+  "idEntregadorAlmox": "13131313-1313-1313-1313-131313131313",
+  "status": "ENTREGUE_PARCIAL",
+  "dataSolicitacao": "2026-08-24T09:00:00-03:00",
+  "dataVerificacao": "2026-08-24T09:30:00-03:00",
+  "dataEntrega": "2026-08-24T10:00:00-03:00",
+  "assinaturaAlmox": null,
+  "assinaturaEquipe": null,
+  "motivoRejeicao": null,
+  "justificativaRejeicao": null,
+  "itens": [
+    {
+      "id": "99999999-9999-9999-9999-999999999991",
+      "material": {
+        "id": "44444444-4444-4444-4444-444444444444",
+        "codigo": "MAT-COMUM-001",
+        "descricao": "Cabo protegido",
+        "unidadeMedida": "M",
+        "suprMatrFlag": null,
+        "processo": null,
+        "avaliacaoTecnica": null,
+        "centroInvestimento": null,
+        "detalhaSerie": false,
+        "ativo": true
+      },
+      "quantidade": 2.500,
+      "quantidadeEntregue": 1.500,
+      "numSerie": null,
+      "quantidadeEntregueBruta": 1.500,
+      "quantidadeEntregaEstornada": 0,
+      "quantidadeEntregaLiquida": 1.500,
+      "quantidadeDevolvidaBruta": 0,
+      "quantidadeDevolucaoEstornada": 0,
+      "quantidadeDevolucaoLiquida": 0,
+      "quantidadePendente": 1.000
+    }
+  ],
+  "tecnico": null,
+  "contexto": "COMERCIAL",
+  "versao": 5,
+  "statusSeparacao": "PRONTO_PARA_SEPARACAO",
+  "acoesPermitidas": ["INICIAR_SEPARACAO", "VER_HISTORICO"]
+}

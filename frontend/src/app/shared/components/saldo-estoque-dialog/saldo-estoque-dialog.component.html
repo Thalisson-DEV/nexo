@@ -1,0 +1,101 @@
+<p-dialog
+  [(visible)]="visible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '92vw', maxWidth: '960px' }"
+  [breakpoints]="{ '640px': '100vw' }"
+  (onHide)="hide()"
+  styleClass="custom-dialog"
+  appendTo="body"
+>
+  <ng-template pTemplate="header">
+    <div class="sd-cab">
+      <span class="sd-cab__icone" aria-hidden="true"><i class="pi pi-box"></i></span>
+      <div class="sd-cab__textos">
+        <h2 class="sd-cab__titulo">Saldo em estoque</h2>
+        <p class="sd-cab__sub">
+          <strong>{{ estoqueNome }}</strong>
+          @if (estado() === 'ready') {
+            · {{ totalRecords() }} {{ totalRecords() === 1 ? 'material' : 'materiais' }}
+          }
+        </p>
+      </div>
+    </div>
+  </ng-template>
+
+  @if (visible) {
+    <div class="sd-corpo">
+      @if (negativeCount() > 0) {
+        <p class="sd-aviso" role="alert">
+          <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+          {{ negativeCount() }} {{ negativeCount() === 1 ? 'saldo negativo nesta página exige' : 'saldos negativos nesta página exigem' }} análise.
+        </p>
+      }
+      <p class="sd-dica">Materiais com série abrem na própria linha com os números de série do estoque.</p>
+
+      <ces-data-table
+        mode="server"
+        caption="Materiais em saldo no estoque"
+        searchPlaceholder="Buscar por código ou descrição"
+        noResultsTitle="Nenhum material encontrado com essa busca."
+        stateTitle="Estoque sem saldo"
+        [stateDescription]="erro() ?? 'Nenhum material com saldo neste estoque.'"
+        [columns]="colunas"
+        [rows]="saldos()"
+        [totalRecords]="totalRecords()"
+        [state]="estado()"
+        [rowKey]="chaveSaldo"
+        [rowLabel]="rotuloSaldo"
+        [rowExpandable]="ehSeriado"
+        [pageSizeOptions]="[10, 25, 50]"
+        [(page)]="pagina"
+        [(pageSize)]="tamanho"
+        [(query)]="busca"
+        (lazyLoad)="onLazyLoad($event)"
+      >
+        <ng-template cesCell="codigo" let-row>
+          <span class="font-mono font-semibold">{{ row.material.codigo }}</span>
+        </ng-template>
+        <ng-template cesCell="descricao" let-row>
+          <span class="sd-material">
+            <span class="uppercase">{{ row.material.descricao }}</span>
+            @if (row.material.detalhaSerie) {
+              <ces-status tone="brand" icon="pi pi-barcode">Seriado</ces-status>
+            }
+          </span>
+        </ng-template>
+        <ng-template cesCell="condicao" let-row>
+          <ces-status [tone]="tomCondicao(row.condicao)">{{ rotuloCondicao(row.condicao) }}</ces-status>
+        </ng-template>
+        <ng-template cesCell="quantidade" let-row>
+          <span class="sd-quantidade" [attr.data-tone]="row.negativo ? 'danger' : row.quantidade === 0 ? 'zero' : null">
+            @if (row.negativo) {
+              <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+              <span class="sr-only">Saldo negativo:</span>
+            }
+            {{ row.quantidade | number: '1.0-3' }}
+          </span>
+        </ng-template>
+        <ng-template cesRowActions let-row>
+          <ces-icon-button icon="pi pi-history" [label]="'Ver movimentações de ' + row.material.codigo" tooltip="Movimentações" size="icon-sm" (pressed)="abrirMovimentacoes(row)" />
+        </ng-template>
+        <ng-template cesRowDetail let-row>
+          <app-saldo-seriais-painel
+            [idEstoque]="estoqueId!"
+            [idMaterial]="row.material.id"
+            [descricao]="row.material.descricao"
+            [condicao]="row.condicao"
+            [quantidade]="row.quantidade"
+          />
+        </ng-template>
+      </ces-data-table>
+
+      <div class="sd-rodape">
+        <ces-button label="Abrir relatório de saldo" icon="pi pi-external-link" variant="ghost" size="sm" (pressed)="abrirRelatorio()" />
+      </div>
+    </div>
+  }
+</p-dialog>
+
+<app-movimentacoes-material-dialog #movimentacoesDialog></app-movimentacoes-material-dialog>

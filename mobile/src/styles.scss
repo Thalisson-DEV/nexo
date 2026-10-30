@@ -1,0 +1,69 @@
+// Design system do Nexo Campo (telas novas). Tailwind abaixo segue servindo as telas antigas até migrarem.
+@use 'styles/ces-tokens';
+@use 'styles/ces-base';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+// Base do design system por último na cascata (ver comentário em ces-base.scss).
+@include ces-base.estilos;
+
+:root {
+  --primary-color: #0042a5;
+  --accent-color: #F59E0B;
+  --surface-color: #F9FAFB;
+  --surface-dark-color: #111827;
+  --success-color: #10B981;
+  --error-color: #EF4444;
+  --warning-color: #F59E0B;
+
+  --safe-area-top: 24px;
+  --header-height: 56px;
+  --bottom-nav-height: 64px;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--ces-fonte);
+  background-color: var(--ces-fundo);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overflow: hidden; /* App Shell controla scroll */
+}
+
+@layer components {
+  /* Chips de filtro usados no bottom sheet compartilhado (app-filter-sheet). */
+  .filter-btn {
+    @apply px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-150 transform border-2 border-transparent flex items-center gap-1.5 select-none cursor-pointer active:scale-95 active:opacity-80;
+  }
+
+  /* Estilos Padronizados e Unificados dos Filtros para Todas as Páginas */
+
+  /* Inativos / Não Selecionados (Sempre em P/B com borda escura intensificada border-gray-400 em TODAS as páginas) */
+  .filter-bw-inactive {
+    @apply bg-white text-gray-800 border-2 border-gray-400 hover:bg-gray-100 font-semibold;
+  }
+
+  /* Ativos / Selecionados no Conceito do Aviso de Turno (Borda Exatamente na Mesma Cor do Texto) */
+  /* Todos (Azul Empresa / Neutro) */
+  .filter-todos-active, .filter-sel-todos { @apply bg-blue-100/50 border-2 border-[#0052A5] text-[#0052A5] font-bold; }
+
+  /* Pendentes / Em Andamento / Iniciadas (Âmbar/Atenção) */
+  .filter-pendentes-active, .filter-iniciadas-active, .filter-em-andamento-active, .filter-sel-pendentes { @apply bg-amber-100/50 border-2 border-amber-800 text-amber-800 font-bold; }
+
+  /* Aprovados / Aguardando Sincronismo (Azul/Pronto) */
+  .filter-aprovadas-active, .filter-aguardando-active, .filter-sel-aprovados { @apply bg-blue-100/50 border-2 border-blue-800 text-blue-800 font-bold; }
+
+  /* Entregues / Concluídas / Finalizados / Sincronizadas (Verde/Concluído) */
+  .filter-entregues-active, .filter-concluidas-active, .filter-finalizado-active, .filter-sincronizadas-active, .filter-sel-entregues { @apply bg-emerald-100/50 border-2 border-emerald-800 text-emerald-800 font-bold; }
+
+  /* Rejeitadas (Rosa/Negado) */
+  .filter-rejeitadas-active, .filter-sel-rejeitadas { @apply bg-rose-100/50 border-2 border-rose-800 text-rose-800 font-bold; }
+
+  /* Erro Sync (Vermelho Alerta) */
+  .filter-erro-active, .filter-sel-erro { @apply bg-red-100/50 border-2 border-red-800 text-red-800 font-bold; }
+}

@@ -1,0 +1,87 @@
+<figure class="ces-chart__figure" [attr.aria-labelledby]="id + '-title'">
+  <div class="ces-chart__header">
+    <figcaption
+      class="ces-chart__title"
+      [class.ces-sr-only]="!showTitle()"
+      [id]="id + '-title'"
+    >{{ title() }}</figcaption>
+    @if (!empty()) {
+      <ces-button
+        class="ces-chart__toggle"
+        size="sm"
+        variant="ghost"
+        [icon]="dataTableVisible() ? 'pi pi-chart-bar' : 'pi pi-table'"
+        [label]="dataTableVisible() ? 'Ver gráfico' : 'Ver dados'"
+        [ariaLabel]="(dataTableVisible() ? 'Ver gráfico de ' : 'Ver tabela de dados de ') + title()"
+        (pressed)="toggleTable()"
+      ></ces-button>
+    }
+  </div>
+
+  @if (description()) {
+    <p class="ces-chart__description">{{ description() }}</p>
+  }
+
+  @if (empty()) {
+    <p class="ces-chart__empty" role="status">Sem dados para exibir neste gráfico.</p>
+  } @else if (dataTableVisible()) {
+    <div
+      class="ces-chart__table-region"
+      role="region"
+      tabindex="0"
+      [attr.aria-label]="'Dados de ' + title()"
+      [id]="id + '-table'"
+    >
+      <table class="ces-chart__table">
+        <caption class="ces-sr-only">{{ summary() }}</caption>
+        <thead>
+          <tr>
+            @for (coluna of tableColumns(); track $index) {
+              <th scope="col">{{ coluna }}</th>
+            }
+            @if (selectable()) {
+              <th scope="col"><span class="ces-sr-only">Ações</span></th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (linha of tableRows(); track $index; let linhaIndice = $index) {
+            <tr>
+              @for (celula of linha; track $index) {
+                @if ($first) {
+                  <th scope="row">{{ celula }}</th>
+                } @else {
+                  <td>{{ celula }}</td>
+                }
+              }
+              @if (selectable()) {
+                <td class="ces-chart__row-action">
+                  <ces-button
+                    size="sm"
+                    variant="link"
+                    icon="pi pi-search-plus"
+                    [label]="selectLabel()"
+                    [ariaLabel]="selectLabel() + ' ' + rowLabel(linhaIndice)"
+                    (pressed)="emitSelection(linhaIndice, null)"
+                  ></ces-button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="ces-chart__canvas" [class.ces-chart__canvas--selectable]="selectable()" [style.height.px]="height()">
+      <p-chart [type]="chartType()" [data]="data()" [options]="options()" [ariaLabel]="summary()" height="100%"></p-chart>
+    </div>
+  }
+
+  @if (selectable() && !empty() && !dataTableVisible()) {
+    <p class="ces-chart__hint">Toque em um ponto ou use “Ver dados” para detalhar.</p>
+  }
+
+  @if (note()) {
+    <p class="ces-chart__note">{{ note() }}</p>
+  }
+</figure>

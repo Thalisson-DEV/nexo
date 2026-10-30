@@ -1,0 +1,783 @@
+/*
+ * Central de treinamento — documento único de leitura.
+ *
+ * Uma coluna centralizada com medida confortável, sumário no topo e módulos recolhíveis.
+ * Cor, borda, foco e raio vêm dos tokens Nexo, então claro e escuro são automáticos.
+ *
+ * Hierarquia por tamanho e cor, não por peso: o limite é 600 (semibold). O título do tópico
+ * é o único nível ampliado — ele ancora a leitura dentro do módulo.
+ */
+
+:host {
+  display: block;
+  width: 100%;
+
+  /* Escala de leitura do documento. */
+  --doc-corpo: 0.9375rem;
+  --doc-apoio: 0.875rem;
+  --doc-peso-forte: 600;
+  --doc-peso-medio: 500;
+}
+
+/* Callouts do design system acompanham o corpo de leitura do manual. */
+ces-callout {
+  --ces-callout-font-size: var(--doc-apoio);
+}
+
+.manual {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 53rem;
+  margin-inline: auto;
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Abertura
+--------------------------------------------------------------------------- */
+
+.manual__abertura {
+  margin-bottom: 0.25rem;
+}
+
+.manual__eyebrow {
+  margin: 0;
+  color: var(--ces-brand);
+  font-size: var(--ces-font-caption);
+  font-weight: var(--doc-peso-forte);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.manual__titulo {
+  margin: 0.6rem 0 0;
+  color: var(--ces-foreground);
+  font-size: 2.15rem;
+  font-weight: var(--doc-peso-forte);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.manual__lead {
+  margin: 0.85rem 0 0;
+  color: var(--ces-foreground-muted);
+  font-size: 1.0625rem;
+  font-weight: var(--doc-peso-medio);
+  line-height: 1.65;
+}
+
+/* ---------------------------------------------------------------------------
+   Sumário
+--------------------------------------------------------------------------- */
+
+.indice {
+  padding: 1.25rem 1.25rem 0.75rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-lg);
+  background: var(--ces-canvas);
+}
+
+.indice__titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  color: var(--ces-foreground-subtle);
+  font-size: var(--ces-font-caption);
+  font-weight: var(--doc-peso-forte);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.indice__filtro {
+  color: var(--ces-foreground-muted);
+  font-weight: var(--doc-peso-medio);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.indice__lista {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.indice__item {
+  display: grid;
+  grid-template-columns: 1.5rem 2rem minmax(0, 1fr) 1.25rem;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.35rem;
+  border: 0;
+  border-top: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+  background: transparent;
+  color: var(--ces-foreground);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.indice__lista li:first-child .indice__item {
+  border-top: 0;
+}
+
+.indice__item:hover {
+  background: var(--ces-surface);
+}
+
+.indice__item:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: -2px;
+}
+
+.indice__ordem {
+  color: var(--ces-foreground-subtle);
+  font-size: var(--ces-font-caption);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--doc-peso-forte);
+  text-align: center;
+}
+
+.indice__icone {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+  background: var(--ces-surface);
+  color: var(--ces-brand);
+  font-size: 0.85rem;
+}
+
+.indice__texto {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.indice__texto strong {
+  font-size: var(--doc-corpo);
+  font-weight: var(--doc-peso-forte);
+  line-height: 1.35;
+}
+
+.indice__texto small {
+  color: var(--ces-foreground-subtle);
+  font-size: var(--ces-font-caption);
+  line-height: 1.35;
+}
+
+.indice__item:hover .indice__texto strong {
+  color: var(--ces-brand);
+}
+
+.indice__acao {
+  display: grid;
+  place-items: center;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.7rem;
+  transition:
+    color var(--ces-duration-fast) var(--ces-ease-standard),
+    transform var(--ces-duration-normal) var(--ces-ease-standard);
+}
+
+.indice__item:hover .indice__acao {
+  color: var(--ces-brand);
+  transform: translateY(0.1rem);
+}
+
+/* ---------------------------------------------------------------------------
+   Módulo recolhível
+--------------------------------------------------------------------------- */
+
+.modulo {
+  min-width: 0;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-lg);
+  /* Superfície recuada: o módulo fica um degrau abaixo do cartão da página. */
+  background: var(--ces-canvas);
+  transition: border-color var(--ces-duration-normal) var(--ces-ease-standard);
+}
+
+.modulo:hover {
+  border-color: var(--ces-border-strong);
+}
+
+.modulo--aberto {
+  border-color: color-mix(in srgb, var(--ces-brand) 32%, var(--ces-border));
+}
+
+.modulo__cabecalho {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.modulo__gatilho {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.25rem;
+  align-items: start;
+  gap: 1rem;
+  width: 100%;
+  padding: 1.1rem 1.25rem;
+  border: 0;
+  border-radius: var(--ces-radius-lg);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.modulo__gatilho:hover {
+  background: var(--ces-surface-subtle);
+}
+
+.modulo__gatilho:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: -2px;
+}
+
+.modulo__identidade {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.modulo__trilha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--ces-foreground-subtle);
+  font-size: var(--ces-font-caption);
+  font-weight: var(--doc-peso-forte);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.modulo__codigo {
+  color: var(--ces-brand);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--doc-peso-forte);
+}
+
+.modulo__contexto {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.modulo__titulo {
+  display: block;
+  margin: 0;
+  color: var(--ces-foreground);
+  font-size: 1.35rem;
+  font-weight: var(--doc-peso-forte);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.modulo--aberto .modulo__titulo {
+  color: var(--ces-brand);
+}
+
+.modulo__resumo {
+  display: block;
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  font-size: var(--doc-corpo);
+  font-weight: var(--doc-peso-medio);
+  line-height: 1.55;
+}
+
+.modulo__medidas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  margin-top: 0.15rem;
+  color: var(--ces-foreground-subtle);
+  font-size: var(--ces-font-caption);
+  font-weight: var(--doc-peso-medio);
+}
+
+.modulo__medidas > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.modulo__chevron {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-surface);
+  color: var(--ces-foreground-muted);
+  font-size: 0.8rem;
+  transition:
+    transform var(--ces-duration-normal) var(--ces-ease-standard),
+    color var(--ces-duration-fast) var(--ces-ease-standard),
+    border-color var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.modulo--aberto .modulo__chevron {
+  border-color: color-mix(in srgb, var(--ces-brand) 40%, var(--ces-border));
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+  transform: rotate(180deg);
+}
+
+.modulo__conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+  padding: 1.5rem 1.5rem 1.75rem;
+  border-top: 1px solid var(--ces-border);
+}
+
+/* ---------------------------------------------------------------------------
+   Vídeo
+--------------------------------------------------------------------------- */
+
+.video {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.video__moldura {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-lg);
+  background: var(--ces-surface-muted);
+}
+
+.video__moldura iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.video__legenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--ces-foreground-subtle);
+  font-size: var(--ces-font-caption);
+}
+
+.video__legenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.video__legenda a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ces-brand);
+  font-weight: var(--doc-peso-forte);
+  text-decoration: none;
+}
+
+.video__legenda a:hover {
+  text-decoration: underline;
+}
+
+.video__legenda a:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--ces-radius-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Tópicos — único nível ampliado do documento
+--------------------------------------------------------------------------- */
+
+.secao {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+  /* Somado ao gap do conteúdo do módulo, abre um intervalo claro entre tópicos. */
+  margin-top: 0.75rem;
+}
+
+.secao:first-of-type {
+  margin-top: 0;
+}
+
+.secao__titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding-bottom: 0.9rem;
+  border-bottom: 2px solid var(--ces-border-strong);
+  color: var(--ces-foreground);
+  font-size: 1.625rem;
+  font-weight: var(--doc-peso-forte);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.secao__numero {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.15rem;
+  height: 2.15rem;
+  padding-inline: 0.4rem;
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-brand);
+  color: #fff;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--doc-peso-forte);
+}
+
+.secao__icone {
+  color: var(--ces-foreground-subtle);
+  font-size: 1.05rem;
+}
+
+.secao__subtitulo,
+.secao__texto {
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  font-size: var(--doc-apoio);
+  font-weight: var(--doc-peso-medio);
+  line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------------------
+   Passos
+--------------------------------------------------------------------------- */
+
+.passos {
+  display: flex;
+  flex-direction: column;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.passo {
+  display: grid;
+  grid-template-columns: 2.15rem minmax(0, 1fr);
+  gap: 0.9rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--ces-border);
+}
+
+.passo:first-child {
+  border-top: 0;
+  padding-top: 0.35rem;
+}
+
+.passo:last-child {
+  padding-bottom: 0.35rem;
+}
+
+.passo__marca {
+  display: grid;
+  place-items: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-surface);
+  color: var(--ces-brand);
+  font-size: 0.9rem;
+}
+
+.passo__conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.passo__rotulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--ces-foreground);
+  font-size: 0.9375rem;
+  font-weight: var(--doc-peso-forte);
+  line-height: 1.4;
+}
+
+.passo__numero {
+  color: var(--ces-brand);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--doc-peso-forte);
+  letter-spacing: 0.02em;
+}
+
+.passo__descricao {
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  font-size: var(--doc-apoio);
+  font-weight: var(--doc-peso-medio);
+  line-height: 1.6;
+}
+
+.passo__subitens {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0.2rem 0 0;
+  padding-left: 1.15rem;
+  color: var(--ces-foreground-muted);
+  font-size: var(--doc-apoio);
+  line-height: 1.55;
+}
+
+.passo__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0;
+}
+
+.chip {
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-sm);
+  background: var(--ces-surface);
+  color: var(--ces-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: var(--doc-peso-forte);
+  overflow-wrap: anywhere;
+}
+
+.chip--valor {
+  border-color: color-mix(in srgb, var(--ces-brand) 28%, transparent);
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+}
+
+.passo__destaque {
+  color: var(--ces-foreground-subtle);
+  font-size: var(--doc-apoio);
+}
+
+/* ---------------------------------------------------------------------------
+   Rodapé
+--------------------------------------------------------------------------- */
+
+.manual__rodape {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--ces-border);
+}
+
+/* Abrir chamado é o caminho principal de dúvida: ganha superfície, título e ação primária. */
+.suporte {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--ces-brand) 28%, var(--ces-border));
+  border-radius: var(--ces-radius-lg);
+  background: var(--ces-brand-soft);
+}
+
+.suporte__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: min(100%, 20rem);
+  flex: 1 1 24rem;
+}
+
+.suporte__titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--ces-foreground);
+  font-size: 1.0625rem;
+  font-weight: var(--doc-peso-forte);
+  letter-spacing: -0.01em;
+}
+
+.suporte__titulo i {
+  color: var(--ces-brand);
+}
+
+.suporte__descricao {
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  font-size: var(--doc-apoio);
+  font-weight: var(--doc-peso-medio);
+  line-height: 1.6;
+}
+
+.suporte__alternativa {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0;
+  padding-inline: 0.15rem;
+  color: var(--ces-foreground-muted);
+  font-size: var(--doc-apoio);
+  line-height: 1.6;
+}
+
+.suporte__alternativa i {
+  color: var(--ces-foreground-subtle);
+}
+
+.suporte__alternativa strong {
+  color: var(--ces-foreground);
+  font-weight: var(--doc-peso-forte);
+}
+
+.manual__rodape-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--ces-border);
+  color: var(--ces-foreground-subtle);
+  font-size: var(--ces-font-caption);
+}
+
+.manual__rodape-links a {
+  color: var(--ces-brand);
+  font-weight: var(--doc-peso-forte);
+  text-decoration: none;
+}
+
+.manual__rodape-links a:hover {
+  text-decoration: underline;
+}
+
+.manual__rodape-links a:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--ces-radius-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Responsivo
+--------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .manual {
+    gap: 1.25rem;
+    padding: 1.75rem 1rem 2.25rem;
+  }
+
+  .manual__titulo {
+    font-size: 1.65rem;
+  }
+
+  .manual__lead {
+    font-size: 1rem;
+  }
+
+  .indice {
+    padding: 1rem 0.85rem 0.5rem;
+  }
+
+  .indice__item {
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    gap: 0.6rem;
+  }
+
+  .indice__icone,
+  .indice__acao {
+    display: none;
+  }
+
+  .modulo__gatilho {
+    padding: 0.9rem 1rem;
+    gap: 0.75rem;
+  }
+
+  .modulo__titulo {
+    font-size: 1.2rem;
+  }
+
+  .modulo__conteudo {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .secao__titulo {
+    font-size: 1.3125rem;
+    padding-bottom: 0.7rem;
+  }
+
+  .secao__numero {
+    min-width: 1.9rem;
+    height: 1.9rem;
+    font-size: 0.9rem;
+  }
+
+  .passo {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .passo__marca {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indice__item,
+  .indice__acao,
+  .modulo,
+  .modulo__gatilho,
+  .modulo__chevron {
+    transition: none;
+  }
+
+  .indice__item:hover .indice__acao {
+    transform: none;
+  }
+}

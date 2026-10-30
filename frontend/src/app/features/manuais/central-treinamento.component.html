@@ -1,0 +1,361 @@
+<div class="ces-page print:hidden">
+  <ces-page-header
+    title="Central de treinamento"
+    icon="pi pi-book"
+    [breadcrumb]="breadcrumb"
+    description="Manual de operação das rotinas de escritório e de campo, com os vídeos oficiais de treinamento."
+    helpLabel="Ajuda sobre a central de treinamento"
+    (help)="ajuda.show()"
+  >
+    <ces-button actions
+      [label]="todosAbertos() ? 'Recolher tudo' : 'Expandir tudo'"
+      [icon]="todosAbertos() ? 'pi pi-angle-double-up' : 'pi pi-angle-double-down'"
+      variant="secondary"
+      (pressed)="alternarTodos()"
+    ></ces-button>
+    <ces-button actions
+      label="Imprimir manual"
+      icon="pi pi-print"
+      variant="secondary"
+      (pressed)="imprimir()"
+    ></ces-button>
+    <ces-icon-button actions
+      icon="pi pi-link"
+      label="Copiar link do manual"
+      tooltip="Copiar link do manual"
+      size="icon-sm"
+      (pressed)="copiarLink()"
+    ></ces-icon-button>
+  </ces-page-header>
+
+  <ces-text-input
+    label="Buscar no manual"
+    [labelVisible]="false"
+    placeholder="Buscar no manual: código, checklist, senha, desvio, offline, atalho..."
+    [value]="termoBusca()"
+    (valueChange)="digitarBusca($event)"
+  ></ces-text-input>
+
+  <div>
+    <article class="manual">
+      <header class="manual__abertura">
+        <p class="manual__eyebrow">Manual do usuário · Nexo</p>
+        <h2 class="manual__titulo">Central de Treinamento</h2>
+        <p class="manual__lead">
+          Guia de operação das rotinas de escritório e de campo: passo a passo de cada tela, regras
+          de validação, procedimentos offline e os vídeos oficiais de treinamento.
+        </p>
+      </header>
+
+      @if (modulosFiltrados().length === 0) {
+        <ces-async-state
+          state="empty"
+          title="Nenhum módulo encontrado"
+          description="Nenhum conteúdo corresponde à busca. Tente termos como senha, desvio, offline ou GPS."
+          actionLabel="Limpar busca"
+          actionIcon="pi pi-filter-slash"
+          (action)="limparBusca()"
+        ></ces-async-state>
+      } @else {
+        <nav class="indice" aria-label="Sumário do manual">
+          <p class="indice__titulo">
+            <span>Sumário</span>
+            @if (temBusca()) {
+              <span class="indice__filtro">
+                {{ totalFiltrados() }} de {{ totalModulos() }} módulos para “{{ termoBusca() }}”
+              </span>
+            }
+          </p>
+
+          <ol class="indice__lista">
+            @for (modulo of modulosFiltrados(); track modulo.id; let i = $index) {
+              <li>
+                <button type="button" class="indice__item" (click)="abrirModulo(modulo.id)">
+                  <span class="indice__ordem" aria-hidden="true">{{ i + 1 }}</span>
+                  <span class="indice__icone" aria-hidden="true">
+                    <i [class]="modulo.icone"></i>
+                  </span>
+                  <span class="indice__texto">
+                    <strong>{{ modulo.tituloCurto }}</strong>
+                    <small>{{ modulo.numeroOficial }} · {{ modulo.contextoTag }}</small>
+                  </span>
+                  <span class="indice__acao" aria-hidden="true">
+                    <i class="pi pi-arrow-down"></i>
+                  </span>
+                </button>
+              </li>
+            }
+          </ol>
+        </nav>
+
+        @for (modulo of modulosFiltrados(); track modulo.id; let i = $index) {
+          <section
+            class="modulo"
+            [class.modulo--aberto]="estaAberto(modulo.id)"
+            [attr.data-modulo]="modulo.id"
+          >
+            <h3 class="modulo__cabecalho">
+              <button
+                type="button"
+                class="modulo__gatilho"
+                [attr.aria-expanded]="estaAberto(modulo.id)"
+                [attr.aria-controls]="'conteudo-' + modulo.id"
+                (click)="alternarModulo(modulo.id)"
+              >
+                <span class="modulo__identidade">
+                  <span class="modulo__trilha">
+                    <span class="modulo__codigo">{{ modulo.numeroOficial }}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>Módulo {{ i + 1 }} de {{ totalFiltrados() }}</span>
+                    <span aria-hidden="true">·</span>
+                    <span class="modulo__contexto">
+                      <i class="pi {{ iconeContexto(modulo.contextoTag) }}" aria-hidden="true"></i>
+                      {{ modulo.contextoTag }}
+                    </span>
+                  </span>
+
+                  <span class="modulo__titulo">{{ modulo.tituloCurto }}</span>
+                  <span class="modulo__resumo">{{ modulo.subtitulo }}</span>
+
+                  <span class="modulo__medidas">
+                    <span>
+                      <i class="pi pi-list" aria-hidden="true"></i>
+                      {{ modulo.secoes.length }} seções
+                    </span>
+                    <span>
+                      <i class="pi pi-play-circle" aria-hidden="true"></i>
+                      Vídeo tutorial
+                    </span>
+                    @if (modulo.alertasPrincipais?.length) {
+                      <span>
+                        <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+                        {{ modulo.alertasPrincipais!.length }} regras
+                      </span>
+                    }
+                  </span>
+                </span>
+
+                <span class="modulo__chevron" aria-hidden="true">
+                  <i class="pi pi-chevron-down"></i>
+                </span>
+              </button>
+            </h3>
+
+            @if (estaAberto(modulo.id)) {
+            <div class="modulo__conteudo" [id]="'conteudo-' + modulo.id">
+            <ces-callout tone="brand" label="Objetivo" icon="pi-bullseye">
+              {{ modulo.objetivo }}
+            </ces-callout>
+
+            @for (alerta of modulo.alertasPrincipais; track alerta.titulo) {
+              <ces-callout
+                [tone]="tomAlerta(alerta)"
+                [label]="rotuloAlerta(alerta.tipo)"
+                [icon]="iconeAlerta(alerta.tipo, alerta.icone)"
+                [title]="alerta.titulo"
+              >
+                {{ alerta.mensagem }}
+              </ces-callout>
+            }
+
+            <figure class="video">
+              <div class="video__moldura">
+                <iframe
+                  [src]="modulo.safeEmbedUrl"
+                  [title]="'Vídeo tutorial do módulo ' + modulo.numeroOficial"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                  loading="lazy"
+                  allowfullscreen
+                ></iframe>
+              </div>
+              <figcaption class="video__legenda">
+                <span>
+                  <i class="pi pi-play-circle" aria-hidden="true"></i>
+                  Vídeo tutorial oficial deste módulo
+                </span>
+                <a [href]="modulo.videoUrlOriginal" target="_blank" rel="noopener noreferrer">
+                  Assistir no YouTube
+                  <i class="pi pi-external-link" aria-hidden="true"></i>
+                </a>
+              </figcaption>
+            </figure>
+
+            @for (secao of modulo.secoes; track secao.numero) {
+              <section class="secao">
+                <h4 class="secao__titulo">
+                  <span class="secao__numero" aria-hidden="true">{{ secao.numero }}</span>
+                  @if (secao.icone) {
+                    <i class="secao__icone {{ secao.icone }}" aria-hidden="true"></i>
+                  }
+                  {{ secao.titulo }}
+                </h4>
+
+                @if (secao.subtitulo) {
+                  <p class="secao__subtitulo">{{ secao.subtitulo }}</p>
+                }
+
+                @for (paragrafo of secao.paragrafos; track $index) {
+                  <p class="secao__texto">{{ paragrafo }}</p>
+                }
+
+                @if (secao.itens?.length) {
+                  <ol class="passos">
+                    @for (item of secao.itens; track item.rotulo; let p = $index) {
+                      <li class="passo">
+                        <span class="passo__marca" aria-hidden="true">
+                          <i class="pi {{ item.icone || 'pi-angle-right' }}"></i>
+                        </span>
+
+                        <div class="passo__conteudo">
+                          <h5 class="passo__rotulo">
+                            <span class="passo__numero">{{ secao.numero }}.{{ p + 1 }}</span>
+                            {{ item.rotulo }}
+                            @if (item.badge) {
+                              <ces-status tone="warning">{{ item.badge }}</ces-status>
+                            }
+                          </h5>
+
+                          <p class="passo__descricao">{{ item.descricao }}</p>
+
+                          @if (item.subitens?.length) {
+                            <ul class="passo__subitens">
+                              @for (subitem of item.subitens; track $index) {
+                                <li>{{ subitem }}</li>
+                              }
+                            </ul>
+                          }
+
+                          @if (item.atalho || item.comando || item.destaque) {
+                            <p class="passo__meta">
+                              @if (item.atalho) {
+                                <kbd class="chip chip--tecla">{{ item.atalho }}</kbd>
+                              }
+                              @if (item.comando) {
+                                <code class="chip chip--valor">{{ item.comando }}</code>
+                              }
+                              @if (item.destaque) {
+                                <span class="passo__destaque">{{ item.destaque }}</span>
+                              }
+                            </p>
+                          }
+                        </div>
+                      </li>
+                    }
+                  </ol>
+                }
+
+                @if (secao.alerta) {
+                  <ces-callout
+                    [tone]="tomAlerta(secao.alerta)"
+                    [label]="rotuloAlerta(secao.alerta.tipo)"
+                    [icon]="iconeAlerta(secao.alerta.tipo, secao.alerta.icone)"
+                    [title]="secao.alerta.titulo"
+                    [dense]="true"
+                  >
+                    {{ secao.alerta.mensagem }}
+                  </ces-callout>
+                }
+              </section>
+            }
+            </div>
+            }
+          </section>
+        }
+
+        <footer class="manual__rodape">
+          <section class="suporte">
+            <div class="suporte__texto">
+              <h3 class="suporte__titulo">
+                <i class="pi pi-question-circle" aria-hidden="true"></i>
+                Ficou com dúvida?
+              </h3>
+              <p class="suporte__descricao">
+                Abra um chamado para o time de suporte: a dúvida fica registrada, recebe
+                responsável e você acompanha a resposta pelo próprio sistema. Use este caminho
+                sempre que precisar de uma solução formal ou de ajuste em dados.
+              </p>
+            </div>
+
+            <ces-button
+              label="Abrir chamado"
+              icon="pi pi-plus-circle"
+              size="sm"
+              (pressed)="abrirChamado()"
+            ></ces-button>
+          </section>
+
+          <p class="suporte__alternativa">
+            <i class="pi pi-comments" aria-hidden="true"></i>
+            <span>
+              Para uma dica rápida durante o preenchimento, abra o <strong>Copiloto</strong> pelo menu lateral.
+            </span>
+          </p>
+
+          <p class="manual__rodape-links">
+            <a routerLink="/manual-descontos">Manual de descontos em folha</a>
+            <span aria-hidden="true">·</span>
+            <a routerLink="/manual-sst">Manual de inspeções SST</a>
+          </p>
+        </footer>
+      }
+    </article>
+  </div>
+</div>
+
+<!-- Composição exclusiva de impressão: documento A4 independente do estado da interface. -->
+<app-manual-treinamento-documento
+  class="hidden print:block"
+  [modulos]="modulosFiltrados()"
+  [escopo]="escopoImpressao()"
+></app-manual-treinamento-documento>
+
+<app-help-dialog #ajuda title="Guia da Central de treinamento">
+  <div class="help-section">
+    <h4 class="help-section-title"><i class="pi pi-compass"></i> Como usar o manual</h4>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-list"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Sumário</span>
+        <span class="help-text-desc">
+          O sumário no topo leva direto ao módulo desejado. Cada módulo traz objetivo, regras
+          principais, vídeo e o passo a passo numerado.
+        </span>
+      </div>
+    </div>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-search"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Busca do cabeçalho</span>
+        <span class="help-text-desc">
+          Procura em títulos, passos, atalhos, comandos e palavras-chave, e reduz o manual aos
+          módulos correspondentes.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="help-section">
+    <h4 class="help-section-title"><i class="pi pi-print"></i> Documento e vídeos</h4>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-file-pdf"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Impressão em A4</span>
+        <span class="help-text-desc">
+          Imprimir manual gera um documento formatado para papel, com capa, sumário e um módulo por
+          página. Os vídeos entram como endereço de acesso.
+        </span>
+      </div>
+    </div>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-video"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Vídeo do módulo</span>
+        <span class="help-text-desc">
+          Cada módulo traz o vídeo oficial depois das regras principais, com opção de assistir em
+          nova aba.
+        </span>
+      </div>
+    </div>
+  </div>
+</app-help-dialog>

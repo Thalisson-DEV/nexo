@@ -1,0 +1,516 @@
+<app-copiloto-area [contexto]="contextoCopiloto()">
+<main class="dash-page">
+  <div class="dash-shell">
+    <ces-page-header title="Desempenho e SLA de chamados" icon="pi pi-ticket"
+      [breadcrumb]="[{ label: 'Chamados' }, { label: 'Painel' }]"
+      description="Volume de chamados, tempo de ciclo, cumprimento de SLA e gargalos de atendimento da operação.">
+      <app-copiloto-gatilho actions></app-copiloto-gatilho>
+      @if (atualizadoEm()) {
+        <span actions class="dash-updated">Atualizado às {{ atualizadoEm() | date: 'HH:mm' }}</span>
+      }
+      <ces-button actions [label]="showManagementView() ? 'Ocultar visão' : 'Visão gerencial'" [icon]="showManagementView() ? 'pi pi-eye-slash' : 'pi pi-eye'"
+        variant="secondary" (pressed)="showManagementView.set(!showManagementView())"></ces-button>
+      <ces-button actions label="Fila de chamados" icon="pi pi-list" variant="secondary" (pressed)="irParaFila()"></ces-button>
+      <ces-button actions label="Atualizar" icon="pi pi-refresh" [loading]="loading()" (pressed)="aplicar()"></ces-button>
+    </ces-page-header>
+
+    <ces-filter-panel storageKey="dash-chamados" [activeCount]="chips().length" [summary]="chips()" [loading]="loading()"
+      (applied)="aplicar()" (cleared)="limpar()" (chipRemoved)="removerFiltro($event)">
+      <div class="ces-filter-grid">
+        <ces-datepicker label="Início" inputId="chamado-inicio" [(value)]="dataInicio" [maxDate]="dataFim"></ces-datepicker>
+        <ces-datepicker label="Fim" inputId="chamado-fim" [(value)]="dataFim" [minDate]="dataInicio"></ces-datepicker>
+        <ces-multiselect label="Tópico" [options]="topicoOpcoes()" [value]="$any(filter.topicoId ?? [])" (valueChange)="filter.topicoId = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Equipe" [options]="equipeOpcoes()" [value]="$any(filter.equipeId ?? [])" (valueChange)="filter.equipeId = $event" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Prioridade" [options]="prioridadeOptions" [value]="$any(filter.prioridade ?? [])" (valueChange)="filter.prioridade = $event" [filter]="false" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Status" [options]="statusOptions" [value]="$any(filter.status ?? [])" (valueChange)="filter.status = $event" [filter]="false" placeholder="Todos"></ces-multiselect>
+        <ces-select label="Prazo / SLA" [options]="slaOptions" [value]="filter.slaVencido ?? null" (valueChange)="filter.slaVencido = $event ?? undefined"></ces-select>
+      </div>
+    </ces-filter-panel>
+
+    @if (loading()) {
+      <div class="dash-metrics">
+        @for (item of [1,2,3,4]; track item) {
+          <p-skeleton height="156px" borderRadius="16px" />
+        }
+      </div>
+      <p-skeleton height="430px" borderRadius="16px" class="mb-6 block" />
+    } @else if (data(); as d) {
+      <!-- Painel de Briefing Gerencial ("Onde agir primeiro") -->
+      @if (showManagementView()) {
+        <app-dashboard-insight-panel headingId="chamados-briefing" eyebrow="Resumo para gestão" title="Onde agir primeiro"
+          description="Gargalos operacionais organizados pela ordem recomendada de atuação."
+          [insights]="insights()" [actionable]="d.prioridades.length > 0"
+          (actionSelected)="abrirPrioridade($event)" />
+      }
+
+      <!-- Métricas Principais -->
+      <section class="dash-metrics" aria-label="Indicadores principais de chamados">
+        <app-dashboard-metric-card label="Chamados registrados"
+          [value]="d.indicadores['totalChamados']?.valor ?? d.totalChamados" icon="pi-ticket"
+          [detail]="comparison(d.indicadores['totalChamados'])"
+          [pTooltip]="descricaoIndicador(d.indicadores['totalChamados'])" tone="primary" />
+
+        <app-dashboard-metric-card label="Chamados resolvidos"
+          [value]="d.indicadores['chamadosResolvidos']?.valor ?? d.totalResolvidos" icon="pi-check-circle"
+          [detail]="(d.taxaResolucao | number:'1.0-1') + '% de resolução · ' + comparison(d.indicadores['chamadosResolvidos'])"
+          [pTooltip]="descricaoIndicador(d.indicadores['chamadosResolvidos'])" tone="green"
+          [progress]="d.taxaResolucao" />
+
+        <app-dashboard-metric-card label="Fila em aberto (Backlog)"
+          [value]="d.indicadores['backlogTotal']?.valor ?? d.totalPendentes" icon="pi-inbox"
+          [detail]="comparison(d.indicadores['backlogTotal'])"
+          [pTooltip]="descricaoIndicador(d.indicadores['backlogTotal'])" tone="amber" />
+
+        <app-dashboard-metric-card label="SLA de resolução"
+          [value]="(d.taxaSlaResolucaoPercentual | number:'1.0-1') + '%'" icon="pi-clock"
+          [detail]="comparison(d.indicadores['taxaSlaResolucao'])"
+          [pTooltip]="descricaoIndicador(d.indicadores['taxaSlaResolucao'])" tone="red"
+          [progress]="d.taxaSlaResolucaoPercentual" />
+      </section>
+
+      @if (d.totalChamados === 0) {
+        <div class="dash-panel dash-empty dash-empty--tight mb-6" role="status">
+          <i class="pi pi-info-circle"></i>
+          Nenhum chamado identificado com os filtros selecionados no período.
+        </div>
+      }
+
+      @if (hasDataQualityWarning(d)) {
+        <div class="dash-quality" role="status">
+          <i class="pi pi-info-circle"></i>
+          <div>
+            <strong>Atenção à consistência da operação</strong>
+            <span>
+              {{ d.qualidadeDados.chamadosSemResponsavel }} sem responsável atribuído ·
+              {{ d.qualidadeDados.chamadosEstagnadosSemInteracao }} estagnados sem interação ·
+              {{ d.qualidadeDados.coberturaResponsavelPercentual | number:'1.0-1' }}% de cobertura de responsável
+            </span>
+          </div>
+        </div>
+      }
+
+      <!-- Série Histórica e Tempo de Ciclo -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Tendência temporal</span>
+              <h2>Evolução de abertura e resolução</h2>
+              <p>Histórico temporal de fluxo · exibição {{ rotuloGranularidade(d.granularidade) }}. {{ periodoComparativo(d) }}.</p>
+            </div>
+          </header>
+          @if (d.serieTemporal.length) {
+            <div class="dash-chart dash-chart--responsive">
+              <p-chart type="line" [data]="trendChartData()" [options]="trendChartOptions()" [responsive]="true" />
+            </div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-line"></i>Sem dados históricos no período selecionado.</div>
+          }
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Tempo de ciclo</span>
+              <h2>Prazos de atendimento</h2>
+              <p>Tempo de resposta e conclusão dos chamados atendidos.</p>
+            </div>
+          </header>
+          <div class="dash-summary">
+            <div class="dash-summary__total">
+              <strong>{{ d.totalResolvidos > 0 ? (d.tempoMedianoResolucaoHoras | number:'1.0-1') + 'h' : 'Sem dados' }}</strong>
+              <span>tempo mediano para resolução completa</span>
+            </div>
+            <div class="dash-summary__items">
+              <div class="dash-summary__item">
+                <i class="dash-summary__dot" style="background:#c2413b"></i>
+                <span>9 em cada 10 resolvidos em até (P90)</span>
+                <strong>{{ d.totalResolvidos > 0 ? (d.tempoP90ResolucaoHoras | number:'1.0-1') + 'h' : 'Sem dados' }}</strong>
+              </div>
+              <div class="dash-summary__item">
+                <i class="dash-summary__dot" style="background:#0f766e"></i>
+                <span>Cumprimento de SLA</span>
+                <strong>{{ d.taxaSlaResolucaoPercentual | number:'1.0-1' }}%</strong>
+              </div>
+              <div class="dash-summary__item">
+                <i class="dash-summary__dot" style="background:#c57a16"></i>
+                <span>Reaberturas pós-solução</span>
+                <strong>{{ d.taxaReabertura | number:'1.0-1' }}% ({{ d.totalReabertos }})</strong>
+              </div>
+              <div class="dash-summary__item">
+                <i class="dash-summary__dot" style="background:var(--p-primary-500)"></i>
+                <span>1ª resposta (mediana)</span>
+                <strong>{{ d.tempoMedianoPrimeiraRespostaHoras ? (d.tempoMedianoPrimeiraRespostaHoras | number:'1.0-1') + 'h' : 'Sem dados' }}</strong>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Distribuição por Prioridade -->
+      <section class="dash-panel mb-6" aria-labelledby="volume-prioridade-title">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Volume por prioridade</span>
+            <h2 id="volume-prioridade-title">Distribuição dos chamados no período</h2>
+            <p>Participação de cada prioridade e comparativo com o período anterior.</p>
+          </div>
+          @if (d.totalChamados > 0) {
+            <span class="dash-badge !font-bold">{{ d.totalChamados }} chamado(s) no período</span>
+          }
+        </header>
+
+        @if (d.volumePorPrioridade.length) {
+          <div class="dash-severity-grid">
+            @for (item of d.volumePorPrioridade; track item.prioridade) {
+              <div class="dash-aging-card"
+                   [class.is-vazio]="item.total === 0"
+                   [class.is-alerta]="item.total > 0 && item.prioridade === 'CRITICA'">
+                <div class="dash-aging-card__header">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="dash-aging-dot" [attr.data-tone]="tomPrioridade(item.prioridade)"></span>
+                    <strong class="dash-aging-card__range">
+                      @if (item.prioridade === 'CRITICA') {
+                        <i class="pi pi-bolt mr-0.5 text-red-600 dark:text-red-400" aria-hidden="true"></i>
+                      }
+                      {{ rotuloPrioridade(item.prioridade) }}
+                    </strong>
+                  </div>
+                  <span class="dash-aging-card__stage" [attr.data-tone]="tomPrioridade(item.prioridade)">
+                    {{ subtituloPrioridade(item.prioridade) }}
+                  </span>
+                </div>
+
+                <div class="dash-aging-card__body">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="dash-aging-card__total-wrap">
+                      <strong class="dash-aging-card__total">{{ item.total }}</strong>
+                      <span class="dash-aging-card__unit">chamado(s)</span>
+                    </div>
+                    <div class="flex flex-col items-end" [pTooltip]="(item.percentual | number:'1.0-1') + '% do volume total'">
+                      <span class="dash-share-pill" [attr.data-tone]="item.total > 0 ? tomPrioridade(item.prioridade) : 'neutral'">
+                        {{ item.percentual | number:'1.0-1' }}%
+                      </span>
+                      <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">do volume</span>
+                    </div>
+                  </div>
+
+                  @if (item.total > 0) {
+                    <div class="dash-aging-bar" [pTooltip]="(item.percentual | number:'1.0-1') + '% do total'">
+                      <span class="dash-aging-bar__seg"
+                            [class.dash-aging-bar__seg--critical]="item.prioridade === 'CRITICA'"
+                            [class.dash-aging-bar__seg--high]="item.prioridade === 'ALTA'"
+                            [class.dash-aging-bar__seg--medium]="item.prioridade === 'NORMAL'"
+                            [class.dash-aging-bar__seg--low]="item.prioridade === 'BAIXA'"
+                            [style.width.%]="barWidth(item.percentual)"></span>
+                    </div>
+
+                    <div class="dash-card-footer">
+                      <span class="dash-badge !text-[11px] !py-0.5 !px-2 font-semibold"
+                            [class]="classeVariacao(item.variacaoPercentual, item.anterior)">
+                        <i [class]="iconeVariacao(item.variacaoPercentual)" aria-hidden="true"></i>
+                        {{ formatarVariacao(item.variacaoPercentual, item.anterior) }}
+                      </span>
+                      <span class="text-slate-500 dark:text-slate-400 font-medium tabular-nums" [pTooltip]="'Total registrado no período anterior'">
+                        Anterior: <strong class="text-slate-700 dark:text-slate-200 font-bold">{{ item.anterior }}</strong>
+                      </span>
+                    </div>
+                  } @else {
+                    <div class="dash-aging-card__empty py-1">
+                      <i class="pi pi-check" aria-hidden="true"></i>
+                      <span>Sem chamados nesta prioridade</span>
+                    </div>
+                    <div class="dash-card-footer">
+                      <span class="text-[10px] text-slate-400 dark:text-slate-500 italic">Sem registros no período</span>
+                      <span class="text-slate-400 dark:text-slate-500 font-medium tabular-nums">Anterior: {{ item.anterior }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="dash-empty"><i class="pi pi-chart-bar"></i>Sem dados de volume por prioridade.</div>
+        }
+      </section>
+
+      <!-- Fila de Pendências por Tempo em Aberto (Backlog Aging) -->
+      <section class="dash-panel mb-6" aria-labelledby="backlog-idade-title">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Tempo em aberto</span>
+            <h2 id="backlog-idade-title">Fila de pendências por tempo de permanência</h2>
+            <p>Identifique há quanto tempo os chamados em aberto aguardam resolução e quais são os mais críticos.</p>
+          </div>
+          @if (totalBacklog(d) > 0) {
+            <span class="dash-badge !font-bold">{{ totalBacklog(d) }} chamado(s) em aberto</span>
+          }
+        </header>
+
+        @if (d.backlogPorIdade.length) {
+          <div class="dash-aging-grid">
+            @for (faixa of d.backlogPorIdade; track faixa.faixa) {
+              <div class="dash-aging-card"
+                   [class.is-vazio]="faixa.total === 0"
+                   [class.is-alerta]="faixa.total > 0 && (faixa.faixa === '8-15d' || faixa.faixa === '>15d') && (faixa.porPrioridade.CRITICA > 0 || faixa.porPrioridade.ALTA > 0)">
+                <div class="dash-aging-card__header">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="dash-aging-dot" [attr.data-tone]="tomFaixa(faixa.faixa)"></span>
+                    <strong class="dash-aging-card__range">{{ faixa.rotulo || rotuloFaixa(faixa.faixa) }}</strong>
+                  </div>
+                  <span class="dash-aging-card__stage" [attr.data-tone]="tomFaixa(faixa.faixa)">{{ subtituloFaixa(faixa.faixa) }}</span>
+                </div>
+
+                <div class="dash-aging-card__body">
+                  <div class="dash-aging-card__total-wrap">
+                    <strong class="dash-aging-card__total">{{ faixa.total }}</strong>
+                    <span class="dash-aging-card__unit">chamado(s)</span>
+                  </div>
+
+                  @if (faixa.total > 0 && faixa.porPrioridade) {
+                    <!-- Barra de proporção por prioridade -->
+                    <div class="dash-aging-bar" [pTooltip]="'Crítica: ' + (faixa.porPrioridade.CRITICA || 0) + ' · Alta: ' + (faixa.porPrioridade.ALTA || 0) + ' · Normal: ' + (faixa.porPrioridade.NORMAL || 0) + ' · Baixa: ' + (faixa.porPrioridade.BAIXA || 0)">
+                      @if (faixa.porPrioridade.CRITICA > 0) {
+                        <span class="dash-aging-bar__seg dash-aging-bar__seg--critical" [style.width.%]="percentualPrioridade(faixa.total, faixa.porPrioridade.CRITICA)"></span>
+                      }
+                      @if (faixa.porPrioridade.ALTA > 0) {
+                        <span class="dash-aging-bar__seg dash-aging-bar__seg--high" [style.width.%]="percentualPrioridade(faixa.total, faixa.porPrioridade.ALTA)"></span>
+                      }
+                      @if (faixa.porPrioridade.NORMAL > 0) {
+                        <span class="dash-aging-bar__seg dash-aging-bar__seg--medium" [style.width.%]="percentualPrioridade(faixa.total, faixa.porPrioridade.NORMAL)"></span>
+                      }
+                      @if (faixa.porPrioridade.BAIXA > 0) {
+                        <span class="dash-aging-bar__seg dash-aging-bar__seg--low" [style.width.%]="percentualPrioridade(faixa.total, faixa.porPrioridade.BAIXA)"></span>
+                      }
+                    </div>
+
+                    <!-- Detalhamento por chips de prioridade -->
+                    <div class="dash-aging-chips">
+                      @if (faixa.porPrioridade.CRITICA > 0) {
+                        <span class="dash-badge dash-badge--danger !text-[11px] !py-0.5 !px-1.5" [pTooltip]="faixa.porPrioridade.CRITICA + ' chamados críticos'">
+                          <i class="pi pi-bolt"></i> {{ faixa.porPrioridade.CRITICA }} crítica
+                        </span>
+                      }
+                      @if (faixa.porPrioridade.ALTA > 0) {
+                        <span class="dash-badge dash-badge--orange !text-[11px] !py-0.5 !px-1.5" [pTooltip]="faixa.porPrioridade.ALTA + ' chamados de alta prioridade'">
+                          {{ faixa.porPrioridade.ALTA }} alta
+                        </span>
+                      }
+                      @if (faixa.porPrioridade.NORMAL > 0) {
+                        <span class="dash-badge !text-[11px] !py-0.5 !px-1.5" [pTooltip]="faixa.porPrioridade.NORMAL + ' chamados de prioridade normal'">
+                          {{ faixa.porPrioridade.NORMAL }} normal
+                        </span>
+                      }
+                      @if (faixa.porPrioridade.BAIXA > 0) {
+                        <span class="dash-badge !text-[11px] !py-0.5 !px-1.5" [pTooltip]="faixa.porPrioridade.BAIXA + ' chamados de baixa prioridade'">
+                          {{ faixa.porPrioridade.BAIXA }} baixa
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <div class="dash-aging-card__empty">
+                      <i class="pi pi-check"></i>
+                      <span>Sem pendências nesta faixa</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="dash-empty"><i class="pi pi-clock"></i>Não há chamados pendentes para exibir.</div>
+        }
+      </section>
+
+      <!-- Desempenho por Dimensão Operacional e Ranking de Solicitantes -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Operação e Atendimento</span>
+              <h2>Desempenho por dimensão</h2>
+              <p>Métricas de volume, taxa de resolução e SLA conforme agrupamento selecionado.</p>
+            </div>
+            <div class="dash-tabs" aria-label="Forma de agrupar o desempenho">
+              @for (tab of dimensionTabs; track tab.value) {
+                <button class="dash-tab" [class.is-active]="dimensionTab() === tab.value" (click)="dimensionTab.set(tab.value)">
+                  <i class="pi {{ tab.icon }} mr-1"></i>{{ tab.label }}
+                </button>
+              }
+            </div>
+          </header>
+
+          <div class="dash-table-wrap">
+            @switch (dimensionTab()) {
+              @case ('topico') {
+                <p-table [value]="d.desempenhoPorTopico" [paginator]="d.desempenhoPorTopico.length > 7" [rows]="7"
+                  styleClass="dash-table dash-table--polished" [rowHover]="true"
+                  [tableStyle]="{ 'table-layout': 'fixed', 'min-width': '0' }">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th style="width: 34%">Tópico de atendimento</th>
+                      <th class="text-right" style="width: 14%">Chamados</th>
+                      <th class="text-right" style="width: 14%">Resolvidos</th>
+                      <th class="text-right" style="width: 18%">Resolução (%)</th>
+                      <th class="text-right" style="width: 10%">SLA (%)</th>
+                      <th class="text-right" style="width: 10%">Ações</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-item>
+                    <tr>
+                      <td>
+                        <strong class="dash-cell-name block truncate" [pTooltip]="item.nome">
+                          {{ item.nome || 'Sem tópico definido' }}
+                        </strong>
+                        <span class="text-[10px] text-slate-400 block">Mediana {{ item.tempoMedianoResolucaoHoras | number:'1.0-1' }}h / chamado</span>
+                      </td>
+                      <td class="dash-number text-right">{{ item.totalChamados }}</td>
+                      <td class="dash-number text-right text-emerald-600 dark:text-emerald-400">{{ item.resolvidos }}</td>
+                      <td class="text-right">
+                        <span class="dash-badge font-semibold"
+                              [class.dash-badge--success]="(item.resolvidos / item.totalChamados * 100) >= 80"
+                              [class.dash-badge--warning]="(item.resolvidos / item.totalChamados * 100) >= 50 && (item.resolvidos / item.totalChamados * 100) < 80"
+                              [class.dash-badge--danger]="(item.resolvidos / item.totalChamados * 100) < 50">
+                          {{ (item.totalChamados > 0 ? (item.resolvidos / item.totalChamados * 100) : 0) | number:'1.0-1' }}%
+                        </span>
+                      </td>
+                      <td class="text-right font-medium">{{ item.taxaSlaCumprido | number:'1.0-1' }}%</td>
+                      <td class="text-right">
+                        <ces-icon-button icon="pi pi-search-plus" [label]="'Ver chamados do tópico ' + item.nome" size="icon-sm" (pressed)="detalhar('topico', item.id)"></ces-icon-button>
+                      </td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr><td colspan="6"><div class="dash-empty"><i class="pi pi-check-circle"></i>Nenhum tópico com registros no período.</div></td></tr>
+                  </ng-template>
+                </p-table>
+              }
+
+              @case ('equipe') {
+                <p-table [value]="d.desempenhoPorEquipe" [paginator]="d.desempenhoPorEquipe.length > 7" [rows]="7"
+                  styleClass="dash-table dash-table--polished" [rowHover]="true"
+                  [tableStyle]="{ 'table-layout': 'fixed', 'min-width': '0' }">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th style="width: 34%">Equipe responsável</th>
+                      <th class="text-right" style="width: 14%">Chamados</th>
+                      <th class="text-right" style="width: 14%">Resolvidos</th>
+                      <th class="text-right" style="width: 18%">Resolução (%)</th>
+                      <th class="text-right" style="width: 10%">SLA (%)</th>
+                      <th class="text-right" style="width: 10%">Ações</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-item>
+                    <tr>
+                      <td>
+                        <strong class="dash-cell-name block truncate" [pTooltip]="item.nome">
+                          {{ item.nome || 'Sem equipe definida' }}
+                        </strong>
+                        <span class="text-[10px] text-slate-400 block">Mediana {{ item.tempoMedianoResolucaoHoras | number:'1.0-1' }}h / chamado</span>
+                      </td>
+                      <td class="dash-number text-right">{{ item.totalChamados }}</td>
+                      <td class="dash-number text-right text-emerald-600 dark:text-emerald-400">{{ item.resolvidos }}</td>
+                      <td class="text-right">
+                        <span class="dash-badge font-semibold"
+                              [class.dash-badge--success]="(item.resolvidos / item.totalChamados * 100) >= 80"
+                              [class.dash-badge--warning]="(item.resolvidos / item.totalChamados * 100) >= 50 && (item.resolvidos / item.totalChamados * 100) < 80"
+                              [class.dash-badge--danger]="(item.resolvidos / item.totalChamados * 100) < 50">
+                          {{ (item.totalChamados > 0 ? (item.resolvidos / item.totalChamados * 100) : 0) | number:'1.0-1' }}%
+                        </span>
+                      </td>
+                      <td class="text-right font-medium">{{ item.taxaSlaResolucao | number:'1.0-1' }}%</td>
+                      <td class="text-right">
+                        <ces-icon-button icon="pi pi-search-plus" [label]="'Ver chamados da equipe ' + item.nome" size="icon-sm" (pressed)="detalhar('equipe', item.id)"></ces-icon-button>
+                      </td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr><td colspan="6"><div class="dash-empty"><i class="pi pi-check-circle"></i>Nenhuma equipe com registros no período.</div></td></tr>
+                  </ng-template>
+                </p-table>
+              }
+
+              @case ('atendente') {
+                <p-table [value]="d.desempenhoPorAtendente" [paginator]="d.desempenhoPorAtendente.length > 7" [rows]="7"
+                  styleClass="dash-table dash-table--polished" [rowHover]="true"
+                  [tableStyle]="{ 'table-layout': 'fixed', 'min-width': '0' }">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th style="width: 34%">Atendente responsável</th>
+                      <th class="text-right" style="width: 14%">Chamados</th>
+                      <th class="text-right" style="width: 14%">Resolvidos</th>
+                      <th class="text-right" style="width: 18%">Pendentes</th>
+                      <th class="text-right" style="width: 10%">SLA (%)</th>
+                      <th class="text-right" style="width: 10%">Mediana (h)</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-item>
+                    <tr>
+                      <td>
+                        <strong class="dash-cell-name block truncate" [pTooltip]="item.nome">
+                          {{ item.nome || 'Não atribuído' }}
+                        </strong>
+                        <span class="text-[10px] text-slate-400 block">{{ item.equipe || 'Equipe não informada' }}</span>
+                      </td>
+                      <td class="dash-number text-right">{{ item.totalChamados }}</td>
+                      <td class="dash-number text-right text-emerald-600 dark:text-emerald-400">{{ item.resolvidos }}</td>
+                      <td class="dash-number text-right text-amber-600 dark:text-amber-400">{{ item.pendentes }}</td>
+                      <td class="text-right font-medium">{{ item.taxaSlaResolucao | number:'1.0-1' }}%</td>
+                      <td class="text-right font-medium">{{ item.tempoMedianoResolucaoHoras | number:'1.0-1' }}h</td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr><td colspan="6"><div class="dash-empty"><i class="pi pi-check-circle"></i>Nenhum atendente com registros no período.</div></td></tr>
+                  </ng-template>
+                </p-table>
+              }
+            }
+          </div>
+        </article>
+
+        <!-- Ranking dos Principais Solicitantes -->
+        <article class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Origem da demanda</span>
+              <h2>Top Solicitantes</h2>
+              <p>Usuários com maior volume de chamados no período.</p>
+            </div>
+          </header>
+
+          @if (d.rankingSolicitantes.length) {
+            <div class="dash-table-wrap">
+              <div class="flex flex-col gap-3">
+                @for (solicitante of d.rankingSolicitantes; track solicitante.id; let idx = $index) {
+                  <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span class="dash-table-rank font-bold">{{ idx + 1 }}</span>
+                      <div class="min-w-0">
+                        <strong class="block truncate text-xs text-slate-800 dark:text-slate-100" [pTooltip]="solicitante.nome">
+                          {{ solicitante.nome }}
+                        </strong>
+                        <span class="text-[10px] text-slate-400 font-medium">
+                          {{ solicitante.totalChamados }} chamado(s)
+                        </span>
+                      </div>
+                    </div>
+                    <div class="flex flex-col items-end shrink-0">
+                      <span class="dash-share-pill" data-tone="primary">
+                        {{ solicitante.participacaoPercentual | number:'1.0-1' }}%
+                      </span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-users"></i>Sem solicitantes registrados no período.</div>
+          }
+        </article>
+      </section>
+    }
+  </div>
+</main>
+</app-copiloto-area>
+
+<app-dashboard-drill [recorte]="recorteDrill()" (fechar)="drill.close()" />

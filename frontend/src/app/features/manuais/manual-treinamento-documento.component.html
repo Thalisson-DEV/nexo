@@ -1,0 +1,260 @@
+<article class="documento">
+  <header class="documento__capa">
+    <p class="documento__instituicao">
+      <span>Nexo · Sistema Integrado de Gestão</span>
+      <span>Manual técnico de operação</span>
+    </p>
+
+    <h1 class="documento__titulo">Central de Treinamento</h1>
+    <p class="documento__subtitulo">
+      Guia de operação, procedimentos em campo e tutoriais oficiais das equipes de escritório e de
+      campo.
+    </p>
+
+    <dl class="documento__metadados">
+      <div>
+        <dt><i class="pi pi-calendar" aria-hidden="true"></i> Emissão</dt>
+        <dd>{{ emissaoFormatada() }}</dd>
+      </div>
+      <div>
+        <dt><i class="pi pi-filter" aria-hidden="true"></i> Escopo</dt>
+        <dd>{{ escopo() }}</dd>
+      </div>
+      <div>
+        <dt><i class="pi pi-book" aria-hidden="true"></i> Módulos</dt>
+        <dd>{{ totalModulos() }}</dd>
+      </div>
+      <div>
+        <dt><i class="pi pi-desktop" aria-hidden="true"></i> Plataformas</dt>
+        <dd>Web desktop e aplicativo mobile (PWA offline)</dd>
+      </div>
+    </dl>
+  </header>
+
+  @if (totalModulos() === 0) {
+    <p class="documento__vazio">
+      <i class="pi pi-info-circle" aria-hidden="true"></i>
+      Nenhum módulo corresponde aos filtros aplicados. Ajuste a busca ou a categoria antes de
+      imprimir.
+    </p>
+  }
+
+  @if (mostrarSumario()) {
+    <nav class="sumario" aria-label="Sumário do manual">
+      <h2 class="sumario__titulo">
+        <i class="pi pi-list" aria-hidden="true"></i>
+        Sumário
+      </h2>
+
+      <table class="sumario__tabela">
+        <colgroup>
+          <col class="sumario__col-ordem" />
+          <col class="sumario__col-codigo" />
+          <col />
+          <col class="sumario__col-escopo" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Módulo</th>
+            <th scope="col">Título</th>
+            <th scope="col">Escopo</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (modulo of modulos(); track modulo.id; let i = $index) {
+            <tr>
+              <td class="sumario__ordem">{{ i + 1 }}</td>
+              <th scope="row">{{ modulo.numeroOficial }}</th>
+              <td>
+                <i
+                  class="sumario__icone {{ classeIcone(modulo.icone, 'pi-book') }}"
+                  aria-hidden="true"
+                ></i>
+                {{ modulo.tituloCurto }}
+              </td>
+              <td>{{ modulo.contextoTag }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </nav>
+  }
+
+  @for (modulo of modulos(); track modulo.id; let i = $index) {
+    <section class="modulo">
+      <header class="modulo__cabecalho">
+        <p class="modulo__etiqueta">
+          {{ modulo.numeroOficial }} · Módulo {{ i + 1 }} de {{ totalModulos() }} ·
+          {{ modulo.contextoTag }}
+        </p>
+
+        <h2 class="modulo__titulo">
+          <span class="modulo__marca" aria-hidden="true">
+            <i [class]="classeIcone(modulo.icone, 'pi-book')"></i>
+          </span>
+          {{ modulo.tituloCurto }}
+        </h2>
+
+        <p class="modulo__subtitulo">{{ modulo.subtitulo }}</p>
+
+        <p class="modulo__medidas">
+          <span>{{ modulo.secoes.length }} seções</span>
+          <span>{{ modulo.alertasPrincipais?.length || 0 }} regras principais</span>
+          <span>Título oficial: {{ modulo.titulo }}</span>
+        </p>
+      </header>
+
+      <div class="bloco">
+        <p class="bloco__rotulo">
+          <i class="pi pi-bullseye" aria-hidden="true"></i>
+          Objetivo do módulo
+        </p>
+        <p class="bloco__texto">{{ modulo.objetivo }}</p>
+      </div>
+
+      @for (alerta of modulo.alertasPrincipais; track alerta.titulo) {
+        <div class="bloco bloco--aviso">
+          <p class="bloco__rotulo">
+            <i [class]="classeIconeAlerta(alerta)" aria-hidden="true"></i>
+            {{ rotuloAlerta(alerta.tipo) }} — {{ alerta.titulo }}
+          </p>
+          <p class="bloco__texto">{{ alerta.mensagem }}</p>
+        </div>
+      }
+
+      @for (secao of modulo.secoes; track secao.numero) {
+        <section class="secao">
+          <h3 class="secao__titulo">
+            <span class="secao__numero" aria-hidden="true">{{ secao.numero }}</span>
+            <span class="secao__marca" aria-hidden="true">
+              <i [class]="classeIcone(secao.icone, 'pi-angle-right')"></i>
+            </span>
+            {{ secao.titulo }}
+          </h3>
+
+          @if (secao.subtitulo) {
+            <p class="secao__subtitulo">{{ secao.subtitulo }}</p>
+          }
+
+          @for (paragrafo of secao.paragrafos; track $index) {
+            <p class="secao__texto">{{ paragrafo }}</p>
+          }
+
+          @if (secao.itens?.length) {
+            <ol class="itens">
+              @for (item of secao.itens; track item.rotulo; let p = $index) {
+                <li class="item">
+                  <span class="item__marca" aria-hidden="true">
+                    <i [class]="classeIcone(item.icone, 'pi-angle-right')"></i>
+                  </span>
+
+                  <div class="item__corpo">
+                    <p class="item__rotulo">
+                      {{ secao.numero }}.{{ p + 1 }} {{ item.rotulo }}
+                      @if (item.badge) {
+                        <span class="item__marcador">[{{ item.badge }}]</span>
+                      }
+                    </p>
+
+                    <p class="item__descricao">{{ item.descricao }}</p>
+
+                    @if (item.subitens?.length) {
+                      <ul class="item__subitens">
+                        @for (subitem of item.subitens; track $index) {
+                          <li>{{ subitem }}</li>
+                        }
+                      </ul>
+                    }
+
+                    @if (item.atalho || item.comando || item.destaque) {
+                      <p class="item__meta">
+                        @if (item.atalho) {
+                          <span>
+                            <i class="pi pi-directions" aria-hidden="true"></i>
+                            Atalho: {{ item.atalho }}
+                          </span>
+                        }
+                        @if (item.comando) {
+                          <span>
+                            <i class="pi pi-code" aria-hidden="true"></i>
+                            Valor: {{ item.comando }}
+                          </span>
+                        }
+                        @if (item.destaque) {
+                          <span>
+                            <i class="pi pi-info-circle" aria-hidden="true"></i>
+                            {{ item.destaque }}
+                          </span>
+                        }
+                      </p>
+                    }
+                  </div>
+                </li>
+              }
+            </ol>
+          }
+
+          @if (secao.alerta) {
+            <div class="bloco bloco--aviso">
+              <p class="bloco__rotulo">
+                <i [class]="classeIconeAlerta(secao.alerta)" aria-hidden="true"></i>
+                {{ rotuloAlerta(secao.alerta.tipo) }} — {{ secao.alerta.titulo }}
+              </p>
+              <p class="bloco__texto">{{ secao.alerta.mensagem }}</p>
+            </div>
+          }
+        </section>
+      }
+
+      <div class="bloco bloco--video">
+        <p class="bloco__rotulo">
+          <i class="pi pi-play-circle" aria-hidden="true"></i>
+          Vídeo tutorial oficial
+        </p>
+        <p class="bloco__texto">
+          A demonstração em vídeo deste módulo não é reproduzível em papel. Acesse pelo navegador:
+        </p>
+        <p class="bloco__endereco">{{ modulo.videoUrlOriginal }}</p>
+      </div>
+
+      <p class="modulo__rodape">
+        Nexo · Central de Treinamento · Módulo {{ modulo.numeroOficial }}
+      </p>
+    </section>
+  }
+
+  @if (totalModulos() > 0) {
+    <section class="suporte">
+      <h2 class="suporte__titulo">
+        <i class="pi pi-question-circle" aria-hidden="true"></i>
+        Em caso de dúvida
+      </h2>
+
+      <ol class="suporte__caminhos">
+        <li class="suporte__caminho suporte__caminho--principal">
+          <p class="suporte__rotulo">
+            <i class="pi pi-plus-circle" aria-hidden="true"></i>
+            Abra um chamado — caminho recomendado
+          </p>
+          <p class="suporte__texto">
+            No menu do sistema, acesse <strong>Chamados › Novo chamado</strong>. A dúvida fica
+            registrada, recebe um responsável e a resposta pode ser acompanhada pelo próprio
+            sistema. Use este caminho para solução formal ou ajuste de dados.
+          </p>
+        </li>
+
+        <li class="suporte__caminho">
+          <p class="suporte__rotulo">
+            <i class="pi pi-comments" aria-hidden="true"></i>
+            Assistente Copiloto — dica rápida
+          </p>
+          <p class="suporte__texto">
+            Para uma orientação imediata durante o preenchimento, abra o Copiloto pelo item
+            "Copiloto" do menu lateral: uma tela própria de IA, disponível para quem tem acesso ao assistente.
+          </p>
+        </li>
+      </ol>
+    </section>
+  }
+</article>

@@ -1,0 +1,255 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--ces-surface);
+
+  /*
+   * Ação "neutra forte" (IMPRIMIR) da barra flutuante. Nenhum token único cobre os
+   * dois temas — no claro é tinta escura sobre a página, no escuro é uma superfície
+   * elevada — então o par vive aqui e o template consome só a variável.
+   */
+  --report-action-strong-bg: var(--ces-foreground);
+  --report-action-strong-bg-hover: var(--ces-foreground-muted);
+}
+
+/*
+ * O relatório é uma página inteira, por isso o fundo do host acompanha o canvas
+ * do tema escuro (e não a superfície de card) para não criar duas tonalidades.
+ */
+:host-context(.app-dark),
+:host-context(.dark) {
+  background-color: var(--ces-canvas);
+  --report-action-strong-bg: var(--ces-surface-muted);
+  --report-action-strong-bg-hover: var(--ces-border-strong);
+}
+
+/* ANIMAÇÃO DE ENTRADA SUAVE */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: riseIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+}
+
+/* PADRÃO CHAVE-VALOR (.KV) */
+.kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kv-l {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ces-foreground-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.kv-v {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ces-foreground);
+  text-align: right;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Realces semânticos de valor (nunca são o único indicador: o texto também muda) */
+.kv-v--muted {
+  color: var(--ces-foreground-subtle);
+}
+
+.kv-v--success {
+  color: var(--ces-success-text);
+}
+
+.kv-v--brand {
+  color: var(--ces-brand);
+}
+
+.workflow-stage-icon {
+  color: inherit !important;
+}
+
+.workflow-stage-icon--active,
+.workflow-stage-icon--active::before {
+  color: #ffffff !important;
+}
+
+.workflow-stage-icon--waiting,
+.workflow-stage-icon--waiting::before {
+  color: #475569 !important;
+}
+
+:host-context(.dark) .workflow-stage-icon--waiting,
+:host-context(.dark) .workflow-stage-icon--waiting::before {
+  color: #94a3b8 !important;
+}
+
+.signature-slot {
+  display: flex;
+  width: 80%;
+  height: 3.25rem;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 0.375rem;
+  border-bottom: 1px solid var(--ces-border-strong);
+}
+
+.signature-image {
+  display: block;
+  width: auto;
+  max-width: 85%;
+  height: auto;
+  max-height: 2.5rem;
+  object-fit: contain;
+  background: #ffffff;
+  filter: none;
+  mix-blend-mode: normal;
+}
+
+@media print {
+  .signature-slot {
+    height: 2.75rem;
+    border-bottom-color: #1e293b;
+  }
+
+  .signature-image {
+    max-height: 2.125rem;
+  }
+}
+
+/* ACCORDION (HISTÓRICO & AUDITORIA) */
+p-accordion {
+  display: block;
+  width: 100%;
+  --p-accordion-header-background: var(--ces-surface-subtle);
+  --p-accordion-header-hover-background: var(--ces-surface-muted);
+  --p-accordion-header-active-background: var(--ces-surface-subtle);
+  --p-accordion-header-active-hover-background: var(--ces-surface-muted);
+  --p-accordion-header-color: var(--ces-foreground);
+  --p-accordion-header-active-color: var(--ces-foreground);
+  --p-accordion-header-border-color: var(--ces-border);
+  --p-accordion-content-background: var(--ces-surface);
+  --p-accordion-content-color: var(--ces-foreground);
+  --p-accordion-content-border-color: var(--ces-border);
+  --p-accordion-panel-border-color: var(--ces-border);
+}
+
+p-accordion-panel {
+  display: block;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-xl, 0.75rem);
+  background-color: var(--ces-surface);
+  overflow: hidden;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+p-accordion-header {
+  display: block;
+  width: 100%;
+  background-color: var(--ces-surface-subtle);
+  color: var(--ces-foreground);
+  border: none;
+}
+
+p-accordion-content {
+  display: block;
+  background-color: var(--ces-surface);
+  color: var(--ces-foreground);
+  border-top: 1px solid var(--ces-border);
+}
+
+/* REGRAS DE IMPRESSÃO A4 */
+@media print {
+  :host {
+    background-color: #ffffff !important;
+    min-height: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  html,
+  body {
+    background-color: #ffffff !important;
+    height: auto !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  .page-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .rise {
+    animation: none !important;
+  }
+
+  /* O papel é sempre branco: a tinta não pode seguir os tokens do tema escuro. */
+  .kv-l {
+    font-size: 8.5px;
+    color: #475569 !important;
+  }
+
+  .kv-v {
+    font-size: 9.5px;
+    color: #0f172a !important;
+  }
+
+  .kv-v--muted {
+    color: #64748b !important;
+  }
+
+  .kv-v--success,
+  .kv-v--brand {
+    color: #0f172a !important;
+  }
+
+  @page {
+    margin: 10mm;
+    size: A4 portrait;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+  }
+}

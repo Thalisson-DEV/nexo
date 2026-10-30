@@ -1,0 +1,73 @@
+.context-note {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  margin-bottom: 1rem;
+  padding: .75rem;
+  border: 1px solid #f1f5f9;
+  border-radius: .75rem;
+  background: #f8fafc;
+  color: var(--p-primary-500);
+}
+:host-context(.app-dark) .context-note, :host-context(.dark) .context-note {
+  border-color: #334155;
+  background: #1e293b;
+  color: var(--p-primary-400);
+}
+.context-note p { color: #64748b; font-size: 10px; line-height: 1rem; }
+:host-context(.app-dark) .context-note p, :host-context(.dark) .context-note p { color: #cbd5e1; }
+.context-note strong { color: #475569; }
+:host-context(.app-dark) .context-note strong, :host-context(.dark) .context-note strong { color: #ffffff; }
+.checklist-layout { grid-template-columns: 1fr 1fr; }
+.checklist-help { display: flex; flex-direction: column; gap: .5rem; padding: .25rem; }
+.step-card { display: flex; align-items: center; gap: .65rem; padding: .75rem; border: 1px solid #f1f5f9; border-radius: .65rem; background: #f8fafc80; }
+:host-context(.app-dark) .step-card, :host-context(.dark) .step-card {
+  border-color: #334155;
+  background: #1e293b;
+}
+.step-card > span { display: grid; width: 1.75rem; height: 1.75rem; place-items: center; border-radius: 9999px; background: var(--p-primary-50); color: var(--p-primary-700); font-size: 10px; font-weight: 700; }
+:host-context(.app-dark) .step-card > span, :host-context(.dark) .step-card > span {
+  background: rgba(59, 130, 246, 0.16);
+  color: var(--p-primary-400);
+}
+.step-card b,.step-card small { display: block; }
+.step-card b { color: #475569; font-size: 10px; }
+:host-context(.app-dark) .step-card b, :host-context(.dark) .step-card b { color: #ffffff; }
+.step-card small { margin-top: .15rem; color: #94a3b8; font-size: 9px; }
+.context-pill { display: inline-flex; align-items: center; padding: .25rem .55rem; border-radius: 9999px; background: var(--p-primary-50); color: var(--p-primary-700); font-size: 9px; font-weight: 600; }
+:host-context(.app-dark) .context-pill, :host-context(.dark) .context-pill {
+  background: rgba(59, 130, 246, 0.16);
+  color: var(--p-primary-400);
+}
+.context-pill.brigada { background: #fff7ed; color: #c2410c; }
+:host-context(.app-dark) .context-pill.brigada, :host-context(.dark) .context-pill.brigada {
+  background: rgba(194, 65, 12, 0.2);
+  color: #fb923c;
+}
+.table-empty { min-height: 12rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; color: #94a3b8; font-size: 10px; }
+.table-empty i { font-size: 1.5rem; }
+.table-empty b { color: #475569; font-size: 11px; }
+:host ::ng-deep .custom-table th { padding: .75rem !important; background: #f8fafc !important; color: #64748b !important; font-size: 9px !important; font-weight: 500 !important; letter-spacing: .06em; text-transform: uppercase; }
+:host-context(.app-dark) ::ng-deep .custom-table th, :host-context(.dark) ::ng-deep .custom-table th { background: #1e293b !important; color: var(--p-primary-400) !important; border-color: #334155 !important; }
+:host ::ng-deep .custom-table td { padding: .75rem !important; border-color: #f1f5f9 !important; color: #475569; font-size: 10px !important; }
+:host-context(.app-dark) ::ng-deep .custom-table td, :host-context(.dark) ::ng-deep .custom-table td { border-color: #334155 !important; color: #cbd5e1; }
+:host ::ng-deep .custom-table td b,:host ::ng-deep .custom-table td small { display: block; }
+:host ::ng-deep .custom-table td small { margin-top: .15rem; color: #94a3b8; font-size: 9px; }
+:host ::ng-deep .config-shell .p-inputtext,
+:host ::ng-deep .config-shell .p-select,
+:host ::ng-deep .config-shell .p-multiselect,
+:host ::ng-deep .config-shell .p-datepicker { width: 100%; min-height: 30px; border-radius: 8px; border-color: #e2e8f0; font-size: 10px; }
+:host-context(.app-dark) ::ng-deep .config-shell .p-inputtext,
+:host-context(.dark) ::ng-deep .config-shell .p-inputtext,
+:host-context(.app-dark) ::ng-deep .config-shell .p-select,
+:host-context(.dark) ::ng-deep .config-shell .p-select,
+:host-context(.app-dark) ::ng-deep .config-shell .p-multiselect,
+:host-context(.dark) ::ng-deep .config-shell .p-multiselect,
+:host-context(.app-dark) ::ng-deep .config-shell .p-datepicker,
+:host-context(.dark) ::ng-deep .config-shell .p-datepicker { border-color: #334155; }
+:host ::ng-deep .config-shell input.p-inputtext,
+:host ::ng-deep .config-shell .p-select-label,
+:host ::ng-deep .config-shell .p-multiselect-label { height: 30px; display: flex; align-items: center; padding-block: 0; font-size: 10px; }
+:host ::ng-deep .config-shell textarea.p-inputtext { height: auto; min-height: 4.5rem; padding-block: .55rem; line-height: 1.1rem; }
+.actions { width: 76px; text-align: center; }
+@media(max-width: 950px) { .checklist-layout { grid-template-columns: 1fr; } }

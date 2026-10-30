@@ -1,0 +1,533 @@
+<app-copiloto-area [contexto]="contextoCopiloto()">
+<main class="dash-page">
+  <div class="dash-shell">
+    <ces-page-header title="Para onde vai o dinheiro e onde a fila trava" icon="pi pi-wallet"
+      [breadcrumb]="[{ label: 'Financeiro' }, { label: 'Painel' }]"
+      description="Quanto foi pedido e quanto saiu autorizado, quanto tempo cada decisão leva, o que vence a seguir e quais despesas ainda estão sem nota ou boleto.">
+      <app-copiloto-gatilho actions></app-copiloto-gatilho>
+      @if (atualizadoEm()) { <span actions class="dash-updated">Atualizado às {{ atualizadoEm() | date: 'HH:mm' }}</span> }
+      <ces-button actions [label]="showManagementView() ? 'Ocultar leitura' : 'Leitura gerencial'" [icon]="showManagementView() ? 'pi pi-eye-slash' : 'pi pi-eye'"
+        variant="secondary" (pressed)="showManagementView.set(!showManagementView())"></ces-button>
+      <ces-button actions label="Ver documentos" icon="pi pi-folder-open" variant="secondary" (pressed)="verDocumentos()"></ces-button>
+      <ces-button actions label="Ver solicitações" icon="pi pi-list" variant="secondary" (pressed)="verSolicitacoes()"></ces-button>
+      <ces-button actions label="Atualizar" icon="pi pi-refresh" [loading]="loading()" (pressed)="aplicar()"></ces-button>
+    </ces-page-header>
+
+    <ces-filter-panel storageKey="dash-financeiro" [activeCount]="chips().length" [summary]="chips()" [loading]="loading()"
+      (applied)="aplicar()" (cleared)="limpar()" (chipRemoved)="removerFiltro($event)">
+      <div class="ces-filter-grid">
+        <ces-select label="Mostrar" inputId="fin-tipo" [options]="tipoOptions" [value]="filter.tipo ?? null" (valueChange)="filter.tipo = $any($event)"></ces-select>
+        <ces-datepicker label="Aberto a partir de" inputId="fin-inicio" [(value)]="dataInicio" [clearable]="true"></ces-datepicker>
+        <ces-datepicker label="Aberto até" inputId="fin-fim" [(value)]="dataFim" [clearable]="true"></ces-datepicker>
+        <ces-multiselect label="Fornecedor" [options]="opcoesFornecedores()" [value]="$any(filter.idFornecedor ?? [])" (valueChange)="filter.idFornecedor = $event"
+          placeholder="Todos" [loading]="fornecedoresLoading()" (opened)="openFornecedores()" (search)="searchFornecedores({ filter: $event })"></ces-multiselect>
+        <ces-multiselect label="Base operacional" [options]="opcoesBases()" [value]="$any(filter.idBase ?? [])" (valueChange)="filter.idBase = $event"
+          placeholder="Todas" [loading]="basesLoading()" (opened)="openBases()" (search)="searchBases({ filter: $event })"></ces-multiselect>
+        <ces-multiselect label="Centro de custo" [options]="opcoesProcessos()" [value]="$any(filter.idProcesso ?? [])" (valueChange)="filter.idProcesso = $event"
+          placeholder="Todos" [loading]="processosLoading()" (opened)="openProcessos()" (search)="searchProcessos({ filter: $event })"></ces-multiselect>
+        <ces-multiselect label="Obra" [options]="opcoesObras()" [value]="$any(filter.idObra ?? [])" (valueChange)="filter.idObra = $event"
+          placeholder="Todas" [loading]="obrasLoading()" (opened)="openObras()" (search)="searchObras({ filter: $event })"></ces-multiselect>
+        <ces-multiselect label="Tipo de despesa" [options]="tipoDespesaOptions" [value]="$any(filter.tipoDespesa ?? [])" (valueChange)="filter.tipoDespesa = $event" [filter]="false" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Situação" [options]="statusOptions" [value]="$any(filter.status ?? [])" (valueChange)="filter.status = $event" [filter]="false" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Urgência" [options]="prioridadeOptions" [value]="$any(filter.prioridade ?? [])" (valueChange)="filter.prioridade = $event" [filter]="false" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Formulário" [options]="opcoesFormularios()" [value]="$any(filter.idFormulario ?? [])" (valueChange)="filter.idFormulario = $event"
+          placeholder="Todos" [loading]="formulariosLoading()" (opened)="openFormularios()" (search)="searchFormularios({ filter: $event })"></ces-multiselect>
+        <ces-select label="Agrupamento do gráfico" [options]="granularidadeOptions" [value]="filter.granularidade ?? null"
+          (valueChange)="filter.granularidade = $event; onGranularidadeChange()"></ces-select>
+      </div>
+    </ces-filter-panel>
+
+    @if (loading()) {
+      <div class="dash-metrics">@for (item of [1,2,3,4]; track item) { <p-skeleton height="156px" borderRadius="16px" /> }</div>
+      <p-skeleton height="430px" borderRadius="16px" />
+    } @else if (data(); as d) {
+
+      @if (showManagementView()) {
+        <app-dashboard-insight-panel headingId="financeiro-briefing" eyebrow="Leitura gerencial"
+          title="O que merece atenção agora"
+          description="Pedidos parados, contas vencendo e despesas sem documento fiscal. As prioridades saem dos dados, não de um limiar arbitrário de desempenho — e cada cartão leva direto para os registros que o produziram."
+          [insights]="insights()" [actionable]="d.prioridades.length > 0"
+          (actionSelected)="abrirPrioridadePorIndice($event)" />
+      }
+
+      <!-- Cartões principais -->
+      <section class="dash-metrics" aria-label="Indicadores principais">
+        <app-dashboard-metric-card label="Autorizado no período" [value]="moedaCompacta(d.valores.valorAprovado)"
+          icon="pi-check-circle" tone="green"
+          [detail]="d.valores.valorAprovadoPeriodoAnterior > 0
+            ? (d.valores.variacaoValorAprovado | number:'1.0-1') + '% vs. período anterior (' + moedaCompacta(d.valores.valorAprovadoPeriodoAnterior) + ')'
+            : 'Sem período anterior para comparar'" />
+
+        <app-dashboard-metric-card label="Do pedido, quanto foi autorizado"
+          [value]="d.resumo.total > 0 ? percentual(d.valores.taxaAutorizacao) : 'Sem dados no período'"
+          icon="pi-percentage" tone="primary" [progress]="d.valores.taxaAutorizacao"
+          [detail]="moedaCompacta(d.valores.valorAprovado) + ' de ' + moedaCompacta(d.valores.valorSolicitado) + ' pedidos'" />
+
+        <app-dashboard-metric-card label="Esperando decisão" [value]="moedaCompacta(d.valores.valorEmAnalise)"
+          icon="pi-hourglass" tone="amber"
+          [detail]="d.resumo.pendentes + ' pedido(s) sem desfecho · o mais antigo espera há ' + d.ciclo.idadeMaximaFilaDias + ' dia(s)'" />
+
+        <app-dashboard-metric-card label="Vencido e sem comprovante" [value]="moedaCompacta(d.valores.valorVencido)"
+          icon="pi-exclamation-triangle" [tone]="d.valores.quantidadeVencida > 0 ? 'red' : 'slate'"
+          [detail]="d.valores.quantidadeVencida > 0
+            ? d.valores.quantidadeVencida + ' despesa(s) já venceram · ' + moedaCompacta(d.valores.valorAVencer) + ' vencem nos próximos 30 dias'
+            : 'Nada vencido · ' + moedaCompacta(d.valores.valorAVencer) + ' vencem nos próximos 30 dias'" />
+      </section>
+
+      @if (d.qualidade.semFornecedorIdentificado > 0 || d.qualidade.aprovadasSemNenhumDocumento > 0 || d.qualidade.solicitacoesComFornecedorNaoHomologado > 0) {
+        <div class="dash-quality" role="status">
+          <i class="pi pi-exclamation-triangle"></i>
+          <div>
+            <strong>Os números têm ressalvas</strong>
+            <span>
+              @if (d.qualidade.semFornecedorIdentificado > 0) { {{ d.qualidade.semFornecedorIdentificado }} pedido(s) não dizem de quem foi a compra — ficam fora do ranking de fornecedores. }
+              @if (d.qualidade.semCentroCusto > 0) { {{ d.qualidade.semCentroCusto }} sem centro de custo: a despesa não tem a quem ser rateada. }
+              @if (d.qualidade.aprovadasSemNenhumDocumento > 0) { {{ d.qualidade.aprovadasSemNenhumDocumento }} despesa(s) aprovada(s) não têm nenhum documento guardado. }
+              @if (d.qualidade.solicitacoesComFornecedorNaoHomologado > 0) { {{ d.qualidade.solicitacoesComFornecedorNaoHomologado }} usam fornecedor que o financeiro ainda não conferiu. }
+            </span>
+          </div>
+        </div>
+      }
+
+      <!-- Série temporal + medidor de autorização -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <h2>Pedido × autorizado ao longo do período</h2>
+              <p>{{ descricaoSerie(d.granularidade) }}</p>
+            </div>
+            <div class="dash-tabs" aria-label="Período rápido">
+              @for (periodo of periodosRapidos; track periodo.value) {
+                <button class="dash-tab" [class.is-active]="periodoAtivo() === periodo.value" (click)="setPeriodo(periodo.value)">{{ periodo.label }}</button>
+              }
+            </div>
+          </header>
+
+          <div class="dash-chart-controls">
+            <div class="dash-tabs" aria-label="Unidade da série">
+              @for (opcao of abasUnidade; track opcao.value) {
+                <button class="dash-tab" [class.is-active]="unidadeSerie() === opcao.value" (click)="onUnidadeSerieChange(opcao.value)">{{ opcao.label }}</button>
+              }
+            </div>
+            <div class="dash-tabs" aria-label="Modo de leitura do gráfico">
+              @for (modo of abasSerieModo; track modo.value) {
+                <button class="dash-tab" [class.is-active]="serieModo() === modo.value" (click)="onSerieModoChange(modo.value)">{{ modo.label }}</button>
+              }
+            </div>
+          </div>
+
+          @if (d.serieTemporal.length) {
+            <div class="dash-chart"><p-chart type="bar" [data]="serieData" [options]="serieOptions" height="310px" /></div>
+            @if (d.resumo.total === 0) {
+              <p class="dash-note">Nenhum pedido no período — os intervalos aparecem zerados para manter o gráfico contínuo.</p>
+            } @else {
+              <p class="dash-note">Cada intervalo agrupa os pedidos pela <strong>data em que foram abertos</strong>, com o desfecho que eles têm hoje. Um pedido decidido com atraso continua pertencendo ao mês em que foi feito.</p>
+            }
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-bar"></i>Sem movimentação no período selecionado.</div>
+          }
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Do pedido à autorização</span>
+              <h2>Quanto passou</h2>
+            </div>
+          </header>
+
+          @if (d.resumo.total === 0) {
+            <div class="dash-empty dash-empty--tight">
+              <i class="pi pi-inbox"></i>
+              <strong class="block text-slate-600 text-sm">Nenhum pedido no recorte</strong>
+              <span class="block mt-2 text-xs leading-relaxed">Ajuste o período ou remova filtros para ver a taxa de autorização.</span>
+            </div>
+          } @else {
+            <div class="dash-gauge-wrap">
+              <div class="dash-gauge" [style.--dash-gauge-pct]="barWidth(d.valores.taxaAutorizacao)">
+                <div class="dash-gauge__inner">
+                  <strong>{{ d.valores.taxaAutorizacao | number:'1.0-1' }}%</strong>
+                  <span>autorizado</span>
+                </div>
+              </div>
+              <div class="dash-gauge__legend">
+                <div><span>Pedido</span><strong>{{ moedaCompacta(d.valores.valorSolicitado) }}</strong></div>
+                <div><span>Autorizado</span><strong>{{ moedaCompacta(d.valores.valorAprovado) }}</strong></div>
+                <div><span>Cortado ao aprovar</span><strong>{{ moedaCompacta(d.valores.corteNaAprovacao) }}</strong></div>
+                <div><span>Recusado por inteiro</span><strong>{{ moedaCompacta(d.valores.valorRejeitado) }}</strong></div>
+              </div>
+            </div>
+
+            <div class="dash-kpis !mt-5">
+              @for (kpi of kpisComparativos(); track kpi.chave) {
+                <div class="dash-kpi">
+                  <span class="dash-kpi__label">{{ kpi.rotulo }}</span>
+                  <strong class="dash-kpi__value">{{ kpi.valor }}</strong>
+                  <span class="dash-kpi__trend" [attr.data-trend]="kpi.tom">
+                    @if (kpi.seta) { <i class="pi" [class]="kpi.seta"></i> }
+                    {{ kpi.comparativo }}
+                  </span>
+                  <span class="dash-kpi__hint">{{ kpi.definicao }}</span>
+                </div>
+              }
+            </div>
+          }
+        </aside>
+      </section>
+
+      <!-- Funil + fila de decisão -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Conversão</span>
+              <h2>Onde o pedido se perde</h2>
+              <p>Dos pedidos abertos no período, quantos chegaram a cada etapa. Um pedido aprovado conta também como submetido — por isso o funil só estreita. Rejeitados e cancelados aparecem à parte, porque um é decisão de quem aprova e o outro é desistência de quem pediu.</p>
+            </div>
+          </header>
+          @if (d.resumo.total) {
+            <div class="dash-chart dash-chart--short"><p-chart type="bar" [data]="funilData" [options]="funilOptions" height="220px" /></div>
+            <div class="dash-summary__items !mt-4">
+              @for (etapa of d.funil; track etapa.etapa) {
+                <div class="dash-summary__item">
+                  <i class="dash-summary__dot" [style.background]="corDaEtapa(etapa.etapa)"></i>
+                  <span>{{ etapa.rotulo }}{{ etapa.vazamento ? ' (saiu do fluxo)' : '' }}</span>
+                  <strong>{{ etapa.quantidade }} · {{ moedaCompacta(etapa.valor) }}</strong>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-filter"></i>Sem pedidos para montar o funil.</div>
+          }
+        </article>
+
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Fila de aprovação</span>
+              <h2>Há quanto tempo cada pedido está parado</h2>
+              <p>A idade conta desde a entrada na etapa atual, não desde a abertura — e inclui pedidos abertos antes do período consultado, porque quem está esperando continua esperando.</p>
+            </div>
+          </header>
+          @if (totalPendenteHistorico() > 0) {
+            <div class="dash-chart dash-chart--short"><p-chart type="bar" [data]="envelhecimentoData" [options]="envelhecimentoOptions" height="220px" /></div>
+            <div class="dash-summary__items !mt-4">
+              @for (faixa of d.envelhecimento; track faixa.faixa) {
+                @if (faixa.quantidade > 0) {
+                  <div class="dash-summary__item">
+                    <i class="dash-summary__dot" [style.background]="corDaFaixa(faixa.idadeMinimaDias)"></i>
+                    <span>{{ faixa.faixa }} dias parados</span>
+                    <strong>{{ faixa.quantidade }} · {{ moedaCompacta(faixa.valor) }}</strong>
+                  </div>
+                }
+              }
+            </div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-check-circle"></i>Nenhum pedido esperando decisão.</div>
+          }
+        </article>
+      </section>
+
+      <!-- Vencimentos + distribuição por situação -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Agenda de pagamentos</span>
+              <h2>O que vence a seguir</h2>
+              <p>Só entra aqui o que já foi aprovado, tem data de vencimento e ainda não tem comprovante de pagamento guardado. Uma conta já paga não é compromisso — é histórico.</p>
+            </div>
+          </header>
+          @if (totalALiquidar() > 0) {
+            <div class="dash-chart dash-chart--short"><p-chart type="bar" [data]="vencimentoData" [options]="vencimentoOptions" height="240px" /></div>
+            <div class="dash-summary__items !mt-4">
+              @for (faixa of d.vencimentos; track faixa.faixa) {
+                @if (faixa.quantidade > 0) {
+                  <div class="dash-summary__item">
+                    <i class="dash-summary__dot" [style.background]="corDoVencimento(faixa.faixa)"></i>
+                    <span>{{ faixa.rotulo }} — {{ textoDoExtremo(faixa) }}</span>
+                    <strong>{{ faixa.quantidade }} · {{ moedaCompacta(faixa.valor) }}</strong>
+                  </div>
+                }
+              }
+            </div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-calendar"></i>Nada aprovado com vencimento em aberto.</div>
+          }
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div><span class="dash-eyebrow">Distribuição</span><h2>Onde os pedidos estão</h2></div>
+          </header>
+          <div class="dash-tabs mb-4" aria-label="Unidade da distribuição">
+            @for (opcao of abasUnidade; track opcao.value) {
+              <button class="dash-tab" [class.is-active]="unidadeStatus() === opcao.value" (click)="onUnidadeStatusChange(opcao.value)">{{ opcao.label }}</button>
+            }
+          </div>
+          @if (d.resumo.total) {
+            <div class="dash-chart dash-chart--short"><p-chart type="doughnut" [data]="statusData" [options]="statusChartOptions" height="240px" /></div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-pie"></i>Sem pedidos no período.</div>
+          }
+        </aside>
+      </section>
+
+      <!-- Tempo de processo + documentos recebidos -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Tempo de processo</span>
+              <h2>Quanto cada etapa demora</h2>
+              <p>Barras próximas indicam ritmo previsível. Um P90 muito acima da mediana significa que existe um punhado de casos travando a fila. O tempo de preenchimento é medido à parte: um rascunho que demora duas semanas para ser enviado não é atraso de quem aprova.</p>
+            </div>
+          </header>
+          @if (d.ciclo.amostraSubmissao || d.ciclo.amostraDecisao) {
+            <div class="dash-chart"><p-chart type="bar" [data]="cicloData" [options]="cicloOptions" height="280px" /></div>
+            <p class="dash-note">
+              Amostra: {{ d.ciclo.amostraSubmissao }} pedido(s) enviados e {{ d.ciclo.amostraDecisao }} decidido(s) no período.
+              Rascunhos parados há, em média, {{ d.ciclo.idadeMediaRascunhosDias | number:'1.0-1' }} dia(s).
+              @if (d.ciclo.decisoesDesfeitas) {
+                {{ d.ciclo.decisoesDesfeitas }} {{ d.ciclo.decisoesDesfeitas === 1 ? 'decisão foi desfeita e voltou' : 'decisões foram desfeitas e voltaram' }} para a fila.
+              }
+            </p>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-clock"></i>Nenhum pedido concluiu uma etapa no período — sem amostra para medir tempo.</div>
+          }
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Repositório</span>
+              <h2>O que chegou no período</h2>
+              <p>Documentos recebidos, por natureza.</p>
+            </div>
+          </header>
+          @if (d.conformidade.documentosRecebidos > 0) {
+            <div class="dash-chart dash-chart--short"><p-chart type="doughnut" [data]="documentoData" [options]="documentoOptions" height="240px" /></div>
+            <p class="dash-note">
+              {{ d.conformidade.documentosRecebidos }} documento(s) ·
+              {{ d.conformidade.aguardandoConferencia }} esperando conferência ·
+              {{ d.conformidade.comPendencia }} devolvido(s) com pendência.
+            </p>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-folder-open"></i>Nenhum documento chegou no período.</div>
+          }
+        </aside>
+      </section>
+
+      <!-- Rankings -->
+      <section class="dash-panel">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Onde a despesa se concentra</span>
+            <h2>Quem consome o orçamento</h2>
+            <p>Volume e dinheiro lado a lado — o fornecedor mais frequente raramente é o mais caro. A última coluna liga cada grupo ao repositório: quem aprova muito e anexa pouco é onde a despesa fica sem lastro.</p>
+          </div>
+          <div class="dash-tabs" aria-label="Forma de agrupamento">
+            @for (aba of abasRanking; track aba.value) {
+              <button class="dash-tab" [class.is-active]="dimensaoRanking() === aba.value" (click)="onDimensaoRankingChange(aba.value)">{{ aba.label }}</button>
+            }
+          </div>
+        </header>
+
+        @if (linhasRanking().length) {
+          <div class="dash-chart dash-chart--tall"><p-chart type="bar" [data]="rankingData" [options]="rankingOptions" height="300px" /></div>
+        }
+
+        <div class="dash-table-wrap !mt-4">
+          <p-table [value]="linhasRanking()" [paginator]="linhasRanking().length > 8" [rows]="8" styleClass="dash-table" [rowHover]="true">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>{{ rotuloRanking() }}</th><th>Pedidos</th><th>Pedido</th><th>Autorizado</th>
+                <th>% do autorizado</th><th>Ticket médio</th><th>Esperando</th><th>Aprovação</th><th>Com nota/boleto</th>
+                @if (podeDetalharRanking()) { <th><span class="sr-only">Detalhar</span></th> }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-item>
+              <tr>
+                <td>
+                  <div class="dash-table-name">
+                    <div class="max-w-[200px] md:max-w-[320px]">
+                      <strong class="block truncate" [pTooltip]="item.nome?.length > 28 ? item.nome : undefined">{{ nomeOuPlaceholder(item.nome) }}</strong>
+                      <span class="block truncate">{{ item.aprovadas }} aprovado(s) · {{ item.rejeitadas }} rejeitado(s) · {{ item.documentos }} documento(s)</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="dash-number">{{ item.quantidade }}</td>
+                <td class="dash-number">{{ moedaCompacta(item.valorSolicitado) }}</td>
+                <td class="dash-number">{{ moedaCompacta(item.valorAprovado) }}</td>
+                <td>
+                  <div class="dash-progress">
+                    <div class="dash-progress__track"><span [style.width.%]="barWidth(item.percentualValor)"></span></div>
+                    <strong>{{ item.percentualValor | number:'1.0-1' }}%</strong>
+                  </div>
+                </td>
+                <td class="dash-number">{{ moedaCompacta(item.ticketMedio) }}</td>
+                <td class="dash-number">{{ item.pendentes }}</td>
+                <td class="dash-number">{{ item.aprovadas + item.rejeitadas > 0 ? (item.taxaAprovacao | number:'1.0-1') + '%' : '—' }}</td>
+                <td class="dash-number">{{ item.aprovadas > 0 ? (item.percentualComDocumentoFiscal | number:'1.0-0') + '%' : '—' }}</td>
+                @if (podeDetalharRanking()) {
+                  <td class="text-right">
+                    <ces-icon-button icon="pi pi-search-plus" size="icon-sm" [label]="'Ver pedidos de ' + nomeOuPlaceholder(item.nome)" (pressed)="detalharRanking(item)" />
+                  </td>
+                }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td [attr.colspan]="podeDetalharRanking() ? 10 : 9"><div class="dash-empty"><i class="pi pi-sitemap"></i>Sem dados de {{ rotuloRanking().toLowerCase() }} no período.</div></td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </section>
+
+      <!-- Quem pede + conferência documental -->
+      <section class="dash-grid mt-4">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Quem pede</span>
+              <h2>Solicitantes</h2>
+              <p>Volume, valor autorizado e taxa de aprovação de cada pessoa que abre pedidos.</p>
+            </div>
+          </header>
+          <div class="dash-table-wrap">
+            <p-table [value]="d.porSolicitante" [paginator]="d.porSolicitante.length > 10" [rows]="10" styleClass="dash-table" [rowHover]="true">
+              <ng-template pTemplate="header">
+                <tr><th>Solicitante</th><th>Pedidos</th><th>Pedido</th><th>Autorizado</th><th>Esperando</th><th>Aprovação</th></tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-item>
+                <tr>
+                  <td>
+                    <div class="dash-table-name">
+                      <div class="max-w-[200px] md:max-w-[320px]">
+                        <strong class="block truncate" [pTooltip]="item.nome?.length > 28 ? item.nome : undefined">{{ nomeOuPlaceholder(item.nome) }}</strong>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="dash-number">{{ item.quantidade }}</td>
+                  <td class="dash-number">{{ moedaCompacta(item.valorSolicitado) }}</td>
+                  <td class="dash-number">{{ moedaCompacta(item.valorAprovado) }}</td>
+                  <td class="dash-number">{{ item.pendentes }}</td>
+                  <td class="dash-number">{{ item.aprovadas + item.rejeitadas > 0 ? (item.taxaAprovacao | number:'1.0-0') + '%' : '—' }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="6"><div class="dash-empty"><i class="pi pi-user"></i>Ninguém abriu pedidos no período.</div></td></tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Conferência</span>
+              <h2>A fila da contabilidade</h2>
+              <p>Todo o histórico em aberto, não só o período — quem chegou em janeiro e não foi olhado continua cobrando.</p>
+            </div>
+          </header>
+          <div class="dash-summary__items">
+            <div class="dash-summary__item">
+              <i class="dash-summary__dot" style="background:#c57a16"></i>
+              <span>Esperando conferência</span>
+              <strong>{{ d.conformidade.aguardandoConferencia }}</strong>
+            </div>
+            <div class="dash-summary__item">
+              <i class="dash-summary__dot" style="background:#c2413b"></i>
+              <span>Devolvidos com pendência</span>
+              <strong>{{ d.conformidade.comPendencia }}</strong>
+            </div>
+            <div class="dash-summary__item">
+              <i class="dash-summary__dot" style="background:#0f766e"></i>
+              <span>Conferidos e arquivados no período</span>
+              <strong>{{ d.conformidade.conferidos + d.conformidade.arquivados }} ({{ d.conformidade.taxaConferencia | number:'1.0-1' }}%)</strong>
+            </div>
+            <div class="dash-summary__item">
+              <i class="dash-summary__dot" style="background:#94a3b8"></i>
+              <span>Espera média · mais antigo parado</span>
+              <strong>{{ d.conformidade.idadeMediaFilaDias | number:'1.0-1' }}d · {{ d.conformidade.idadeMaximaFilaDias }}d</strong>
+            </div>
+            <div class="dash-summary__item">
+              <i class="dash-summary__dot" style="background:#9f1239"></i>
+              <span>Arquivos repetidos</span>
+              <strong>{{ d.conformidade.duplicados }}</strong>
+            </div>
+            <div class="dash-summary__item">
+              <i class="dash-summary__dot" style="background:#a16207"></i>
+              <span>Notas e boletos sem número</span>
+              <strong>{{ d.conformidade.semIdentificacao }}</strong>
+            </div>
+            <div class="dash-summary__item">
+              <i class="dash-summary__dot" style="background:#7c3aed"></i>
+              <span>Chegaram sem pedido correspondente</span>
+              <strong>{{ d.conformidade.avulsosSemVinculo }}</strong>
+            </div>
+          </div>
+          <ces-button variant="link" label="Abrir o repositório" icon="pi pi-arrow-right" (pressed)="verDocumentos()"></ces-button>
+        </aside>
+      </section>
+
+      <!-- Rodapé de contexto -->
+      <section class="dash-panel">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Contexto do recorte</span>
+            <h2>Como ler estes números</h2>
+          </div>
+        </header>
+        <div class="dash-summary__items">
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:var(--p-primary-400)"></i>
+            <span>Período analisado ({{ d.periodo.diasNoPeriodo }} dia(s), pela data em que o pedido foi aberto)</span>
+            <strong>{{ d.inicio | date:'dd/MM/yyyy' }} — {{ d.fim | date:'dd/MM/yyyy' }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#94a3b8"></i>
+            <span>Comparado com</span>
+            <strong>{{ d.periodo.comparacaoInicio | date:'dd/MM/yyyy' }} — {{ d.periodo.comparacaoFim | date:'dd/MM/yyyy' }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#2563eb"></i>
+            <span>Compras · pagamentos</span>
+            <strong>{{ d.resumo.compras }} · {{ d.resumo.pagamentos }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#0f766e"></i>
+            <span>Autorizado em compras · em pagamentos</span>
+            <strong>{{ moedaCompacta(d.valores.valorAprovadoCompras) }} · {{ moedaCompacta(d.valores.valorAprovadoPagamentos) }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#c57a16"></i>
+            <span>Pagamentos que vieram de uma compra aprovada</span>
+            <strong>{{ d.resumo.pagamentosComCompraPrevia }} ({{ d.resumo.percentualComCompraPrevia | number:'1.0-1' }}%)</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#9f1239"></i>
+            <span>Cancelados antes da decisão</span>
+            <strong>{{ d.resumo.canceladas }} ({{ d.resumo.taxaCancelamento | number:'1.0-1' }}%)</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#7c3aed"></i>
+            <span>Ticket médio pedido · autorizado</span>
+            <strong>{{ moeda(d.valores.ticketMedioSolicitado) }} · {{ moeda(d.valores.ticketMedioAprovado) }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#475569"></i>
+            <span>Preenchimento dos pedidos</span>
+            <strong>{{ d.qualidade.percentualPreenchimento | number:'1.0-1' }}% dos campos de apoio informados</strong>
+          </div>
+        </div>
+      </section>
+
+    } @else {
+      <div class="dash-panel dash-empty"><i class="pi pi-inbox"></i>Não há dados disponíveis para os filtros selecionados.</div>
+    }
+  </div>
+</main>
+</app-copiloto-area>
+
+<app-dashboard-drill [recorte]="recorteDrill()" (fechar)="drill.close()" />

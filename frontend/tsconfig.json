@@ -1,0 +1,43 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "paths": {
+      "@ces/ui": ["./src/app/design-system/index.ts"],
+      "@ces/ui/forms": ["./src/app/design-system/forms/index.ts"],
+      "@ces/ui/autocomplete": ["./src/app/design-system/autocomplete/index.ts"],
+      "@ces/ui/data": ["./src/app/design-system/data/index.ts"],
+      "@ces/ui/overlays": ["./src/app/design-system/overlays/index.ts"],
+      "@ces/ui/feedback": ["./src/app/design-system/feedback/index.ts"],
+      "@ces/ui/patterns": ["./src/app/design-system/patterns/index.ts"],
+      "@ces/ui/testing": ["./src/app/design-system/testing/index.ts"]
+    }
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}

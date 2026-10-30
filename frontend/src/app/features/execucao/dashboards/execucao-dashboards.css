@@ -1,0 +1,1003 @@
+/*
+ * Cartões de equipe e painéis dos dashboards operacional e de turnos.
+ *
+ * O cabeçalho, os filtros, as métricas do topo e os painéis vêm do shell compartilhado
+ * (shared/styles/dashboard-shell.css). Aqui ficam só as peças das duas telas de
+ * execução, todas em tokens semânticos do Nexo para acompanharem o tema escuro.
+ */
+
+:host {
+  display: block;
+}
+
+.ed-panel-icon {
+  margin-right: 0.35rem;
+  color: var(--ces-brand);
+  font-size: 0.9em;
+}
+
+.ed-section {
+  margin-top: 0.5rem;
+}
+
+.ed-section__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.ed-section__header h2 {
+  margin: 0;
+  color: var(--ces-foreground);
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
+}
+
+.ed-section__header p {
+  margin: 0.25rem 0 0;
+  color: var(--ces-foreground-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.ed-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ed-periodos {
+  width: fit-content;
+  max-width: 100%;
+  margin: -0.5rem 0 1.25rem;
+  overflow-x: auto;
+}
+
+.ed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 1rem;
+}
+
+/* ------------------------------------------------------------------ cartão de equipe */
+
+.ed-team {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.1rem 1.15rem 1rem;
+  border: 1px solid var(--ces-border);
+  border-top: 3px solid var(--ces-brand);
+  border-radius: var(--ces-radius-xl, 1rem);
+  background: var(--ces-surface);
+  box-shadow: var(--ces-shadow-sm);
+}
+
+.ed-team[data-atencao='true'] {
+  border-color: color-mix(in srgb, var(--ces-warning) 45%, var(--ces-border));
+  border-top-color: var(--ces-warning);
+}
+
+.ed-team[data-apagada='true'] {
+  border-top-color: var(--ces-border-strong);
+  background: var(--ces-surface-subtle);
+}
+
+.ed-team__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ed-team__avatar {
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--ces-radius-lg, 0.75rem);
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+  font-size: 1.1rem;
+}
+
+.ed-team__avatar[data-situacao='EM_TURNO'] {
+  background: var(--ces-success-soft);
+  color: var(--ces-success-text);
+}
+
+.ed-team__avatar[data-situacao='SEM_TURNO'] {
+  background: var(--ces-surface-muted);
+  color: var(--ces-foreground-subtle);
+}
+
+.ed-team__title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ed-team__eyebrow {
+  display: block;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ed-team__title h3 {
+  margin: 0.05rem 0 0;
+  overflow: hidden;
+  color: var(--ces-foreground);
+  font-size: 1.15rem;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ed-team__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ed-team__tags li {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--ces-surface-muted);
+  color: var(--ces-foreground-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ed-team__tags i {
+  font-size: 0.7rem;
+}
+
+/* Bloco da meta: o protagonista do cartão. */
+.ed-goal {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--ces-goal-border, var(--ces-border));
+  border-radius: var(--ces-radius-lg, 0.75rem);
+  background: var(--ces-goal-bg, var(--ces-surface-subtle));
+  --ces-goal-text: var(--ces-foreground);
+}
+
+.ed-goal[data-tone='success'] {
+  --ces-goal-bg: var(--ces-success-soft);
+  --ces-goal-border: color-mix(in srgb, var(--ces-success) 30%, transparent);
+  --ces-goal-text: var(--ces-success-text);
+}
+
+.ed-goal[data-tone='warning'] {
+  --ces-goal-bg: var(--ces-warning-soft);
+  --ces-goal-border: color-mix(in srgb, var(--ces-warning) 30%, transparent);
+  --ces-goal-text: var(--ces-warning-text);
+}
+
+.ed-goal[data-tone='danger'] {
+  --ces-goal-bg: var(--ces-danger-soft);
+  --ces-goal-border: color-mix(in srgb, var(--ces-danger) 30%, transparent);
+  --ces-goal-text: var(--ces-danger-text);
+}
+
+.ed-goal__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ed-goal__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ces-foreground-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ed-goal__label i {
+  color: var(--ces-goal-text);
+}
+
+.ed-goal__pct {
+  color: var(--ces-goal-text);
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.ed-goal__rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  color: var(--ces-foreground-muted);
+  font-size: 0.72rem;
+  list-style: none;
+}
+
+.ed-goal__rows li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ed-goal__rows strong {
+  color: var(--ces-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-goal__rows i {
+  font-size: 0.68rem;
+}
+
+.ed-goal__empty {
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+/* Indicadores rápidos. */
+.ed-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.ed-figure {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md, 0.5rem);
+}
+
+.ed-figure__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ed-figure__label i {
+  color: var(--ces-brand);
+  font-size: 0.7rem;
+}
+
+.ed-figure strong {
+  overflow: hidden;
+  color: var(--ces-foreground);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ed-subtitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ed-team__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.65rem 0 0;
+  border-top: 1px solid var(--ces-border);
+}
+
+.ed-team__facts div {
+  min-width: 0;
+}
+
+.ed-team__facts dt {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ed-team__facts dd {
+  margin: 0.15rem 0 0;
+  overflow: hidden;
+  color: var(--ces-foreground);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ed-team__note {
+  margin: 0;
+  color: var(--ces-foreground-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.ed-team__note--icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--ces-radius-md, 0.5rem);
+  background: var(--ces-surface-muted);
+}
+
+.ed-team__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.ed-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--ces-radius-sm, 0.375rem);
+  color: var(--ces-brand);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ed-link:hover {
+  color: var(--ces-brand-hover);
+  text-decoration: underline;
+}
+
+.ed-link:focus-visible {
+  outline: 2px solid var(--ces-focus-ring, var(--ces-brand));
+  outline-offset: 2px;
+}
+
+/* Abre a análise detalhada da equipe (drill-down). */
+.ed-team__actions {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ed-analisar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--ces-brand) 35%, var(--ces-border));
+  border-radius: 999px;
+  background: var(--ces-surface);
+  color: var(--ces-brand);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background var(--ces-duration-fast) var(--ces-ease-standard), border-color var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.ed-analisar:hover {
+  border-color: var(--ces-brand);
+  background: var(--ces-brand-soft);
+}
+
+.ed-analisar:focus-visible {
+  outline: 2px solid var(--ces-focus-ring, var(--ces-brand));
+  outline-offset: 2px;
+}
+
+.ed-analisar:active {
+  transform: translateY(1px);
+}
+
+/* Aviso dentro do cartão (sem lançamento recente, turno esquecido aberto). */
+.ed-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--ces-radius-md, 0.5rem);
+  background: var(--ces-warning-soft);
+  color: var(--ces-warning-text);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ed-alert i {
+  margin-top: 0.1rem;
+}
+
+/* ------------------------------------------------------------------ barras de produção diária */
+
+.ed-bars {
+  display: flex;
+  height: 44px;
+  align-items: flex-end;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ed-bars li {
+  display: flex;
+  height: 100%;
+  min-width: 2px;
+  flex: 1 1 0;
+  align-items: flex-end;
+}
+
+.ed-bars span {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--ces-brand);
+}
+
+.ed-bars li[data-vazio='true'] span {
+  background: var(--ces-border);
+}
+
+.ed-bars__axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ linha do tempo do turno */
+
+.ed-timeline {
+  position: relative;
+  height: 28px;
+  margin: 0.25rem 0.4rem 0;
+}
+
+.ed-timeline__track {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--ces-surface-muted);
+  transform: translateY(-50%);
+}
+
+.ed-timeline__track[data-aberto='true'] {
+  background: linear-gradient(90deg, var(--ces-surface-muted) 0 92%, color-mix(in srgb, var(--ces-success) 40%, transparent));
+}
+
+.ed-timeline__mark {
+  position: absolute;
+  top: 50%;
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border: 2px solid var(--ces-surface);
+  border-radius: 50%;
+  background: var(--ces-brand);
+  box-shadow: 0 0 0 1px var(--ces-brand);
+  transform: translateY(-50%);
+  transition: transform var(--ces-duration-fast, 120ms) var(--ces-ease-standard, ease);
+}
+
+.ed-timeline__mark:hover,
+.ed-timeline__mark:focus-visible {
+  transform: translateY(-50%) scale(1.35);
+}
+
+.ed-timeline__mark:focus-visible {
+  outline: 2px solid var(--ces-focus-ring, var(--ces-brand));
+  outline-offset: 2px;
+}
+
+.ed-timeline__axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.2rem 0.1rem 0;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-timeline__empty {
+  margin: 0;
+  color: var(--ces-foreground-subtle);
+  font-size: 0.72rem;
+}
+
+.ed-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ed-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  border: 1px dashed var(--ces-border-strong);
+  border-radius: var(--ces-radius-xl, 1rem);
+  color: var(--ces-foreground-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.ed-empty i {
+  font-size: 1.4rem;
+}
+
+/* Notas e produção por tipo de serviço. */
+.ed-tipos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.ed-tipos th,
+.ed-tipos td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--ces-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.ed-tipos thead th {
+  color: var(--ces-foreground-subtle);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ed-tipos tbody th {
+  color: var(--ces-foreground);
+  font-weight: 600;
+}
+
+.ed-tipos tbody tr:last-child th,
+.ed-tipos tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ed-tipos .ed-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ed-tipos__codigo {
+  margin-right: 0.35rem;
+  color: var(--ces-foreground-muted);
+  font-family: var(--ces-font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+}
+
+.ed-tipos__fatia {
+  width: 32%;
+  min-width: 10rem;
+}
+
+/* Linha de tipo clicável: abre a análise do tipo. */
+.ed-tipos__abrir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 100%;
+  margin: -0.25rem -0.4rem;
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  border-radius: var(--ces-radius-sm, 0.375rem);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ed-tipos__abrir > i {
+  color: var(--ces-foreground-subtle);
+  font-size: 0.75rem;
+  transition: transform var(--ces-duration-fast) var(--ces-ease-standard), color var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.ed-tipos tbody tr:hover .ed-tipos__abrir,
+.ed-tipos__abrir:hover {
+  color: var(--ces-brand);
+}
+
+.ed-tipos tbody tr:hover .ed-tipos__abrir > i,
+.ed-tipos__abrir:hover > i {
+  color: var(--ces-brand);
+  transform: translateX(2px);
+}
+
+.ed-tipos tbody tr:hover {
+  background: var(--ces-surface-subtle);
+}
+
+.ed-tipos__abrir:focus-visible {
+  outline: 2px solid var(--ces-focus-ring, var(--ces-brand));
+  outline-offset: 1px;
+}
+
+/* Notas sem tipo: em itálico, além do rótulo "Não informado" (não depende só de estilo). */
+.ed-tipos__sem-tipo th {
+  color: var(--ces-foreground-muted);
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ agrupamento e miniaturas das equipes */
+
+.ed-equipes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin: -0.25rem 0 1rem;
+}
+
+.ed-equipes-toolbar__grupo {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ed-equipes-toolbar__rotulo {
+  flex: 0 0 auto;
+  color: var(--ces-foreground-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.ed-equipes-toolbar .dash-tab i {
+  margin-right: 0.2rem;
+  font-size: 0.72rem;
+}
+
+.ed-grupo + .ed-grupo {
+  margin-top: 1.5rem;
+}
+
+.ed-grupo__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.9rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ces-border);
+}
+
+.ed-grupo__head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--ces-foreground);
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+}
+
+.ed-grupo__head h3 i {
+  color: var(--ces-brand);
+  font-size: 0.85rem;
+}
+
+.ed-grupo__numeros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+  padding: 0;
+  color: var(--ces-foreground-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  list-style: none;
+}
+
+.ed-grupo__numeros strong {
+  color: var(--ces-foreground);
+}
+
+.ed-grupo__numeros [data-tone='success'] strong {
+  color: var(--ces-success-text);
+}
+
+.ed-grupo__numeros [data-tone='warning'] strong {
+  color: var(--ces-warning-text);
+}
+
+.ed-grupo__numeros [data-tone='danger'] strong {
+  color: var(--ces-danger-text);
+}
+
+/* Miniatura: o essencial do cartão (situação, produção, meta e integrantes), várias por linha. */
+.ed-minis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13.5rem), 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ed-mini {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.8rem 0.85rem 0.75rem;
+  border: 1px solid var(--ces-border);
+  border-top: 3px solid var(--ces-brand);
+  border-radius: var(--ces-radius-xl, 1rem);
+  background: var(--ces-surface);
+  box-shadow: var(--ces-shadow-sm);
+  color: var(--ces-foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--ces-duration-fast, 120ms) var(--ces-ease-standard, ease),
+    box-shadow var(--ces-duration-fast, 120ms) var(--ces-ease-standard, ease);
+}
+
+.ed-mini[data-situacao='SEM_TURNO'] {
+  border-top-color: var(--ces-border-strong);
+  background: var(--ces-surface-subtle);
+}
+
+.ed-mini[data-atencao='true'] {
+  border-color: color-mix(in srgb, var(--ces-warning) 45%, var(--ces-border));
+  border-top-color: var(--ces-warning);
+}
+
+.ed-mini:hover {
+  border-color: color-mix(in srgb, var(--ces-brand) 45%, var(--ces-border));
+  box-shadow: var(--ces-shadow-md, var(--ces-shadow-sm));
+}
+
+.ed-mini:focus-visible {
+  outline: 2px solid var(--ces-focus-ring, var(--ces-brand));
+  outline-offset: 2px;
+}
+
+.ed-mini__topo {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ed-mini__avatar {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--ces-radius-md, 0.5rem);
+  font-size: 0.9rem;
+}
+
+.ed-mini__titulo {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 0.1rem;
+}
+
+.ed-mini__codigo {
+  overflow: hidden;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ed-mini__alerta {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  color: var(--ces-warning-text);
+  font-size: 0.8rem;
+}
+
+.ed-mini__situacao {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.3rem;
+  overflow: hidden;
+  color: var(--ces-foreground-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ed-mini__situacao i {
+  font-size: 0.68rem;
+}
+
+.ed-mini[data-situacao='EM_TURNO'] .ed-mini__situacao {
+  color: var(--ces-success-text);
+}
+
+.ed-mini__numeros {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ed-mini__valor {
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.ed-mini__notas {
+  color: var(--ces-foreground-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ed-mini__meta {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--ces-foreground-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  --ed-mini-tom: var(--ces-foreground-subtle);
+}
+
+.ed-mini__meta[data-tone='success'] {
+  --ed-mini-tom: var(--ces-success);
+  color: var(--ces-success-text);
+}
+
+.ed-mini__meta[data-tone='warning'] {
+  --ed-mini-tom: var(--ces-warning);
+  color: var(--ces-warning-text);
+}
+
+.ed-mini__meta[data-tone='danger'] {
+  --ed-mini-tom: var(--ces-danger);
+  color: var(--ces-danger-text);
+}
+
+.ed-mini__barra {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--ces-surface-muted);
+}
+
+.ed-mini__barra span {
+  display: block;
+  max-width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ed-mini-tom);
+}
+
+.ed-mini__integrantes {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: auto;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--ces-border);
+  color: var(--ces-foreground-muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.ed-mini__integrantes i {
+  margin-top: 0.1rem;
+  font-size: 0.68rem;
+}
+
+.ed-mini__integrantes span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+@media (max-width: 560px) {
+  .ed-tipos__fatia {
+    display: none;
+  }
+
+  .ed-team__facts,
+  .ed-figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ed-minis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .ed-equipes-toolbar__grupo .dash-tabs {
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ed-timeline__mark,
+  .ed-analisar,
+  .ed-mini,
+  .ed-tipos__abrir > i {
+    transition: none;
+  }
+
+  .ed-analisar:active,
+  .ed-tipos__abrir:hover > i,
+  .ed-tipos tbody tr:hover .ed-tipos__abrir > i {
+    transform: none;
+  }
+}

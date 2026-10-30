@@ -1,0 +1,14 @@
+# Railway deploy config — PWA Nexo Field App (servida via Nginx)
+#
+# IMPORTANTE: defina estas variáveis de ambiente no serviço (aba Variables):
+#   NGINX_ENVSUBST_FILTER = PORT
+#     -> faz o envsubst da imagem Nginx substituir SOMENTE ${PORT} no template,
+#        preservando as variáveis internas do Nginx ($uri, $host, etc.).
+#   PORT é injetada automaticamente pelo Railway; o nginx.conf usa `listen ${PORT}`.
+
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

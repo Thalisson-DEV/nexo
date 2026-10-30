@@ -1,0 +1,29 @@
+:host { display: block; width: 100%; min-width: 0; }
+.step-circle { display: inline-flex; width: 2rem; height: 2rem; align-items: center; justify-content: center; border-width: 2px; border-radius: 9999px; transition: all .3s; }
+.step-active { border-color: var(--p-primary-600); background: var(--p-primary-600); color: #fff; }
+:host-context(.app-dark) .step-active, :host-context(.dark) .step-active { border-color: var(--p-primary-500); background: var(--p-primary-500); color: #fff; }
+.step-inactive { border-color: #e2e8f0; color: #94a3b8; }
+:host-context(.app-dark) .step-inactive, :host-context(.dark) .step-inactive { border-color: #334155; color: #64748b; }
+.step-label { font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.section-marker { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; border-left: 2px solid var(--p-primary-500); padding-left: .75rem; }
+:host-context(.app-dark) .section-marker, :host-context(.dark) .section-marker { border-left-color: var(--p-primary-500); }
+.section-marker span { color: #374151; font-size: 10px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; }
+:host-context(.app-dark) .section-marker span, :host-context(.dark) .section-marker span { color: #ffffff; }
+.review-card { border: 1px solid #f1f5f9; border-radius: .5rem; background: #f8fafc80; padding: .65rem .75rem; }
+:host-context(.app-dark) .review-card, :host-context(.dark) .review-card { border-color: #334155; background: #1e293b; }
+.review-card > span { color: #94a3b8; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+:host-context(.app-dark) .review-card > span, :host-context(.dark) .review-card > span { color: var(--p-primary-400); }
+.review-card p { margin-top: .25rem; color: #334155; font-size: 11px; line-height: 1.25rem; }
+:host-context(.app-dark) .review-card p, :host-context(.dark) .review-card p { color: #ffffff; }
+:host ::ng-deep .p-select,
+:host ::ng-deep .p-multiselect,
+:host ::ng-deep .p-datepicker { width: 100%; }
+:host-context(.app-dark) ::ng-deep .p-select, :host-context(.dark) ::ng-deep .p-select,
+:host-context(.app-dark) ::ng-deep .p-multiselect, :host-context(.dark) ::ng-deep .p-multiselect,
+:host-context(.app-dark) ::ng-deep .p-datepicker, :host-context(.dark) ::ng-deep .p-datepicker { border-color: #334155; }
+:host ::ng-deep .p-stepper,
+:host ::ng-deep .p-steppanels,
+:host ::ng-deep .p-steppanel { display: block; width: 100%; min-width: 0; max-width: 100%; }
+:host ::ng-deep .p-steppanel > .p-motion,
+:host ::ng-deep .p-steppanel-content-wrapper,
+:host ::ng-deep .p-steppanel-content { width: 100%; min-width: 0; max-width: 100%; }

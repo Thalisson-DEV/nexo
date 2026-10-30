@@ -1,0 +1,480 @@
+/*
+ * Kit de formulário (ces-form-page, ces-form-drawer, ces-form-section, ces-form-field,
+ * ces-form-actions, ces-form-summary, ces-form-stepper). Só classes novas `ces-form-*`:
+ * não altera telas que não usam o kit (inclusive as exceções Desconto e Inspeção).
+ */
+@layer ces.components {
+  /* ---------- Página ---------- */
+  .ces-form-page {
+    --ces-form-page-max: 64rem;
+    display: grid;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: var(--ces-form-page-max);
+    margin-inline: auto;
+    min-width: 0;
+  }
+  .ces-form-page--md { --ces-form-page-max: 48rem; }
+  .ces-form-page--xl,
+  .ces-form-page--nav { --ces-form-page-max: 80rem; }
+
+  .ces-form-page__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .ces-form-page__breadcrumb ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-font-caption);
+  }
+  .ces-form-page__breadcrumb li + li::before {
+    content: '\203A';
+    margin-right: 0.35rem;
+    color: var(--ces-foreground-subtle);
+  }
+  .ces-form-page__breadcrumb a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .ces-form-page__breadcrumb a:hover { color: var(--ces-brand); }
+  .ces-form-page__breadcrumb [aria-current='page'] { color: var(--ces-foreground); font-weight: 600; }
+
+  .ces-form-page__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: var(--ces-control-height-sm);
+    margin-left: auto;
+    padding: 0 0.75rem;
+    border: 1px solid var(--ces-border);
+    border-radius: var(--ces-radius-sm);
+    background: var(--ces-surface);
+    color: var(--ces-foreground);
+    font-size: var(--ces-font-control);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--ces-duration-fast) var(--ces-ease-standard);
+  }
+  .ces-form-page__back:hover { background: var(--ces-surface-muted); }
+
+  /* ---------- Card (único fundo/borda/raio para todos os formulários) ---------- */
+  .ces-form-card {
+    display: grid;
+    min-width: 0;
+    border: 1px solid var(--ces-form-card-border);
+    border-radius: var(--ces-form-card-radius);
+    background: var(--ces-form-card-bg);
+    box-shadow: var(--ces-form-card-shadow);
+  }
+
+  .ces-form-card__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: var(--ces-form-card-padding);
+    border-bottom: 1px solid var(--ces-form-card-border);
+  }
+  .ces-form-card__icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--ces-radius-md);
+    background: var(--ces-brand-soft);
+    color: var(--ces-brand);
+    font-size: 1.05rem;
+  }
+  .ces-form-card__heading { display: grid; flex: 1; gap: 0.15rem; min-width: 0; }
+  .ces-form-card__eyebrow {
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-font-caption);
+    font-weight: 600;
+  }
+  .ces-form-card__title {
+    margin: 0;
+    color: var(--ces-foreground);
+    font-size: var(--ces-form-title-size);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .ces-form-card__description {
+    margin: 0;
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-font-control);
+    line-height: 1.45;
+  }
+  .ces-form-card__header-actions { display: flex; flex: none; align-items: center; gap: 0.5rem; }
+  .ces-form-card__help {
+    display: grid;
+    place-items: center;
+    width: var(--ces-control-height-md);
+    height: var(--ces-control-height-md);
+    border: 0;
+    border-radius: var(--ces-radius-sm);
+    background: transparent;
+    color: var(--ces-foreground-muted);
+    cursor: pointer;
+  }
+  .ces-form-card__help:hover { background: var(--ces-surface-muted); color: var(--ces-brand); }
+
+  .ces-form-card > .ces-form-stepper {
+    padding: 0.85rem var(--ces-form-card-padding) 0;
+  }
+
+  .ces-form-card__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ces-form-section-gap);
+    padding: var(--ces-form-card-padding);
+    min-width: 0;
+  }
+  .ces-form-card__body,
+  .ces-form-card__content {
+    display: grid;
+    gap: var(--ces-form-section-gap);
+    min-width: 0;
+  }
+  .ces-form-card__aside:empty { display: none; }
+
+  @media (min-width: 64rem) {
+    .ces-form-card__layout:has(> .ces-form-card__aside:not(:empty)) {
+      grid-template-columns: minmax(0, 1fr) 18rem;
+    }
+    .ces-form-page--nav .ces-form-card__layout {
+      grid-template-columns: 11rem minmax(0, 1fr);
+    }
+    .ces-form-page--nav .ces-form-card__layout:has(> .ces-form-card__aside:not(:empty)) {
+      grid-template-columns: 11rem minmax(0, 1fr) 18rem;
+    }
+    .ces-form-card__aside { position: sticky; top: 1rem; align-self: start; }
+  }
+
+  /* Rodapé fixo: continua ao alcance com a página rolando (o shell rola no <main>). */
+  .ces-form-card__footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 0.75rem var(--ces-form-card-padding);
+    border-top: 1px solid var(--ces-form-card-border);
+    border-radius: 0 0 var(--ces-form-card-radius) var(--ces-form-card-radius);
+    background: var(--ces-form-footer-bg);
+    backdrop-filter: blur(6px);
+  }
+  .ces-form-card__footer:empty { display: none; }
+
+  /* ---------- Índice de seções (tipo C) ---------- */
+  .ces-form-nav { display: none; }
+  @media (min-width: 64rem) {
+    .ces-form-nav { display: block; position: sticky; top: 1rem; align-self: start; }
+  }
+  .ces-form-nav ol {
+    display: grid;
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0 0 0 0.25rem;
+    border-left: 2px solid var(--ces-form-card-border);
+    list-style: none;
+  }
+  .ces-form-nav a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: -0.35rem;
+    padding: 0.4rem 0.6rem;
+    border-left: 2px solid transparent;
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-font-control);
+    text-decoration: none;
+  }
+  .ces-form-nav a:hover { color: var(--ces-foreground); }
+  .ces-form-nav .ces-form-nav__link--active {
+    border-left-color: var(--ces-brand);
+    color: var(--ces-brand);
+    font-weight: 600;
+  }
+
+  /* ---------- Seção + grade de 12 colunas ---------- */
+  .ces-form-section { display: grid; gap: 0.85rem; min-width: 0; scroll-margin-top: 1rem; }
+  .ces-form-section + .ces-form-section {
+    padding-top: var(--ces-form-section-gap);
+    border-top: 1px solid var(--ces-form-card-border);
+  }
+  .ces-form-section__header { display: flex; align-items: center; gap: 0.6rem; }
+  .ces-form-section__icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--ces-radius-sm);
+    background: var(--ces-brand-soft);
+    color: var(--ces-brand);
+    font-size: 0.8rem;
+  }
+  .ces-form-section__heading { display: grid; flex: 1; gap: 0.15rem; min-width: 0; }
+  .ces-form-section__title {
+    margin: 0;
+    color: var(--ces-foreground);
+    font-size: var(--ces-form-section-title-size);
+    font-weight: 700;
+    line-height: 1.35;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .ces-form-section__title:focus { outline: none; }
+  .ces-form-section__description {
+    margin: 0;
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-font-control);
+  }
+  .ces-form-section__actions { margin-left: auto; }
+  .ces-form-section__actions:empty { display: none; }
+
+  .ces-form-section__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ces-form-field-gap);
+    min-width: 0;
+  }
+  @media (min-width: 40rem) {
+    .ces-form-section__grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+    .ces-form-section__grid > * { grid-column: span 12; }
+    .ces-form-section__grid > .ces-form-field { grid-column: span var(--ces-form-span, 12); }
+    .ces-form-section__grid > [data-span='full'] { grid-column: 1 / -1; }
+  }
+
+  /* ---------- Campo ---------- */
+  .ces-form-field { display: grid; align-content: start; gap: 0.35rem; min-width: 0; }
+  .ces-form-field__heading { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+  .ces-form-field__label {
+    color: var(--ces-foreground);
+    font-size: var(--ces-form-label-size);
+    font-weight: 600;
+    line-height: 1.3;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .ces-form-field__required { margin-left: 0.15rem; color: var(--ces-danger-text); }
+  .ces-form-field__help { color: var(--ces-foreground-subtle); font-size: var(--ces-font-control); cursor: help; }
+  .ces-form-field__control { min-width: 0; }
+  .ces-form-field__control > :is(input, textarea, .p-select, .p-multiselect, .p-datepicker, .p-inputnumber,
+    .p-autocomplete, .p-inputtext, .p-textarea, p-select, p-multiselect, p-datepicker, p-inputnumber, p-autocomplete) {
+    width: 100%;
+  }
+  .ces-form-field__message {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin: 0;
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-form-hint-size);
+    line-height: 1.45;
+  }
+  .ces-form-field__message--error { color: var(--ces-danger-text); font-weight: 600; }
+  .ces-form-field--readonly .ces-form-field__control { color: var(--ces-foreground-muted); }
+
+  /* ---------- Ações ---------- */
+  .ces-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  .ces-form-actions__start,
+  .ces-form-actions__end { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .ces-form-actions__end { margin-left: auto; }
+  .ces-form-actions__start:empty { display: none; }
+  @media (max-width: 39.99rem) {
+    .ces-form-actions__end { width: 100%; }
+    .ces-form-actions__end > * { flex: 1 1 auto; }
+    .ces-form-actions__end .p-button { width: 100%; justify-content: center; }
+  }
+
+  /* ---------- Drawer ---------- */
+  .ces-form-drawer.p-drawer {
+    border-color: var(--ces-form-card-border);
+    background: var(--ces-form-card-bg);
+    color: var(--ces-foreground);
+  }
+  .ces-form-drawer .p-drawer-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--ces-form-card-border); }
+  .ces-form-drawer .p-drawer-content { padding: 1.25rem; }
+  .ces-form-drawer .p-drawer-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--ces-form-card-border); }
+  .ces-form-drawer__header { display: flex; align-items: flex-start; gap: 0.75rem; width: 100%; }
+  .ces-form-drawer__heading { display: grid; flex: 1; gap: 0.15rem; min-width: 0; }
+  .ces-form-drawer__title {
+    margin: 0;
+    color: var(--ces-foreground);
+    font-size: var(--ces-form-title-size);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .ces-form-drawer__description { margin: 0; color: var(--ces-foreground-muted); font-size: var(--ces-font-control); }
+  .ces-form-drawer__close {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: var(--ces-control-height-md);
+    height: var(--ces-control-height-md);
+    border: 0;
+    border-radius: var(--ces-radius-sm);
+    background: transparent;
+    color: var(--ces-foreground-muted);
+    cursor: pointer;
+  }
+  .ces-form-drawer__close:hover { background: var(--ces-surface-muted); color: var(--ces-foreground); }
+  .ces-form-drawer__body,
+  .ces-form-drawer__content { display: grid; gap: var(--ces-form-section-gap); min-width: 0; }
+  .ces-form-drawer__footer { width: 100%; }
+  /* O <form> entre o shell e as seções mantém o mesmo espaçamento entre seções. */
+  .ces-form-drawer__content > form,
+  .ces-form-card__content > form {
+    display: grid;
+    gap: var(--ces-form-section-gap);
+    min-width: 0;
+  }
+  /* No drawer as seções já estão dentro do painel: sem a borda dupla do card. */
+  .ces-form-drawer .ces-form-section__grid { gap: 0.85rem; }
+
+  /* ---------- Resumo / pendências (tipo C) ---------- */
+  .ces-form-summary {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--ces-form-card-border);
+    border-radius: var(--ces-radius-md);
+    background: var(--ces-surface-subtle);
+  }
+  .ces-form-summary__title { margin: 0; color: var(--ces-foreground); font-size: var(--ces-form-section-title-size); font-weight: 700; }
+  .ces-form-summary__content:empty { display: none; }
+  .ces-form-summary__pending-title,
+  .ces-form-summary__ready {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: var(--ces-font-control);
+    font-weight: 700;
+  }
+  .ces-form-summary__pending-title { color: var(--ces-danger-text); }
+  .ces-form-summary__ready { color: var(--ces-success-text); }
+  .ces-form-summary__pending { display: grid; gap: 0.25rem; margin: 0.4rem 0 0; padding: 0; list-style: none; }
+  .ces-form-summary__pending button {
+    display: grid;
+    gap: 0.1rem;
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid transparent;
+    border-radius: var(--ces-radius-sm);
+    background: transparent;
+    color: var(--ces-foreground);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ces-form-summary__pending button:hover { border-color: var(--ces-border); background: var(--ces-surface); }
+  .ces-form-summary__field {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: var(--ces-font-control);
+    font-weight: 600;
+  }
+  .ces-form-summary__field i { color: var(--ces-brand); font-size: 0.75rem; }
+  .ces-form-nav a i { font-size: 0.8rem; }
+  .ces-form-summary__error { color: var(--ces-foreground-muted); font-size: var(--ces-font-caption); }
+
+  /* ---------- Stepper (tipo D) ---------- */
+  .ces-form-stepper__list {
+    display: flex;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: none;
+  }
+  .ces-form-stepper__item { position: relative; display: flex; flex: 1; min-width: 0; }
+  .ces-form-stepper__item + .ces-form-stepper__item::before {
+    content: '';
+    align-self: center;
+    width: 1.5rem;
+    height: 1px;
+    margin-right: 0.5rem;
+    background: var(--ces-border-strong);
+  }
+  .ces-form-stepper__button {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    min-height: var(--ces-touch-target);
+    padding: 0.25rem 0.35rem;
+    border: 0;
+    border-radius: var(--ces-radius-sm);
+    background: transparent;
+    color: var(--ces-foreground-muted);
+    text-align: left;
+    cursor: pointer;
+  }
+  .ces-form-stepper__button:disabled { cursor: default; }
+  .ces-form-stepper__marker {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid var(--ces-border-strong);
+    border-radius: 999px;
+    font-size: var(--ces-font-control);
+    font-weight: 700;
+  }
+  .ces-form-stepper__text { display: grid; min-width: 0; }
+  .ces-form-stepper__label { overflow: hidden; font-size: var(--ces-font-control); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  .ces-form-stepper__description { color: var(--ces-foreground-subtle); font-size: var(--ces-font-caption); }
+  .ces-form-stepper__item--active .ces-form-stepper__button { color: var(--ces-foreground); }
+  .ces-form-stepper__item--active .ces-form-stepper__marker {
+    border-color: var(--ces-brand);
+    background: var(--ces-brand);
+    color: var(--p-primary-contrast-color, #fff);
+  }
+  .ces-form-stepper__item--done .ces-form-stepper__marker { border-color: var(--ces-brand); color: var(--ces-brand); }
+  .ces-form-stepper__item--done .ces-form-stepper__button:hover { background: var(--ces-surface-muted); }
+  @media (max-width: 39.99rem) {
+    .ces-form-stepper__item:not(.ces-form-stepper__item--active) .ces-form-stepper__text { display: none; }
+    .ces-form-stepper__item { flex: 0 0 auto; }
+    .ces-form-stepper__item--active { flex: 1; }
+  }
+
+  /* ---------- Skeleton ---------- */
+  .ces-form-skeleton { display: grid; gap: 0.75rem; }
+  .ces-form-skeleton__title,
+  .ces-form-skeleton__row > span {
+    display: block;
+    border-radius: var(--ces-radius-sm);
+    background: linear-gradient(90deg, var(--ces-surface-muted), var(--ces-surface-subtle), var(--ces-surface-muted));
+    background-size: 200% 100%;
+    animation: ces-form-skeleton 1.4s ease-in-out infinite;
+  }
+  .ces-form-skeleton__title { width: 30%; height: 0.9rem; margin-top: 0.5rem; }
+  .ces-form-skeleton__row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .ces-form-skeleton__row > span { height: var(--ces-control-height-md); }
+  @media (prefers-reduced-motion: reduce) {
+    .ces-form-skeleton__title,
+    .ces-form-skeleton__row > span { animation: none; }
+  }
+  @keyframes ces-form-skeleton {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
+  }
+}

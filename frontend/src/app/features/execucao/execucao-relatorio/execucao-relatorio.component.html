@@ -1,0 +1,462 @@
+<div
+  class="min-h-full min-h-screen bg-[var(--ces-surface)] text-[var(--ces-foreground)] relative transition-colors duration-200"
+  [class.p-4]="!isPrintMode()"
+  [class.md:p-8]="!isPrintMode()"
+  [class.print:p-0]="isPrintMode()"
+  [class.print:min-h-0]="isPrintMode()"
+  [class.print:bg-white]="isPrintMode()"
+  [class.print:text-black]="isPrintMode()"
+>
+  @if (loading()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state [state]="'loading'" title="Carregando execução comercial..."
+        description="Consultando serviço executado, materiais e contexto da equipe..."></ces-async-state>
+    </div>
+  } @else if (error()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state [state]="'error'" title="Execução indisponível"
+        [description]="error() || 'Não foi possível carregar os dados.'" actionLabel="Tentar novamente"
+        (action)="loadData()"></ces-async-state>
+    </div>
+  } @else if (execucao(); as e) {
+    @let ctx = contexto();
+    <div class="max-w-6xl mx-auto print:max-w-full pb-32 print:pb-0 rise print:animate-none">
+
+      <!-- 1. CABEÇALHO CORPORATIVO -->
+      <div class="grid grid-cols-3 items-center border-b border-slate-200 dark:border-slate-800 pb-6 mb-6 print:border-slate-300 print:pb-3 print:mb-3" aria-label="Cabeçalho institucional">
+        <div class="flex justify-start">
+          <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14" onerror="this.style.display = 'none'" />
+        </div>
+        <div class="text-center flex flex-col gap-1">
+          <h1 class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100 print:text-black uppercase tracking-wider">NOME DA EMPRESA</h1>
+          <p class="text-[11px] text-slate-700 dark:text-slate-300 print:text-slate-700 font-bold uppercase tracking-widest">Execução Comercial &amp; Gestão de Equipes</p>
+          <p class="text-[11px] text-slate-600 dark:text-slate-400 print:text-slate-600 font-medium">Serviços prestados à Concessionária</p>
+        </div>
+        <div class="flex justify-end">
+          <img src="logo_vertical.svg" alt="Logo Cliente" class="h-16 print:h-14 grayscale opacity-25 print:opacity-20" onerror="this.style.display = 'none'" />
+        </div>
+      </div>
+
+      <!-- 2. TÍTULO -->
+      <div class="py-4 text-center border-y border-slate-200 dark:border-slate-800 print:border-slate-300 my-4 print:py-2 print:my-2">
+        <h2 class="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 print:text-black tracking-tight uppercase">Relatório de Execução Comercial</h2>
+        <div class="flex items-center justify-center gap-2 mt-1.5 flex-wrap text-xs text-slate-600 dark:text-slate-400 print:text-slate-600 font-medium">
+          <span class="font-mono font-bold text-slate-900 dark:text-slate-100 print:text-black">{{ rotuloReferencia().toUpperCase() }} {{ e.referenciaNota }}</span>
+          @if (e.aguardandoNumeroOficial) {
+            <ces-status tone="warning" icon="pi-clock">Sem nº oficial</ces-status>
+          }
+          <span>·</span>
+          <span>Tipo: <strong class="text-slate-900 dark:text-slate-100 print:text-black font-semibold">{{ tipoServico() }}</strong></span>
+          <span>·</span>
+          <span>Lançada em: <strong class="text-slate-900 dark:text-slate-100 print:text-black font-semibold">{{ e.dataLancamento | date: 'dd/MM/yyyy HH:mm' }}</strong></span>
+          <span>·</span>
+          @if (status(); as s) {
+            <ces-status [tone]="s.tom">{{ s.rotulo }}</ces-status>
+          }
+          @if (e.alterada) {
+            <ces-status tone="warning" icon="pi-pencil">Alterada</ces-status>
+          }
+        </div>
+      </div>
+
+      @if (e.alterada) {
+        <div class="nota-alterada mb-6 print:mb-3 page-break-inside-avoid" role="note">
+          <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+          <div>
+            <strong>Esta nota foi alterada depois de sincronizada{{ e.totalAlteracoes > 1 ? ' (' + e.totalAlteracoes + ' vezes)' : '' }}.</strong>
+            <span>Os serviços e materiais abaixo não são mais os que foram lançados em campo.
+              @if (e.dataAlteracao) { Última alteração em {{ e.dataAlteracao | date: 'dd/MM/yyyy HH:mm' }}. }
+              O lançamento original e cada mudança estão na linha do tempo de alterações, no fim do relatório.</span>
+          </div>
+        </div>
+      }
+
+      <!-- 3. DADOS GERAIS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6 bg-slate-50/60 dark:bg-slate-900/40 p-4 md:p-5 rounded-xl border border-slate-200 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:mb-2 print:p-2">
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+            <i class="pi pi-tag text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">Operacional</span>
+          </div>
+          <div class="kv"><span class="kv-l">{{ rotuloReferencia() }}</span><span class="kv-v font-mono">{{ e.referenciaNota }}</span></div>
+          <div class="kv"><span class="kv-l">Lançamento</span><span class="kv-v">{{ tiposNota[e.tipoNota]?.rotulo ?? 'Comum' }}</span></div>
+          @if (e.tipoNota === 'AVULSA') {
+            <div class="kv"><span class="kv-l">Nº provisório</span><span class="kv-v font-mono">{{ e.referenciaProvisoria || '—' }}</span></div>
+            <div class="kv"><span class="kv-l">Nº oficial</span><span class="kv-v" [class.kv-v--muted]="e.aguardandoNumeroOficial">{{ e.aguardandoNumeroOficial ? 'Aguardando' : (e.dataNumeroOficial | date: 'dd/MM/yyyy HH:mm') }}</span></div>
+          }
+          <div class="kv"><span class="kv-l">Tipo de serviço</span><span class="kv-v uppercase" [class.kv-v--muted]="!e.tipoServico">{{ tipoServico() }}</span></div>
+          <div class="kv"><span class="kv-l">Lançada em</span><span class="kv-v">{{ e.dataLancamento | date: 'dd/MM/yyyy HH:mm' }}</span></div>
+          <div class="kv"><span class="kv-l">Município</span><span class="kv-v uppercase" [class.kv-v--muted]="!e.municipio">{{ e.municipio?.nome || 'Não informado' }}</span></div>
+          <div class="kv"><span class="kv-l">Faturado</span><span class="kv-v kv-v--brand">{{ e.valorTotalFaturado | currency: 'BRL' }}</span></div>
+          <div class="kv"><span class="kv-l">Código</span><span class="kv-v font-mono">#{{ e.id.slice(0, 8) }}</span></div>
+        </div>
+
+        <div class="flex flex-col gap-3 md:border-x md:border-slate-200 md:dark:border-slate-800 print:border-x print:border-slate-300 md:px-5 print:px-3">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+            <i class="pi pi-users text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">Equipe</span>
+          </div>
+          <div class="kv"><span class="kv-l">Equipe</span><span class="kv-v uppercase">{{ equipe()?.codigo || '—' }}{{ equipe()?.tipoEquipe ? ' - ' + equipe()!.tipoEquipe!.nome : '' }}</span></div>
+          <div class="kv"><span class="kv-l">Base</span><span class="kv-v">{{ equipe()?.baseOperacional?.nome || '—' }}</span></div>
+          <div class="kv"><span class="kv-l">Processo</span><span class="kv-v">{{ equipe()?.processo?.nome || '—' }}</span></div>
+          <div class="kv"><span class="kv-l">Supervisor</span><span class="kv-v uppercase">{{ nomeColaborador(equipe()?.supervisor) }}</span></div>
+          <div class="kv"><span class="kv-l">Coordenador</span><span class="kv-v uppercase">{{ nomeColaborador(equipe()?.coordenador) }}</span></div>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+            <i class="pi pi-calendar-clock text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">Turno &amp; Vínculos</span>
+          </div>
+          @if (ctx?.turno; as t) {
+            <div class="kv">
+              <span class="kv-l">Turno</span>
+              <div class="flex items-center gap-1 min-w-0">
+                <span class="kv-v font-mono font-bold text-primary-600 dark:text-primary-400">#{{ t.id.slice(0, 8) }}</span>
+                <button type="button" (click)="abrirTurno()" pTooltip="Abrir relatório do turno" aria-label="Abrir relatório do turno"
+                  class="p-1 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-md print:hidden transition-colors cursor-pointer">
+                  <i class="pi pi-external-link text-xs"></i>
+                </button>
+              </div>
+            </div>
+            <div class="kv"><span class="kv-l">Abertura</span><span class="kv-v">{{ t.dataInicio | date: 'dd/MM HH:mm' }}</span></div>
+            <div class="kv"><span class="kv-l">Fechamento</span><span class="kv-v" [class.kv-v--muted]="!t.dataFim">{{ t.dataFim ? (t.dataFim | date: 'dd/MM HH:mm') : 'Em aberto' }}</span></div>
+          } @else {
+            <div class="kv"><span class="kv-l">Turno</span><span class="kv-v kv-v--muted">{{ carregandoContexto() ? 'Carregando...' : 'Não encontrado' }}</span></div>
+          }
+          <div class="kv"><span class="kv-l">Posição</span><span class="kv-v">{{ posicao() ? ordinal(posicao()!.posicao) + ' de ' + posicao()!.total + ' notas' : '—' }}</span></div>
+          <div class="kv"><span class="kv-l">Localização</span><span class="kv-v font-mono" [class.kv-v--muted]="e.latitude == null">{{ e.latitude != null ? e.latitude + ', ' + e.longitude : 'Sem GPS' }}</span></div>
+        </div>
+      </div>
+
+      <!-- 4. CARDS DE RESUMO -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6 print:grid-cols-4 print:gap-2 print:mb-3">
+        <div class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-2xs transition-colors">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Valor da Nota</span>
+            <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60"><i class="pi pi-wallet text-xs"></i></div>
+          </div>
+          <div>
+            <span class="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums block">{{ moeda(e.valorTotalFaturado) }}</span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              @if (variacaoMedia() !== null) { {{ variacao(variacaoMedia()) }} vs. nota média ({{ moeda(ctx?.referenciaEquipe?.valorMedioNota) }}) }
+              @else { {{ e.acoes.length }} {{ e.acoes.length === 1 ? 'ação' : 'ações' }} na nota }
+            </span>
+          </div>
+        </div>
+        <div class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-2xs transition-colors">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Desde a Anterior</span>
+            <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60"><i class="pi pi-stopwatch text-xs"></i></div>
+          </div>
+          <div>
+            <span class="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums block">{{ posicao()?.minutosDesdeAnterior != null ? duracao(posicao()!.minutosDesdeAnterior) : '—' }}</span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              @if (posicao()?.distanciaDaAnteriorKm != null) { a {{ distanciaTexto(posicao()!.distanciaDaAnteriorKm) }} da nota anterior }
+              @else if (posicao()) { {{ posicao()!.posicao === 1 ? 'primeira nota do turno' : 'sem GPS para medir distância' }} }
+              @else { {{ carregandoContexto() ? 'carregando contexto...' : 'turno não encontrado' }} }
+            </span>
+          </div>
+        </div>
+        <div class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-2xs transition-colors">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Materiais</span>
+            <div class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60"><i class="pi pi-box text-xs"></i></div>
+          </div>
+          <div>
+            <span class="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums block">{{ e.materiais.length }}</span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{{ materiaisAplicados() }} aplicados · {{ materiaisRetirados() }} retirados</span>
+          </div>
+        </div>
+        <div class="flex flex-col justify-between p-4 rounded-xl border border-primary-200 dark:border-primary-800/80 bg-primary-50/70 dark:bg-primary-950/40 shadow-2xs transition-colors">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-primary-700 dark:text-primary-300">Equipe no Dia</span>
+            <div class="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/60 text-primary-700 dark:text-primary-300 flex items-center justify-center shrink-0 border border-primary-200/80 dark:border-primary-800/80"><i class="pi pi-flag text-xs"></i></div>
+          </div>
+          <div>
+            @let dia = ctx?.diaDaEquipe;
+            <span class="text-2xl font-bold text-primary-700 dark:text-primary-300 tabular-nums block">
+              {{ dia?.percentualMetaDiaria != null ? percentual(dia!.percentualMetaDiaria) : (dia ? moeda(dia.producao) : '—') }}
+            </span>
+            @if (dia?.percentualMetaDiaria != null) {
+              <div class="barra my-1.5" [attr.data-tone]="tomDaMeta(dia!.percentualMetaDiaria)" role="img"
+                [attr.aria-label]="percentual(dia!.percentualMetaDiaria) + ' da meta do dia'"><span [style.width.%]="dia!.percentualMetaDiaria"></span></div>
+            }
+            <span class="text-[11px] text-primary-600/90 dark:text-primary-400/90 font-medium">
+              @if (dia) {
+                {{ dia.notas }} notas · {{ moeda(dia.producao) }}
+                @if (participacaoNoDia() !== null) { · esta nota é {{ percentual(participacaoNoDia()) }} do dia }
+              } @else { {{ carregandoContexto() ? 'carregando contexto...' : 'sem dados do dia' }} }
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. PONTOS DE ATENÇÃO -->
+      @if (insights().length) {
+        <div class="mb-8 print:mb-4 page-break-inside-avoid">
+          <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Pontos de Atenção</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 print:grid-cols-2 print:gap-2">
+            @for (insight of insights(); track insight.titulo) {
+              <div class="destaque rounded-xl border p-3.5 flex items-start gap-3 print:p-2" [attr.data-tone]="insight.tom">
+                <div class="destaque__icone w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border"><i class="text-sm" [ngClass]="insight.icone"></i></div>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-xs font-bold uppercase tracking-wider">{{ insight.titulo }}</span>
+                  <span class="text-[11px] font-medium opacity-90">{{ insight.texto }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- 6. AÇÕES REALIZADAS -->
+      <div class="mb-8 print:mb-4">
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Ações Realizadas</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">({{ acoes().length }} {{ acoes().length === 1 ? 'ação' : 'ações' }})</span>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs bg-white dark:bg-slate-900/60 print:border-slate-300">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-800/80 print:bg-slate-100 border-b border-slate-200 dark:border-slate-700 print:border-slate-300">
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider w-32">Código</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider">Descrição da Ação</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-right">Valor de Referência</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200">
+              @for (acao of acoes(); track acao.id) {
+                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 print:hover:bg-transparent transition-colors">
+                  <td class="py-2.5 px-3 font-mono font-semibold text-slate-700 dark:text-slate-300 print:text-slate-800">{{ acao.codigo }}</td>
+                  <td class="py-2.5 px-3 text-slate-800 dark:text-slate-200 print:text-black font-medium">{{ acao.nome }}</td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-900 dark:text-slate-100 print:text-black">{{ acao.valor !== null ? (acao.valor | currency: 'BRL') : '-' }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="3" class="py-6 text-center text-[11px] text-slate-400 dark:text-slate-500 italic">Nenhuma ação registrada nesta execução.</td></tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr class="bg-slate-50 dark:bg-slate-800/60 print:bg-slate-100 font-semibold border-t border-slate-200 dark:border-slate-700 print:border-slate-300">
+                <td colspan="2" class="py-3 px-3 text-right text-[11px] text-slate-600 dark:text-slate-400 print:text-slate-700 uppercase">Total faturado da nota:</td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-primary-700 dark:text-primary-300 print:text-black">{{ e.valorTotalFaturado | currency: 'BRL' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        @if (somaReferencia() !== null && somaReferencia() !== e.valorTotalFaturado) {
+          <p class="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+            A soma dos valores de referência ({{ moeda(somaReferencia()) }}) difere do faturado: o valor da nota é calculado no
+            lançamento e não muda se o contrato for reajustado depois.
+          </p>
+        }
+      </div>
+
+      <!-- 7. MATERIAIS -->
+      <div class="mb-8 print:mb-4">
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Materiais Utilizados</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">({{ e.materiais.length }} {{ e.materiais.length === 1 ? 'item' : 'itens' }})</span>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs bg-white dark:bg-slate-900/60 print:border-slate-300">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-800/80 print:bg-slate-100 border-b border-slate-200 dark:border-slate-700 print:border-slate-300">
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider">Código</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider">Material / Descrição</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-center">Unidade</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-right">Quantidade</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-center">Operação</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-center">Nº de Série</th>
+                @if (mostrarOrigem()) {
+                  <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-center">Origem</th>
+                }
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200">
+              @for (item of e.materiais; track item.id) {
+                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 print:hover:bg-transparent transition-colors">
+                  <td class="py-2.5 px-3 font-mono font-semibold text-slate-700 dark:text-slate-300 print:text-slate-800">{{ item.material.codigo }}</td>
+                  <td class="py-2.5 px-3 text-slate-800 dark:text-slate-200 print:text-black font-medium">{{ item.material.descricao }}</td>
+                  <td class="py-2.5 px-3 text-center text-slate-600 dark:text-slate-400 print:text-slate-700">{{ item.material.unidadeMedida }}</td>
+                  <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100 print:text-black">{{ item.quantidade | number: '1.3-3' }}</td>
+                  <td class="py-2.5 px-3 text-center">
+                    <ces-status [tone]="item.operacao === 'APLICADO' ? 'brand' : 'neutral'">{{ item.operacao === 'APLICADO' ? 'Aplicado' : 'Retirado' }}</ces-status>
+                  </td>
+                  <td class="py-2.5 px-3 text-center font-mono text-slate-600 dark:text-slate-400 print:text-slate-700">{{ item.numSerie || '-' }}</td>
+                  @if (mostrarOrigem()) {
+                    <td class="py-2.5 px-3 text-center">
+                      <ces-status [tone]="item.origem === 'CONCESSIONARIA' ? 'info' : 'neutral'">{{ origens[item.origem] }}</ces-status>
+                    </td>
+                  }
+                </tr>
+              } @empty {
+                <tr><td [attr.colspan]="mostrarOrigem() ? 7 : 6" class="py-6 text-center text-[11px] text-slate-400 dark:text-slate-500 italic">Nenhum material registrado nesta execução.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (mostrarOrigem()) {
+          <p class="mt-2 text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600">Material da Concessionária fica só como registro da ocorrência: não entra no saldo nem no consumo da equipe.</p>
+        }
+      </div>
+
+      <!-- 8. NOTAS DO TURNO -->
+      <div class="mb-8 print:mb-4">
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Notas do Mesmo Turno</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">({{ ctx?.lancamentosDoTurno?.length || 0 }} notas)</span>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs bg-white dark:bg-slate-900/60 print:border-slate-300">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-800/80 print:bg-slate-100 border-b border-slate-200 dark:border-slate-700 print:border-slate-300">
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-center">#</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider">Hora</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider">Nota</th>
+                <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-right">Faturamento</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 print:divide-slate-200">
+              @for (l of ctx?.lancamentosDoTurno ?? []; track l.idExecucao; let i = $index) {
+                <tr [class.bg-primary-50]="l.idExecucao === e.id" [class.dark:bg-primary-950/40]="l.idExecucao === e.id">
+                  <td class="py-2.5 px-3 text-center text-slate-500 dark:text-slate-400">{{ i + 1 }}</td>
+                  <td class="py-2.5 px-3 font-mono text-slate-700 dark:text-slate-300">{{ l.dataLancamento | date: 'HH:mm' }}</td>
+                  <td class="py-2.5 px-3">
+                    @if (l.idExecucao === e.id) {
+                      <span class="font-mono font-bold text-slate-900 dark:text-slate-100">{{ l.referenciaNota }}</span>
+                      <span class="text-[11px] text-slate-500 dark:text-slate-400"> (esta nota)</span>
+                    } @else {
+                      <button type="button" (click)="abrirNota(l.idExecucao)" class="font-mono font-bold text-primary-600 dark:text-primary-400 print:text-black hover:underline cursor-pointer">{{ l.referenciaNota }}</button>
+                    }
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-900 dark:text-slate-100">{{ (l.valor ?? 0) | currency: 'BRL' }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" class="py-6 text-center text-[11px] text-slate-400 dark:text-slate-500 italic">{{ carregandoContexto() ? 'Carregando as notas do turno...' : 'Sem informações do turno desta nota.' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 9. MAPA -->
+      <div class="mb-8 print:mb-4 page-break-inside-avoid">
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Geolocalização</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">(em destaque esta nota; as demais do turno numeradas)</span>
+        </div>
+        @if (e.latitude != null && e.longitude != null) {
+          <div #mapa class="mapa w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 print:border-slate-300" role="region" aria-label="Mapa do lançamento"></div>
+        } @else {
+          <div class="w-full h-24 flex items-center justify-center bg-slate-50 dark:bg-slate-900/40 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+            <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium italic">Dados de localização indisponíveis para visualização no mapa.</span>
+          </div>
+        }
+      </div>
+
+      <!-- 10. COMPOSIÇÃO -->
+      @if (equipe()?.membros?.length) {
+        <div class="mb-8 print:mb-4 page-break-inside-avoid">
+          <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Composição da Equipe</span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">({{ equipe()!.membros!.length }} membros, cadastro atual)</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 print:grid-cols-3 print:gap-2">
+            @for (membro of equipe()!.membros ?? []; track membro.id) {
+              <div class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl print:border-slate-300 print:p-2">
+                <div class="w-8 h-8 rounded-full bg-primary-50 dark:bg-primary-950/60 flex items-center justify-center text-primary-700 dark:text-primary-300 text-[10px] font-bold">{{ iniciais(membro.nomeColaborador) }}</div>
+                <div class="flex flex-col gap-0.5 min-w-0">
+                  <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-tight truncate">{{ membro.nomeColaborador }}</span>
+                  <span class="text-[10px] font-medium text-primary-700 dark:text-primary-300 uppercase tracking-widest">{{ membro.funcao || 'Membro' }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- 11. HISTÓRICO DE ALTERAÇÕES (LINHA DO TEMPO) -->
+      @let resumoAlteracoes = e.alterada ? (e.totalAlteracoes === 1 ? '1 alteração' : e.totalAlteracoes + ' alterações') : 'Como foi lançada';
+      @if (isPrintMode()) {
+        <!-- Na impressão a linha do tempo sai aberta: o papel precisa mostrar que a nota mudou. -->
+        <div class="mb-8 print:mb-4 page-break-inside-avoid">
+          <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Histórico de alterações</span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">({{ resumoAlteracoes.toLowerCase() }})</span>
+          </div>
+          <app-historico-nota [idExecucao]="e.id" [versao]="versaoHistorico()"></app-historico-nota>
+        </div>
+      } @else {
+        <div class="mb-8 print:hidden">
+          <p-accordion [value]="historicoAberto()" (valueChange)="historicoAberto.set($event)">
+            <p-accordion-panel value="historico">
+              <!-- O tema deixa o cabeçalho em content-box: com o padding ele passava da largura do conteúdo. -->
+              <p-accordion-header class="!box-border">
+                <div class="flex items-center justify-between w-full gap-3 min-w-0 pr-2">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                      <i class="pi pi-history text-slate-600 dark:text-slate-300 text-sm"></i>
+                    </div>
+                    <div class="flex flex-col gap-0.5 min-w-0 text-left">
+                      <span class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100">Linha do tempo de alterações</span>
+                      <span class="text-xs text-slate-600 dark:text-slate-300 font-normal">Como a nota foi lançada e cada mudança depois: quem, de onde e por quê.</span>
+                    </div>
+                  </div>
+                  <ces-status [tone]="e.alterada ? 'warning' : 'neutral'" [icon]="e.alterada ? 'pi-pencil' : undefined">{{ resumoAlteracoes }}</ces-status>
+                </div>
+              </p-accordion-header>
+              <p-accordion-content>
+                @if (historicoVisivel()) {
+                  <div class="pt-3">
+                    <app-historico-nota [idExecucao]="e.id" [versao]="versaoHistorico()"></app-historico-nota>
+                  </div>
+                }
+              </p-accordion-content>
+            </p-accordion-panel>
+          </p-accordion>
+        </div>
+      }
+
+      <!-- 12. RODAPÉ DE EMISSÃO -->
+      <footer class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 dark:text-slate-300 print:mt-4 print:pt-2">
+        <div class="flex flex-col gap-0.5">
+          <span>Lançamento em: <strong class="text-slate-900 dark:text-slate-100">{{ e.dataLancamento | date: 'dd/MM/yyyy HH:mm' }}</strong></span>
+          <span>Emitido em: <strong class="text-slate-900 dark:text-slate-100">{{ emitidoEm | date: 'dd/MM/yyyy HH:mm' }}</strong></span>
+        </div>
+        <div class="text-right font-semibold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Documento emitido eletronicamente via Sistema Nexo · Execução Comercial
+        </div>
+      </footer>
+    </div>
+
+    <!-- 13. AÇÕES FLUTUANTES -->
+    <div class="fixed bottom-6 right-6 md:bottom-8 md:right-12 flex items-center flex-wrap gap-2.5 print:hidden animate-in slide-in-from-right-4 duration-500 z-50">
+      <p-button icon="pi pi-arrow-left" label="VOLTAR" (onClick)="voltar()"
+        styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></p-button>
+      @if (e.tipoNota === 'AVULSA') {
+        <p-button icon="pi pi-pencil" [label]="e.aguardandoNumeroOficial ? 'NÚMERO OFICIAL' : 'CORRIGIR NÚMERO'" (onClick)="numeroOficialAberto.set(true)"
+          styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></p-button>
+      }
+      @if (podeAlterar()) {
+        <p-button icon="pi pi-pencil" label="ALTERAR NOTA" (onClick)="alteracaoAberta.set(true)"
+          styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></p-button>
+      }
+      @if (e.idTurno) {
+        <p-button icon="pi pi-calendar-clock" label="VER TURNO" (onClick)="abrirTurno()"
+          styleClass="!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-primary-700 cursor-pointer"></p-button>
+      }
+      <p-button icon="pi pi-print" label="IMPRIMIR" (onClick)="imprimir()"
+        styleClass="!rounded-lg !bg-[var(--report-action-strong-bg)] !border-[var(--report-action-strong-bg)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--report-action-strong-bg-hover)] cursor-pointer"></p-button>
+    </div>
+
+    @if (podeAlterar()) {
+      <app-alterar-nota-drawer [(visible)]="alteracaoAberta" [execucao]="e" (alterada)="notaAlterada($event)"></app-alterar-nota-drawer>
+    }
+    @if (e.tipoNota === 'AVULSA') {
+      <app-numero-oficial-dialog [(visible)]="numeroOficialAberto" [execucao]="e" (informado)="numeroInformado($event)"></app-numero-oficial-dialog>
+    }
+  }
+</div>

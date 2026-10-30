@@ -1,0 +1,135 @@
+<div
+  class="ws"
+  [class.ws--desktop]="desktop()"
+  [class.ws--lista-aberta]="listaVisivel()"
+  [class.ws--painel-aberto]="painelAberto()"
+>
+  <aside class="ws__lista" [attr.aria-hidden]="!listaVisivel()" [attr.inert]="listaVisivel() ? null : ''">
+    <app-copiloto-conversas
+      [grupos]="store.grupos()"
+      [ativa]="store.conversaId()"
+      [carregando]="store.carregandoConversas()"
+      [erro]="store.erroConversas()"
+      [busca]="store.busca()"
+      [mobile]="!desktop()"
+      (nova)="nova()"
+      (fechar)="listaAberta.set(false)"
+      (abrir)="abrirConversa($event)"
+      (buscar)="store.buscar($event)"
+      (recarregar)="store.carregarConversas()"
+      (renomear)="store.renomear($event.id, $event.titulo)"
+      (excluir)="excluir($event)"
+    ></app-copiloto-conversas>
+  </aside>
+
+  <section
+    class="ws__chat"
+    aria-label="Conversa com o Copiloto"
+    (dragover)="aoArrastar($event)"
+    (dragleave)="aoSairArrasto($event)"
+    (drop)="aoSoltar($event)"
+  >
+    <header class="ws__topo">
+      <ces-icon-button
+        icon="pi pi-history"
+        [label]="listaVisivel() ? 'Ocultar histórico de conversas' : 'Mostrar histórico de conversas'"
+        (pressed)="alternarLista()"
+      ></ces-icon-button>
+      <img class="ws__avatar" src="icons/copiloto-1.png" alt="" aria-hidden="true" />
+      <div class="ws__identidade">
+        <span class="ws__marca">Copiloto</span>
+        <h1 class="ws__titulo">{{ store.titulo() }}</h1>
+      </div>
+      @if (store.artefatos().length && !painelAberto()) {
+        <ces-button
+          variant="ghost"
+          size="sm"
+          icon="pi pi-objects-column"
+          [label]="'Artefatos (' + store.artefatos().length + ')'"
+          (pressed)="abrirUltimoArtefato()"
+        ></ces-button>
+      }
+      @if (podeConectarIa()) {
+        <ces-icon-button icon="pi pi-link" label="Usar o Nexo no Claude, ChatGPT ou outra IA" tooltip="Conectar sua IA" (pressed)="conectarIa()"></ces-icon-button>
+      }
+      @if (!listaVisivel()) {
+        <ces-icon-button icon="pi pi-plus" label="Nova conversa" (pressed)="nova()"></ces-icon-button>
+      }
+    </header>
+
+    <div class="ws__mensagens" #rolagem (scroll)="aoRolar()">
+      <div class="ws__conteudo" [class.ws__conteudo--vazio]="store.vazia()" role="log" aria-label="Mensagens da conversa" aria-live="off">
+        @if (store.carregandoConversa()) {
+          <ces-async-state state="loading" title="Abrindo a conversa"></ces-async-state>
+        } @else if (store.erroConversa()) {
+          <ces-async-state
+            state="error"
+            title="Não foi possível abrir esta conversa"
+            [description]="store.erroConversa() || undefined"
+            actionLabel="Começar nova conversa"
+            actionIcon="pi pi-plus"
+            (action)="nova()"
+          ></ces-async-state>
+        } @else if (store.vazia()) {
+          <app-copiloto-boas-vindas
+            [capacidades]="store.capacidades()"
+            [erro]="store.erroCapacidades()"
+            [contexto]="store.contexto()"
+            (escolher)="usarSugestao($event)"
+          ></app-copiloto-boas-vindas>
+        } @else {
+          @for (mensagem of store.mensagens(); track mensagem.chave) {
+            <app-copiloto-mensagem [mensagem]="mensagem" (abrirArtefato)="abrirArtefato($event)"></app-copiloto-mensagem>
+          }
+        }
+      </div>
+    </div>
+
+    @if (!grudado() && !store.vazia()) {
+      <div class="ws__fim">
+        <ces-button variant="secondary" size="sm" icon="pi pi-arrow-down" label="Ir para o fim" (pressed)="irParaOFim()"></ces-button>
+      </div>
+    }
+
+    <div class="ws__rodape">
+      @if (store.reconectando()) {
+        <ces-callout tone="warning" icon="pi-sync" [dense]="true">
+          A conexão oscilou. Reconectando à resposta em andamento — nada foi perdido.
+        </ces-callout>
+      }
+      <app-copiloto-compositor
+        [(valor)]="rascunho"
+        [anexos]="store.anexos()"
+        [contexto]="store.vazia() ? store.contexto() : null"
+        [transmitindo]="store.transmitindo()"
+        [parando]="store.parando()"
+        [disponivel]="store.disponivel()"
+        [enviandoAnexos]="store.enviandoAnexos()"
+        (enviar)="enviar($event)"
+        (parar)="store.parar()"
+        (anexar)="store.anexar($event)"
+        (removerAnexo)="store.removerAnexo($event)"
+      ></app-copiloto-compositor>
+      <p class="ws__aviso">O Copiloto só vê o que você pode ver e só grava no Nexo depois que você confirma no cartão. Confira decisões importantes nos módulos de origem.</p>
+    </div>
+
+    @if (arrastando()) {
+      <div class="ws__soltar" aria-hidden="true">
+        <i class="pi pi-paperclip"></i>
+        <span>Solte os arquivos para anexar à mensagem</span>
+      </div>
+    }
+  </section>
+
+  @if (store.artefatoSelecionado(); as artefato) {
+    <aside class="ws__painel" aria-label="Painel de artefatos">
+      <app-copiloto-artefato
+        [artefato]="artefato"
+        [artefatos]="store.artefatos()"
+        (fechar)="store.abrirArtefato(null)"
+        (selecionar)="store.abrirArtefato($event)"
+      ></app-copiloto-artefato>
+    </aside>
+  }
+</div>
+<div class="ces-sr-only" aria-live="polite" role="status">{{ store.anuncio() }}</div>

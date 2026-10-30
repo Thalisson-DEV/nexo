@@ -1,0 +1,26 @@
+/* Automações: visualização de execução. */
+/* execução */
+.aut-json { max-height: 20rem; overflow: auto; margin: 0; padding: 0.625rem 0.75rem; border-radius: var(--ces-radius-md); background: var(--ces-surface-subtle); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--ces-font-control); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.aut-datalist { display: flex; flex-direction: column; margin: 0; border: 1px solid var(--ces-border); border-radius: var(--ces-radius-md); }
+.aut-datalist > div { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); gap: 0.75rem; padding: 0.5rem 0.75rem; }
+.aut-datalist > div + div { border-top: 1px solid var(--ces-border); }
+.aut-datalist dt { color: var(--ces-foreground-muted); font-size: var(--ces-font-body); }
+.aut-datalist dd { margin: 0; font-size: var(--ces-font-body); word-break: break-word; white-space: pre-line; }
+.aut-table { width: 100%; border-collapse: collapse; font-size: var(--ces-font-body); }
+.aut-table th { padding: 0.65rem 1rem; border-bottom: 1px solid var(--ces-border); color: var(--ces-foreground-muted); font-size: var(--ces-font-control); font-weight: 700; text-align: start; }
+.aut-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--ces-border); vertical-align: middle; }
+.aut-table tbody tr:last-child td { border-bottom: 0; }
+.aut-table tr[data-clickable] { cursor: pointer; }
+.aut-table tr[data-clickable]:hover { background: var(--ces-surface-subtle); }
+.aut-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.75rem; }
+.aut-kpi { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.875rem 1rem; border: 1px solid var(--ces-border); border-radius: var(--ces-radius-md); background: var(--ces-surface); }
+.aut-kpi span { color: var(--ces-foreground-muted); font-size: var(--ces-font-control); font-weight: 600; }
+.aut-kpi strong { font-size: 1.05rem; font-weight: 700; }
+
+@media (max-width: 900px) {
+  .aut-panel, .aut-add { position: absolute; top: 0; bottom: 0; z-index: 6; box-shadow: var(--ces-shadow-lg); }
+  .aut-panel { right: 0; }
+  .aut-add { left: 0; }
+  .aut-topbar { flex-wrap: wrap; }
+  .aut-save-state { display: none; }
+}

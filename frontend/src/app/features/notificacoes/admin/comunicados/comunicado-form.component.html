@@ -1,0 +1,522 @@
+<div class="flex flex-col gap-4 pb-28">
+  <div class="flex justify-between items-center">
+    <p-breadcrumb [model]="breadcrumb" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button icon="pi pi-arrow-left" label="Voltar para a lista" [text]="true" severity="secondary"
+      (onClick)="sair()" styleClass="!text-slate-400 !text-[10px] !font-medium" />
+  </div>
+
+  @if (carregando()) {
+    <div class="bg-white rounded-2xl border border-slate-100 min-h-96 flex flex-col items-center justify-center gap-3 dark:bg-slate-900 dark:!border-slate-800">
+      <p-progress-spinner strokeWidth="3" [style]="{ width: '36px', height: '36px' }" />
+      <span class="text-[11px] text-slate-400 dark:text-slate-400">Carregando o comunicado...</span>
+    </div>
+  } @else {
+    <div class="form-shell max-w-4xl w-full mx-auto">
+      <div class="form-shell__header">
+        <div class="flex items-center gap-2 mb-3">
+          <i class="pi pi-megaphone text-primary-700 dark:text-primary-700 text-xs"></i>
+          <span class="text-[10px] font-bold text-gray-500 dark:text-primary-700 uppercase tracking-widest">
+            {{ edicao() ? (modoTexto() ? 'Correção de texto' : 'Editar rascunho') : 'Novo comunicado' }}
+          </span>
+        </div>
+        <h1 class="text-base font-bold text-slate-800 dark:text-white">
+          {{ modoTexto() ? 'Ajustar o texto de um comunicado publicado' : 'Aviso para o mural da equipe' }}
+        </h1>
+        <p class="text-[11px] text-slate-400 mt-1 dark:!text-slate-300">
+          @if (modoTexto()) {
+            Este comunicado já está publicado. Alterar público-alvo, tipo ou apresentação mudaria o
+            que ele significou para quem já leu — por isso só o texto pode ser corrigido aqui.
+          } @else {
+            Escreva o conteúdo, escolha como ele aparece, defina quem recebe e revise antes de gravar.
+          }
+        </p>
+      </div>
+
+      <div class="form-shell__body">
+        <p-stepper [(value)]="activeStep">
+          <p-step-list>
+            <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(1)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-pencil text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-700' : 'text-slate-400 dark:text-slate-500'">Conteúdo</span>
+                </button>
+              </ng-template>
+            </p-step>
+
+            @if (!modoTexto()) {
+              <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+                <ng-template #content let-value="value">
+                  <button type="button" class="step-button" (click)="irPara(2)">
+                    <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-desktop text-[10px]"></i></span>
+                    <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-700' : 'text-slate-400 dark:text-slate-500'">Apresentação</span>
+                  </button>
+                </ng-template>
+              </p-step>
+              <p-step [value]="3" class="flex flex-row flex-auto gap-2">
+                <ng-template #content let-value="value">
+                  <button type="button" class="step-button" (click)="irPara(3)">
+                    <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-users text-[10px]"></i></span>
+                    <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-700' : 'text-slate-400 dark:text-slate-500'">Público-alvo</span>
+                  </button>
+                </ng-template>
+              </p-step>
+            }
+
+            <p-step [value]="4" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(4)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-eye text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-700' : 'text-slate-400 dark:text-slate-500'">Revisão e anexos</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="5" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" [disabled]="true">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-check text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-700' : 'text-slate-400 dark:text-slate-500'">Concluído</span>
+                </button>
+              </ng-template>
+            </p-step>
+          </p-step-list>
+
+          <p-step-panels>
+            <!-- 1. CONTEÚDO -->
+            <p-step-panel [value]="1">
+              <ng-template #content>
+                <form [formGroup]="form" class="mt-6 flex flex-col gap-5">
+                  @if (!modoTexto()) {
+                    <div class="flex flex-col gap-2">
+                      <label class="filter-label !text-slate-600 !text-[11px] dark:!text-primary-700">Tipo do comunicado</label>
+                      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        @for (opcao of tipoOptions; track opcao.value) {
+                          <button type="button" class="choice-card"
+                            [class.choice-card--active]="form.controls.tipo.value === opcao.value"
+                            (click)="form.controls.tipo.setValue(opcao.value)">
+                            <span class="choice-card__icon"><i [class]="iconeTipo(opcao.value)" class="text-xs"></i></span>
+                            <span class="min-w-0">
+                              <span class="choice-card__title">{{ opcao.label }}</span>
+                              <span class="choice-card__desc">{{ tipoDescricao[opcao.value] }}</span>
+                            </span>
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <div class="field">
+                    <label for="titulo">Título *</label>
+                    <input id="titulo" pInputText formControlName="titulo" maxlength="150" class="custom-input"
+                      size="small" placeholder="Resuma o aviso em uma frase" />
+                    <div class="field-meta">
+                      <span class="form-error">@if (form.controls.titulo.touched && form.controls.titulo.invalid) { Informe o título. }</span>
+                      <span>{{ form.controls.titulo.value.length }}/150</span>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label for="resumo">Resumo</label>
+                    <input id="resumo" pInputText formControlName="resumo" maxlength="300" class="custom-input"
+                      size="small" placeholder="Uma linha de apoio, exibida no card e no banner" />
+                    <div class="field-meta">
+                      <span class="field-help">Opcional. Quando existe, é o que a pessoa lê antes de abrir.</span>
+                      <span>{{ form.controls.resumo.value.length }}/300</span>
+                    </div>
+                  </div>
+
+                  <div class="field">
+                    <label for="conteudo">Conteúdo *</label>
+                    <textarea id="conteudo" pTextarea formControlName="conteudo" rows="10" class="w-full !text-[11px]"
+                      placeholder="Escreva o comunicado. Aceita Markdown: **negrito**, listas com -, [links](https://...)"></textarea>
+                    <div class="field-meta">
+                      <span class="form-error">@if (form.controls.conteudo.touched && form.controls.conteudo.invalid) { Informe o conteúdo. }</span>
+                      <span class="field-help">A prévia fica na etapa de revisão.</span>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end mt-3">
+                    <p-button [label]="modoTexto() ? 'REVISAR' : 'APRESENTAÇÃO'" icon="pi pi-arrow-right" iconPos="right"
+                      (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-700 !border-primary-700 dark:!border-primary-700 !text-white !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 2. APRESENTAÇÃO E ENTREGA -->
+            <p-step-panel [value]="2">
+              <ng-template #content>
+                <form [formGroup]="form" class="mt-6 flex flex-col gap-6">
+                  <div>
+                    <div class="section-marker"><span>Onde o aviso aparece</span></div>
+                    <div class="grid grid-cols-1 gap-2 md:grid-cols-3 md:pl-5">
+                      @for (opcao of apresentacaoOptions; track opcao.value) {
+                        <button type="button" class="choice-card"
+                          [class.choice-card--active]="form.controls.apresentacao.value === opcao.value"
+                          (click)="form.controls.apresentacao.setValue(opcao.value)">
+                          <span class="choice-card__icon"><i [class]="iconeApresentacao(opcao.value)" class="text-xs"></i></span>
+                          <span class="min-w-0">
+                            <span class="choice-card__title">{{ opcao.label }}</span>
+                            <span class="choice-card__desc">{{ apresentacaoDescricao[opcao.value] }}</span>
+                          </span>
+                        </button>
+                      }
+                    </div>
+
+                    <div class="md:pl-5 mt-3 flex items-center gap-2 rounded-xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-900/90 dark:!border-slate-800">
+                      <p-checkbox inputId="fixado" formControlName="fixado" [binary]="true" size="small" />
+                      <label for="fixado" class="text-[10px] text-slate-600 dark:text-primary-700 cursor-pointer">
+                        Fixar no topo do mural, à frente dos demais comunicados
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Complementos</span></div>
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:pl-5">
+                      <div class="field md:col-span-2">
+                        <label for="videoUrl">Link de vídeo</label>
+                        <input id="videoUrl" pInputText formControlName="videoUrl" maxlength="500"
+                          class="custom-input" size="small" placeholder="https://youtube.com/watch?v=..." />
+                        <span class="field-help">YouTube e Vimeo aparecem embutidos. Vídeo não é anexo.</span>
+                      </div>
+                      <div class="field">
+                        <label for="acaoRotulo">Rótulo do botão de ação</label>
+                        <input id="acaoRotulo" pInputText formControlName="acaoRotulo" maxlength="50"
+                          class="custom-input" size="small" placeholder="Ex.: Ver procedimento" />
+                      </div>
+                      <div class="field">
+                        <label for="acaoDeeplink">Destino do botão</label>
+                        <input id="acaoDeeplink" pInputText formControlName="acaoDeeplink" maxlength="500"
+                          class="custom-input" size="small" placeholder="/sst/inspecoes" />
+                        <span class="field-help">Rota interna do Nexo. Preencha os dois campos ou nenhum.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Como será entregue</span></div>
+                    <div class="flex flex-col gap-2 md:pl-5">
+                      <div class="flex items-start gap-2 rounded-xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-900/90 dark:!border-slate-800">
+                        <p-checkbox inputId="exigeConfirmacao" formControlName="exigeConfirmacao" [binary]="true" size="small" />
+                        <label for="exigeConfirmacao" class="text-[10px] leading-relaxed text-slate-600 dark:text-primary-700 cursor-pointer">
+                          <strong class="dark:text-primary-700">Exigir "Li e entendi"</strong> — o comunicado insiste até a pessoa confirmar e não
+                          pode ser adiado. Habilita o relatório de confirmação, usado como prova em auditoria.
+                        </label>
+                      </div>
+                      <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                        <div class="flex items-start gap-2 rounded-xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-900/90 dark:!border-slate-800">
+                          <p-checkbox inputId="notificarNoSininho" formControlName="notificarNoSininho" [binary]="true" size="small" />
+                          <label for="notificarNoSininho" class="text-[10px] leading-relaxed text-slate-600 dark:text-primary-700 cursor-pointer">
+                            <strong class="dark:text-primary-700">Notificar no sininho</strong> — interrompe quem já está usando o sistema, com uma
+                            notificação na caixa de entrada de cada destinatário.
+                          </label>
+                        </div>
+                        <div class="flex items-start gap-2 rounded-xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-900/90 dark:!border-slate-800">
+                          <p-checkbox inputId="notificarPorEmail" formControlName="notificarPorEmail" [binary]="true" size="small" />
+                          <label for="notificarPorEmail" class="text-[10px] leading-relaxed text-slate-600 dark:text-primary-700 cursor-pointer">
+                            <strong class="dark:text-primary-700">Enviar por e-mail</strong> — alcança quem não vai abrir o sistema hoje. O e-mail
+                            leva junto os anexos do comunicado.
+                          </label>
+                        </div>
+                      </div>
+
+                      <span class="text-[9px] leading-relaxed text-slate-400 dark:text-slate-400">
+                        As duas escolhas só valem na publicação. Editar um comunicado já publicado não redispara nada.
+                      </span>
+
+                      @if (form.controls.notificarNoSininho.value) {
+                        <div class="field mt-1 max-w-xs">
+                          <label for="prioridade">Prioridade da notificação</label>
+                          <p-select inputId="prioridade" formControlName="prioridadeNotificacao"
+                            [options]="prioridadeOptions" optionLabel="label" optionValue="value"
+                            placeholder="Padrão do sistema" [showClear]="true" class="custom-select" size="small"
+                            appendTo="body" />
+                          <span class="field-help">Crítica ignora as preferências do usuário e sempre é entregue.</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between mt-2">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 dark:!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button label="PÚBLICO-ALVO" icon="pi pi-arrow-right" iconPos="right" (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-700 !border-primary-700 dark:!border-primary-700 !text-white !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 3. PÚBLICO-ALVO -->
+            <p-step-panel [value]="3">
+              <ng-template #content>
+                <form [formGroup]="form" class="mt-6 flex flex-col gap-5">
+                  <div class="flex items-start gap-3 rounded-xl border border-primary-200 bg-primary-50/70 p-3.5 dark:bg-slate-900/90 dark:!border-slate-800">
+                    <i class="pi pi-info-circle mt-0.5 text-sm text-primary-700 dark:text-primary-700 shrink-0"></i>
+                    <span class="text-xs leading-relaxed text-slate-700 dark:text-primary-700">
+                      Some os segmentos: quem estiver em qualquer um deles recebe o comunicado. Ao gravar, esta
+                      lista substitui a anterior por inteiro.
+                    </span>
+                  </div>
+
+                  @if (usuariosIndisponiveis()) {
+                    <span class="text-[9px] text-amber-600 dark:text-amber-400">
+                      A lista de usuários não pôde ser carregada com o seu acesso — use perfil ou tipo de usuário.
+                    </span>
+                  }
+
+                  <div class="flex flex-col gap-2" formArrayName="segmentos">
+                    @for (grupo of segmentos.controls; track $index; let i = $index) {
+                      <div class="repeat-row" [formGroupName]="i">
+                        <div class="field min-w-[180px] flex-grow">
+                          <label>Tipo de alvo</label>
+                          <p-select formControlName="tipoAlvo" [options]="tipoAlvoOptions" optionLabel="label"
+                            optionValue="value" (onChange)="aoTrocarTipoAlvo(grupo)" class="custom-select" size="small"
+                            appendTo="body" />
+                        </div>
+
+                        @if (grupo.controls.tipoAlvo.value === 'PERFIL') {
+                          <div class="field min-w-[200px] flex-grow">
+                            <label>Perfil de acesso</label>
+                            <p-select formControlName="idAlvo" [options]="perfis()" optionLabel="nome" optionValue="id"
+                              [filter]="true" placeholder="Selecione" class="custom-select" size="small" appendTo="body" />
+                          </div>
+                        } @else if (grupo.controls.tipoAlvo.value === 'USUARIO') {
+                          <div class="field min-w-[200px] flex-grow">
+                            <label>Usuário</label>
+                            <p-select formControlName="idAlvo" [options]="listaUsuarios()" optionLabel="login"
+                              optionValue="id" [filter]="true" [loading]="usuariosLoading()" [virtualScroll]="true"
+                              [virtualScrollItemSize]="38" [lazy]="true" placeholder="Selecione" class="custom-select"
+                              size="small" appendTo="body" (onShow)="openUsuarios()"
+                              (onFilter)="searchUsuarios($event)" (onLazyLoad)="loadMoreUsuarios()" />
+                          </div>
+                        } @else if (grupo.controls.tipoAlvo.value === 'TIPO_USUARIO') {
+                          <div class="field min-w-[200px] flex-grow">
+                            <label>Tipo de usuário</label>
+                            <p-select formControlName="valorAlvo" [options]="tipoUsuarioOptions" optionLabel="label"
+                              optionValue="value" placeholder="Selecione" class="custom-select" size="small"
+                              appendTo="body" />
+                          </div>
+                        } @else {
+                          <div class="field min-w-[200px] flex-grow">
+                            <label>Alcance</label>
+                            <span class="flex h-[30px] items-center text-[11px] text-slate-500 dark:!text-slate-300">
+                              Todos os usuários do sistema
+                            </span>
+                          </div>
+                        }
+
+                        <p-button icon="pi pi-trash" [text]="true" [rounded]="true" pTooltip="Remover segmento"
+                          [disabled]="segmentos.controls.length === 1" (onClick)="removerSegmento(i)"
+                          styleClass="!text-red-500 dark:!text-red-400 !w-8 !h-8" />
+                      </div>
+                    }
+                  </div>
+
+                  <div>
+                    <p-button label="Adicionar segmento" icon="pi pi-plus" [text]="true" (onClick)="adicionarSegmento()"
+                      styleClass="!text-[10px] !font-bold !text-primary-700 dark:!text-primary-700" />
+                  </div>
+
+                  <div class="flex justify-between mt-2">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 dark:!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button label="REVISAR" icon="pi pi-arrow-right" iconPos="right" (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-700 !border-primary-700 dark:!border-primary-700 !text-white !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 4. REVISÃO E ANEXOS -->
+            <p-step-panel [value]="4">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-6">
+                  <div>
+                    <div class="section-marker"><span>Como a equipe vai ver</span></div>
+                    <div class="md:pl-5">
+                      <div class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                        <div class="flex items-center gap-2 border-b px-4 py-2.5" [ngClass]="classesTipo(form.controls.tipo.value)">
+                          <i [class]="iconeTipo(form.controls.tipo.value)" class="text-xs"></i>
+                          <span class="text-[9px] font-bold uppercase tracking-widest">{{ previa().tipoRotulo }}</span>
+                          @if (form.controls.fixado.value) {
+                            <i class="pi pi-bookmark-fill ml-auto text-[10px]"></i>
+                          }
+                        </div>
+                        <div class="flex flex-col gap-3 p-4">
+                          <h2 class="text-sm font-bold text-slate-800 dark:text-white">{{ previa().titulo }}</h2>
+                          @if (previa().resumo) {
+                            <p class="text-[12px] font-medium leading-relaxed text-slate-700 dark:text-primary-700">{{ previa().resumo }}</p>
+                          }
+                          <app-comunicado-conteudo [comunicado]="previa()"></app-comunicado-conteudo>
+                          @if (previa().acaoRotulo) {
+                            <div class="pt-1">
+                              <span class="inline-flex items-center gap-1 rounded-lg bg-primary-700 dark:bg-primary-700 px-3 py-1.5 text-[10px] font-bold text-white">
+                                {{ previa().acaoRotulo }} <i class="pi pi-arrow-up-right text-[8px]"></i>
+                              </span>
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  @if (!modoTexto()) {
+                    <div>
+                      <div class="section-marker"><span>Configuração</span></div>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:pl-5">
+                        <div class="review-card"><span>Apresentação</span><p>{{ previa().apresentacao === 'MODAL' ? 'Modal ao entrar' : previa().apresentacao === 'BANNER' ? 'Faixa no topo' : 'Card no mural' }}</p></div>
+                        <div class="review-card"><span>Confirmação de leitura</span><p>{{ form.controls.exigeConfirmacao.value ? 'Exige "Li e entendi"' : 'Não exige' }}</p></div>
+                        <div class="review-card"><span>Sininho</span><p>{{ form.controls.notificarNoSininho.value ? 'Também entrega na caixa de entrada' : 'Somente no mural' }}</p></div>
+                        <div class="review-card"><span>E-mail</span><p>{{ form.controls.notificarPorEmail.value ? 'Envia na publicação, com os anexos' : 'Não envia e-mail' }}</p></div>
+                        <div class="review-card"><span>Vídeo</span><p>{{ form.controls.videoUrl.value || 'Sem vídeo' }}</p></div>
+                        <div class="review-card md:col-span-2">
+                          <span>Público-alvo</span>
+                          <p>{{ resumoPublico().join(' · ') }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  }
+
+                  <div>
+                    <div class="section-marker"><span>Anexos</span></div>
+                    <div class="md:pl-5">
+                      <label class="upload-button">
+                        <i class="pi pi-upload"></i><span>Selecionar imagens ou PDF</span>
+                        <input type="file" multiple hidden accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                          (change)="selecionarArquivos($event)" />
+                      </label>
+                      <p class="mt-2 text-[9px] leading-relaxed text-slate-400 dark:text-slate-400">
+                        JPEG, PNG, WEBP, GIF ou PDF, até 15 MB cada.
+                        @if (!edicao() && !gravado()) {
+                          Os arquivos são enviados logo depois de gravar o comunicado.
+                        }
+                        @if (form.controls.notificarPorEmail.value) {
+                          O e-mail leva os anexos até 8 MB somados; acima disso o arquivo é apenas listado no
+                          corpo, com aviso de que está no sistema.
+                        }
+                      </p>
+
+                      <div class="mt-3 flex flex-col gap-2">
+                        @for (anexo of anexosGravados(); track anexo.id) {
+                          <div class="file-row">
+                            <i class="pi pi-check-circle text-green-600 dark:text-green-400"></i>
+                            <div class="min-w-0 flex-1">
+                              <p>{{ anexo.nomeArquivo }}</p><span>{{ tamanho(anexo.tamanhoBytes) }} · já anexado</span>
+                            </div>
+                            <p-button icon="pi pi-download" [text]="true" [rounded]="true" severity="secondary"
+                              pTooltip="Baixar" (onClick)="baixarAnexoGravado(anexo)" styleClass="!w-7 !h-7 !text-slate-500 dark:!text-slate-300" />
+                            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger"
+                              pTooltip="Remover" (onClick)="removerAnexoGravado(anexo)" styleClass="!w-7 !h-7 !text-red-500 dark:!text-red-400" />
+                          </div>
+                        }
+                        @for (arquivo of arquivos(); track arquivo.file.name + arquivo.file.size; let indice = $index) {
+                          @if (arquivo.status !== 'concluido') {
+                            <div class="file-row">
+                              <i [class]="arquivo.status === 'erro' ? 'pi pi-exclamation-circle text-red-500 dark:text-red-400' : arquivo.status === 'enviando' ? 'pi pi-spin pi-spinner text-primary-700 dark:text-primary-700' : 'pi pi-file text-primary-700 dark:text-primary-700'"></i>
+                              <div class="min-w-0 flex-1">
+                                <p>{{ arquivo.file.name }}</p>
+                                <span [class.!text-red-500]="arquivo.status === 'erro'" [class.!text-red-400]="arquivo.status === 'erro'">
+                                  {{ arquivo.status === 'erro' ? (arquivo.erro || 'Falha no envio') : arquivo.status === 'enviando' ? 'Enviando...' : tamanho(arquivo.file.size) }}
+                                </span>
+                              </div>
+                              @if (arquivo.status === 'erro') {
+                                <p-button label="Reenviar" [text]="true" size="small" (onClick)="tentarNovamente(indice)" styleClass="!text-[10px] !text-primary-700 dark:!text-primary-700" />
+                              } @else if (arquivo.status === 'pendente') {
+                                <p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="secondary"
+                                  (onClick)="removerArquivo(indice)" styleClass="!w-7 !h-7 !text-slate-500 dark:!text-slate-300" />
+                              }
+                            </div>
+                          }
+                        }
+                        @if (anexosGravados().length === 0 && arquivos().length === 0) {
+                          <div class="repeat-empty">Nenhum anexo neste comunicado.</div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-start gap-2 rounded-xl bg-slate-50 p-3 border border-slate-100 dark:bg-slate-900/90 dark:!border-slate-800">
+                    <i class="pi pi-info-circle text-primary-700 dark:text-primary-700 text-xs mt-0.5"></i>
+                    <p class="text-[10px] text-slate-500 dark:text-primary-700">
+                      Gravar não publica. O comunicado fica em rascunho até você publicá-lo na listagem, onde também
+                      é possível agendar a data de início.
+                    </p>
+                  </div>
+
+                  <div class="flex justify-between mt-2">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 dark:!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button [label]="modoTexto() ? 'SALVAR CORREÇÃO' : edicao() ? 'SALVAR RASCUNHO' : 'CRIAR RASCUNHO'"
+                      icon="pi pi-check" [loading]="salvando()" (onClick)="salvar()"
+                      styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-700 !border-primary-700 dark:!border-primary-700 !text-white !py-2.5 !px-8 !font-bold !text-[10px]" />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 5. CONCLUÍDO -->
+            <p-step-panel [value]="5">
+              <ng-template #content>
+                @if (gravado(); as comunicado) {
+                  <div class="mt-6 flex flex-col gap-6">
+                    <div class="bg-primary-50/40 border border-primary-100 rounded-xl px-4 py-4 flex items-start gap-3 dark:bg-slate-900/90 dark:!border-slate-800">
+                      <i class="pi pi-check-circle text-primary-700 dark:text-primary-700 mt-0.5"></i>
+                      <div>
+                        <p class="text-[10px] font-bold text-primary-700 dark:text-primary-700 uppercase tracking-wider">
+                          {{ comunicado.statusRotulo }}
+                        </p>
+                        <p class="text-sm font-bold text-primary-700 dark:text-white mt-1">{{ comunicado.titulo }}</p>
+                        <p class="text-[10px] text-primary-700 dark:!text-slate-300 mt-1">
+                          @if (comunicado.status === 'RASCUNHO') {
+                            Nada foi entregue ainda. Publique quando quiser que a equipe veja.
+                          } @else {
+                            O texto corrigido já está valendo para quem abrir o comunicado.
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    @if (arquivos().length > 0) {
+                      <div>
+                        <div class="section-marker"><span>Status dos anexos</span></div>
+                        <div class="flex flex-col gap-2 md:pl-5">
+                          @for (arquivo of arquivos(); track arquivo.file.name + arquivo.file.size; let indice = $index) {
+                            <div class="file-row">
+                              <i [class]="arquivo.status === 'concluido' ? 'pi pi-check-circle text-green-600 dark:text-green-400' : arquivo.status === 'erro' ? 'pi pi-exclamation-circle text-red-500 dark:text-red-400' : 'pi pi-spin pi-spinner text-primary-700 dark:text-primary-700'"></i>
+                              <div class="min-w-0 flex-1">
+                                <p>{{ arquivo.file.name }}</p>
+                                <span [class.!text-red-500]="arquivo.status === 'erro'" [class.!text-red-400]="arquivo.status === 'erro'">
+                                  {{ arquivo.status === 'concluido' ? 'Enviado' : arquivo.status === 'erro' ? (arquivo.erro || 'Falha no envio') : 'Enviando...' }}
+                                </span>
+                              </div>
+                              @if (arquivo.status === 'erro') {
+                                <p-button label="Tentar novamente" [text]="true" size="small"
+                                  (onClick)="tentarNovamente(indice)" styleClass="!text-[10px] !text-primary-700 dark:!text-primary-700" />
+                              }
+                            </div>
+                          }
+                        </div>
+                      </div>
+                    }
+
+                    <div class="flex flex-wrap justify-end gap-2 pt-5 border-t border-slate-100 dark:!border-slate-800">
+                      <p-button label="VOLTAR PARA A LISTA" [text]="true" (onClick)="sair()"
+                        styleClass="!text-primary-700 dark:!text-primary-700 !font-bold !text-[10px]" />
+                      @if (comunicado.status === 'RASCUNHO') {
+                        <p-button label="PUBLICAR AGORA" icon="pi pi-send" iconPos="right" (onClick)="irParaPublicacao()"
+                          styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-700 !border-primary-700 dark:!border-primary-700 !text-white !py-2.5 !px-8 !font-bold !text-[10px]" />
+                      }
+                    </div>
+                  </div>
+                }
+              </ng-template>
+            </p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </div>
+  }
+</div>

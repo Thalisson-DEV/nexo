@@ -1,0 +1,374 @@
+<div class="chatbot-shell print:hidden">
+  <section
+    class="chatbot-panel"
+    [class.chatbot-panel--open]="isOpen()"
+    [attr.aria-hidden]="!isOpen()"
+    aria-label="Conversa com o Copiloto"
+  >
+    <p-confirmDialog key="assistant-new-chat" appendTo="body" />
+
+    <header class="assistant-header">
+      <div class="assistant-identity">
+        <div class="assistant-avatar-wrap" aria-hidden="true">
+          <p-avatar
+            image="icons/copiloto-1.png"
+            shape="circle"
+            styleClass="assistant-avatar copiloto-avatar"
+          />
+          <span class="assistant-presence-dot"></span>
+        </div>
+        <div class="min-w-0">
+          <h2>Copiloto</h2>
+          <p>
+            @if (isRestarting()) {
+              Começando uma nova conversa...
+            } @else {
+              Seu parceiro para usar o Nexo
+            }
+          </p>
+        </div>
+      </div>
+      <div class="assistant-header-actions">
+        @if (messages().length > 0) {
+          <p-button
+            icon="pi pi-plus"
+            ariaLabel="Começar nova conversa"
+            pTooltip="Nova conversa"
+            tooltipPosition="left"
+            severity="secondary"
+            [text]="true"
+            [rounded]="true"
+            [loading]="isRestarting()"
+            [disabled]="isSending() || hasProcessingMessage()"
+            styleClass="assistant-new-chat-button"
+            (onClick)="confirmRestart()"
+          />
+        }
+        <p-button
+          icon="pi pi-times"
+          ariaLabel="Fechar conversa"
+          pTooltip="Fechar"
+          tooltipPosition="left"
+          severity="secondary"
+          [text]="true"
+          [rounded]="true"
+          styleClass="assistant-close-button"
+          (onClick)="toggleChat()"
+        />
+      </div>
+    </header>
+
+    <div class="sr-only" aria-live="polite" aria-atomic="true">{{ liveAnnouncement() }}</div>
+
+    <div
+      #scrollContainer
+      class="assistant-conversation custom-scrollbar"
+      role="log"
+      aria-label="Conversa"
+    >
+      @if (restartError()) {
+        <div class="restart-error message-enter" role="alert">
+          <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+          <span>{{ restartError() }}</span>
+        </div>
+      }
+
+      @if (isBootstrapping()) {
+        <div class="assistant-loading" role="status">
+          <div class="flex items-center gap-3">
+            <p-skeleton shape="circle" size="2.75rem" />
+            <div class="flex flex-1 flex-col gap-2">
+              <p-skeleton width="42%" height="0.75rem" />
+              <p-skeleton width="68%" height="0.6rem" />
+            </div>
+          </div>
+          <p-skeleton width="92%" height="5rem" borderRadius="1.25rem" />
+          <p-skeleton width="76%" height="3.5rem" borderRadius="1.25rem" />
+          <span>Preparando nossa conversa...</span>
+        </div>
+      } @else if (loadError()) {
+        <div class="assistant-empty-state" role="alert">
+          <p-avatar icon="pi pi-wifi" shape="circle" size="large" styleClass="assistant-error-avatar" />
+          <div>
+            <strong>Não consegui abrir nossa conversa</strong>
+            <p>{{ loadError() }}</p>
+          </div>
+          <p-button
+            label="Tentar de novo"
+            icon="pi pi-refresh"
+            size="small"
+            [outlined]="true"
+            (onClick)="toggleChat(); toggleChat()"
+          />
+        </div>
+      } @else if (messages().length === 0) {
+        <section class="welcome-card message-enter" aria-labelledby="assistant-welcome-title">
+          <div class="welcome-avatar" aria-hidden="true">
+            <span class="welcome-orbit"></span>
+            <p-avatar
+              image="icons/copiloto-1.png"
+              shape="circle"
+              styleClass="assistant-welcome-avatar copiloto-avatar"
+            />
+            <i class="pi pi-sparkles welcome-spark"></i>
+          </div>
+          <div class="welcome-copy">
+            <span class="welcome-kicker">Oi, eu sou o Copiloto</span>
+            <h3 id="assistant-welcome-title">Como posso facilitar seu dia?</h3>
+            <p>
+              Posso procurar informações, explicar números e ajudar você a encontrar o próximo
+              passo no Nexo. É só me contar o que precisa.
+            </p>
+          </div>
+          <div class="assistant-capabilities" aria-label="Como o Copiloto pode ajudar">
+            <span><i class="pi pi-search" aria-hidden="true"></i> Encontrar informações</span>
+            <span><i class="pi pi-chart-line" aria-hidden="true"></i> Entender resultados</span>
+            <span><i class="pi pi-compass" aria-hidden="true"></i> Indicar caminhos</span>
+          </div>
+        </section>
+
+        @if (availableSuggestions().length) {
+          <div class="suggestions-enter assistant-suggestions" aria-label="Sugestões de perguntas">
+            <div class="suggestions-heading">
+              <span>Você pode começar por aqui</span>
+              <i class="pi pi-arrow-down" aria-hidden="true"></i>
+            </div>
+            @for (suggestion of availableSuggestions(); track suggestion.prompt) {
+              <p-button
+                [label]="suggestion.label"
+                [icon]="suggestion.icon"
+                iconPos="left"
+                severity="secondary"
+                [outlined]="true"
+                size="small"
+                styleClass="assistant-suggestion"
+                (onClick)="useSuggestion(suggestion)"
+              />
+            }
+          </div>
+        }
+      }
+
+      @for (message of messages(); track trackMessage($index, message)) {
+        <article
+          class="message-enter assistant-message"
+          [class.assistant-message--user]="!isAssistant(message)"
+          [attr.aria-label]="isAssistant(message) ? 'Resposta do Copiloto' : 'Sua pergunta'"
+        >
+          @if (isAssistant(message)) {
+            <p-avatar
+              image="icons/copiloto-1.png"
+              shape="circle"
+              styleClass="message-avatar copiloto-avatar"
+            />
+          }
+          <div
+            class="message-bubble"
+            [ngClass]="!isAssistant(message)
+              ? 'message-bubble--user'
+              : message.status === 'INDISPONIVEL'
+                ? 'message-bubble--warning'
+                : message.status === 'DADOS_INSUFICIENTES'
+                  ? 'message-bubble--quiet'
+                  : 'message-bubble--assistant'"
+          >
+            @if (message.status === 'PROCESSANDO') {
+              <div class="processing-message" role="status">
+                <span class="sr-only">Pensando</span>
+                <span class="thinking-dots" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </span>
+              </div>
+            } @else if (isAssistant(message)) {
+              <app-assistant-rich-content [message]="message" />
+            } @else {
+              <p class="message-text">{{ message.conteudo }}</p>
+            }
+
+            @if (isAssistant(message) && (message.evidencias?.length ?? 0) > 0) {
+              <div class="message-details">
+                @for (evidence of message.evidencias ?? []; track evidence.fonte + evidence.calculadaEm) {
+                  <details class="assistant-evidence">
+                    <summary>
+                      <span><i class="pi pi-chart-bar" aria-hidden="true"></i> Ver detalhes da consulta</span>
+                      <i class="pi pi-chevron-down evidence-chevron" aria-hidden="true"></i>
+                    </summary>
+                    <div class="evidence-content">
+                      <dl class="evidence-summary">
+                        <div>
+                          <dt>Informação</dt>
+                          <dd>{{ formatSource(evidence.fonte) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Período</dt>
+                          <dd>{{ evidencePeriod(evidence) }}</dd>
+                        </div>
+                        <div>
+                          <dt>Itens analisados</dt>
+                          <dd>{{ evidence.amostra | number:'1.0-0':'pt-BR' }} {{ evidence.amostra === 1 ? 'item' : 'itens' }}</dd>
+                        </div>
+                        <div>
+                          <dt>Atualização</dt>
+                          <dd>{{ evidence.calculadaEm | date:'short':'': 'pt-BR' }}</dd>
+                        </div>
+                      </dl>
+
+                      @if (evidence.truncada) {
+                        <div class="evidence-note">
+                          <i class="pi pi-info-circle" aria-hidden="true"></i>
+                          <span>Há mais resultados além deste recorte.</span>
+                        </div>
+                      }
+
+                      @if (evidenceRows(evidence).length) {
+                        <div class="evidence-numbers">
+                          <strong>Números considerados</strong>
+                          @for (row of evidenceRows(evidence); track $index) {
+                            <dl>
+                              @for (entry of rowEntries(row); track entry[0]) {
+                                <div>
+                                  <dt>{{ formatFieldName(entry[0]) }}</dt>
+                                  <dd>{{ formatValue(entry[1], entry[0]) }}</dd>
+                                </div>
+                              }
+                            </dl>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </details>
+                }
+              </div>
+            }
+
+            @if (isAssistant(message) && availableActions(message).length) {
+              <div class="message-actions" aria-label="Próximos passos sugeridos">
+                <span>Posso te levar até lá:</span>
+                @for (action of availableActions(message); track action.chaveDestino ?? action.destino) {
+                  <p-button
+                    [label]="action.rotulo"
+                    icon="pi pi-arrow-right"
+                    iconPos="right"
+                    size="small"
+                    styleClass="assistant-action-button"
+                    (onClick)="navigate(action)"
+                  />
+                }
+              </div>
+            }
+
+            @if (canRetry(message)) {
+              <p-button
+                label="Tentar novamente"
+                icon="pi pi-refresh"
+                severity="secondary"
+                size="small"
+                [text]="true"
+                styleClass="assistant-retry-button"
+                (onClick)="retryAssistant(message)"
+              />
+            }
+
+            <footer class="message-time" [class.message-time--user]="!isAssistant(message)">
+              @if (!isAssistant(message)) { <i class="pi pi-check" aria-hidden="true"></i> }
+              <time [attr.datetime]="message.criadaEm">{{ message.criadaEm | date:'HH:mm' }}</time>
+            </footer>
+          </div>
+        </article>
+      }
+
+      @if (isSending() && !hasProcessingMessage()) {
+        <article class="typing-indicator assistant-message" aria-label="Pensando">
+          <p-avatar
+            image="icons/copiloto-1.png"
+            shape="circle"
+            styleClass="message-avatar copiloto-avatar"
+          />
+          <div class="typing-bubble" role="status" aria-live="polite">
+            <span class="sr-only">Pensando</span>
+            <span class="thinking-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </span>
+          </div>
+        </article>
+      }
+
+      @if (transportError()) {
+        <article class="message-enter assistant-message" role="alert">
+          <p-avatar
+            image="icons/copiloto-1.png"
+            shape="circle"
+            styleClass="message-avatar copiloto-avatar"
+          />
+          <div class="message-bubble message-bubble--warning">
+            <strong class="error-title">A conexão ficou instável</strong>
+            <p class="message-text">Sua pergunta ficou guardada. Quer que eu tente buscar a resposta novamente?</p>
+            <p-button
+              [label]="isSending() ? 'Tentando...' : 'Tentar de novo'"
+              icon="pi pi-refresh"
+              severity="warn"
+              size="small"
+              [text]="true"
+              [loading]="isSending()"
+              styleClass="assistant-retry-button"
+              (onClick)="retryTransport()"
+            />
+          </div>
+        </article>
+      }
+    </div>
+
+    <footer class="assistant-composer">
+      <div class="composer-field">
+        <label for="assistant-message" class="sr-only">Conte ao Copiloto o que você precisa</label>
+        <textarea
+          #messageInput
+          pTextarea
+          id="assistant-message"
+          name="assistant-message"
+          rows="1"
+          maxlength="2000"
+          class="assistant-textarea"
+          [ngModel]="newMessage()"
+          [disabled]="isBootstrapping() || isRestarting() || !conversation() || hasProcessingMessage()"
+          placeholder="No que posso ajudar?"
+          (ngModelChange)="onDraftChange($event)"
+          (input)="adjustTextareaHeight($event.target)"
+          (keydown.enter)="handleEnter($event)"
+        ></textarea>
+        @if (newMessage().length > 1600) {
+          <span class="message-counter">{{ newMessage().length }}/2000</span>
+        }
+        <p-button
+          icon="pi pi-send"
+          ariaLabel="Enviar pergunta"
+          [disabled]="!canSend()"
+          [loading]="isSending()"
+          [rounded]="true"
+          styleClass="assistant-send-button"
+          (onClick)="sendMessage()"
+        />
+      </div>
+      <p class="composer-hint">
+        <i class="pi pi-sparkles" aria-hidden="true"></i>
+        Pergunte sobre indicadores, equipes ou informações do seu dia a dia.
+      </p>
+      <p class="assistant-disclaimer" role="note">
+        Conteúdo gerado por IA. O Copiloto pode cometer erros. Verifique informações importantes.
+      </p>
+    </footer>
+  </section>
+
+  <div class="chatbot-launcher" [class.chatbot-launcher--hidden]="isOpen()">
+    <p-button
+      ariaLabel="Abrir conversa com o Copiloto"
+      pTooltip="Posso ajudar com o Nexo"
+      tooltipPosition="left"
+      [rounded]="true"
+      styleClass="assistant-launcher-button"
+      (onClick)="toggleChat()"
+    >
+      <img src="icons/copiloto-1.png" alt="" class="copiloto-launcher-image" />
+    </p-button>
+  </div>
+</div>

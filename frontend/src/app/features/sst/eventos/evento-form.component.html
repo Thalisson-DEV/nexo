@@ -1,0 +1,983 @@
+<p-toast />
+
+<div class="flex flex-col gap-4 pb-28">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <p-breadcrumb [model]="breadcrumb()" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button
+      icon="pi pi-arrow-left"
+      label="Voltar"
+      [text]="true"
+      severity="secondary"
+      (onClick)="voltar()"
+      styleClass="!text-slate-400 dark:!text-slate-400 hover:dark:!text-slate-200 !text-[10px] !font-medium"
+    />
+  </div>
+
+  @if (carregando()) {
+    <p-skeleton height="34rem" styleClass="!rounded-2xl" />
+  } @else {
+    <section class="wizard-shell">
+      <header class="wizard-header">
+        <div class="flex items-center gap-2 mb-3">
+          <i class="pi pi-shield text-primary-700 dark:text-primary-400 text-xs"></i>
+          <span class="eyebrow">{{
+            editando() ? 'Correção do registro' : 'Novo evento de segurança'
+          }}</span>
+        </div>
+        <h1>{{ editando() ? evento()?.numeroRegistro : 'Registro de evento de segurança' }}</h1>
+        <p>Preencha os dados por etapas e revise as informações antes de registrar.</p>
+      </header>
+
+      <div class="wizard-body">
+        <p-stepper [(value)]="activeStep">
+          <p-step-list>
+            <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irParaEtapa(1)">
+                  <span
+                    class="step-circle"
+                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                  >
+                    <i class="pi pi-bolt"></i>
+                  </span>
+                  <span class="step-copy"><strong>Ocorrência</strong></span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irParaEtapa(2)">
+                  <span
+                    class="step-circle"
+                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                  >
+                    <i class="pi pi-map-marker"></i>
+                  </span>
+                  <span class="step-copy"><strong>Contexto</strong></span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="3" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irParaEtapa(3)">
+                  <span
+                    class="step-circle"
+                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                  >
+                    <i class="pi pi-users"></i>
+                  </span>
+                  <span class="step-copy"><strong>Pessoas e impacto</strong></span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="4" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irParaEtapa(4)">
+                  <span
+                    class="step-circle"
+                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                  >
+                    <i class="pi pi-check"></i>
+                  </span>
+                  <span class="step-copy"><strong>Revisão</strong></span>
+                </button>
+              </ng-template>
+            </p-step>
+          </p-step-list>
+
+          <p-step-panels>
+            <p-step-panel [value]="1">
+              <ng-template #content>
+                <div class="step-panel">
+                  <div class="step-intro">
+                    <span>Comece pelo fato</span>
+                    <h2>O que aconteceu?</h2>
+                    <p>
+                      Registre a ocorrência e o relato inicial. Não é necessário concluir a
+                      investigação agora.
+                    </p>
+                  </div>
+
+                  <div class="form-grid grid-cols-1 md:grid-cols-2">
+                    <div class="field md:col-span-2">
+                      <label for="tipo">Tipo de ocorrência *</label>
+                      <p-select
+                        inputId="tipo"
+                        [options]="tipoOptions"
+                        [(ngModel)]="tipo"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Selecione o tipo que melhor descreve o fato"
+                        class="field-control"
+                        size="small"
+                        appendTo="body"
+                        (onChange)="onTipoAlterado()"
+                      />
+                      <span class="field-help"
+                        >O tipo define a janela legal e os dados de impacto solicitados
+                        depois.</span
+                      >
+                      @if (etapaTentada(1) && !tipo()) {
+                        <small class="field-error">Selecione o tipo da ocorrência.</small>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="dataOcorrencia">Quando ocorreu? *</label>
+                      <p-datepicker
+                        inputId="dataOcorrencia"
+                        [(ngModel)]="dataOcorrencia"
+                        [showTime]="true"
+                        hourFormat="24"
+                        dateFormat="dd/mm/yy"
+                        [showIcon]="true"
+                        iconDisplay="input"
+                        [maxDate]="agora"
+                        placeholder="dd/mm/aaaa hh:mm"
+                        appendTo="body"
+                        size="small"
+                        styleClass="field-control"
+                      />
+                      @if (etapaTentada(1) && !dataOcorrencia()) {
+                        <small class="field-error">Informe data e hora da ocorrência.</small>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="dataComunicacao">Quando foi comunicado? *</label>
+                      <p-datepicker
+                        inputId="dataComunicacao"
+                        [(ngModel)]="dataComunicacao"
+                        [showTime]="true"
+                        hourFormat="24"
+                        dateFormat="dd/mm/yy"
+                        [showIcon]="true"
+                        iconDisplay="input"
+                        [maxDate]="agora"
+                        placeholder="dd/mm/aaaa hh:mm"
+                        appendTo="body"
+                        size="small"
+                        styleClass="field-control"
+                      />
+                      @if (atrasoHoras() !== null) {
+                        <span class="timing-feedback" [class.is-late]="comunicacaoAtrasada()">
+                          <i
+                            [class]="
+                              comunicacaoAtrasada()
+                                ? 'pi pi-exclamation-circle'
+                                : 'pi pi-check-circle'
+                            "
+                          ></i>
+                          {{ atrasoHoras() }}h até a comunicação ·
+                          {{ comunicacaoAtrasada() ? 'fora do prazo' : 'dentro do prazo' }}
+                        </span>
+                      }
+                      @if (etapaTentada(1) && !dataComunicacao()) {
+                        <small class="field-error">Informe data e hora da comunicação.</small>
+                      }
+                    </div>
+                    <div class="field md:col-span-2">
+                      <label for="classificacao">Classificação inicial *</label>
+                      <p-select
+                        inputId="classificacao"
+                        [options]="lookups()?.classificacoes || []"
+                        [(ngModel)]="idClassificacao"
+                        optionLabel="nome"
+                        optionValue="id"
+                        placeholder="Selecione a classificação"
+                        class="field-control"
+                        size="small"
+                        [filter]="true"
+                        appendTo="body"
+                      />
+                      @if (etapaTentada(1) && !idClassificacao()) {
+                        <small class="field-error">Selecione a classificação do evento.</small>
+                      }
+                    </div>
+                    <div class="field md:col-span-2">
+                      <label for="descricao">Relato do ocorrido *</label>
+                      <textarea
+                        id="descricao"
+                        pTextarea
+                        [(ngModel)]="descricao"
+                        rows="7"
+                        maxlength="4000"
+                        placeholder="Conte a sequência dos fatos, quem percebeu a ocorrência e o que aconteceu em seguida. Evite atribuir culpa."
+                        class="w-full"
+                      ></textarea>
+                      <div class="field-meta">
+                        @if (etapaTentada(1) && !descricao().trim()) {
+                          <small class="field-error">Descreva o que aconteceu.</small>
+                        } @else {
+                          <span></span>
+                        }
+                        <span>{{ descricao().length }}/4000</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <p-button
+                      label="CONTINUAR"
+                      icon="pi pi-arrow-right"
+                      iconPos="right"
+                      (onClick)="avancar()"
+                      styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-600 !border-primary-700 dark:!border-primary-600 !py-2.5 !px-8 !font-bold !text-[10px] !text-white"
+                    />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="2">
+              <ng-template #content>
+                <div class="step-panel">
+                  <div class="step-intro">
+                    <span>Localize o cenário</span>
+                    <h2>Onde e em qual atividade?</h2>
+                    <p>
+                      Esses dados formam o retrato organizacional do evento e permanecem preservados
+                      no histórico.
+                    </p>
+                  </div>
+
+                  <div class="context-note">
+                    <i class="pi pi-lock"></i>
+                    <p>
+                      <strong>Contexto congelado:</strong> alterações futuras nos cadastros não
+                      mudam este registro.
+                    </p>
+                  </div>
+
+                  <div class="form-grid grid-cols-1 md:grid-cols-2">
+                    <div class="field">
+                      <label for="atividade">Atividade em execução *</label>
+                      <p-select
+                        inputId="atividade"
+                        [options]="lookups()?.atividades || []"
+                        [(ngModel)]="idAtividade"
+                        optionLabel="nome"
+                        optionValue="id"
+                        placeholder="Selecione a atividade"
+                        class="field-control"
+                        size="small"
+                        [filter]="true"
+                        appendTo="body"
+                        (onChange)="onAtividadeAlterada()"
+                      />
+                      @if (etapaTentada(2) && !idAtividade()) {
+                        <small class="field-error">Selecione a atividade.</small>
+                      }
+                    </div>
+                    <div class="field">
+                      <ces-autocomplete
+                        [(ngModel)]="idGestor"
+                        label="Gestor responsável"
+                        [required]="true"
+                        placeholder="Digite o nome do gestor responsável"
+                        [options]="colaboradores()"
+                        [loading]="colaboradoresLoading()"
+                        [status]="colaboradoresStatus()"
+                        [error]="etapaTentada(2) && !idGestor() ? 'Informe o gestor responsável.' : colaboradoresError()"
+                        [minLength]="2"
+                        [clearable]="true"
+                        [virtualScroll]="true"
+                        [virtualScrollItemSize]="38"
+                        appendTo="body"
+                        class="w-full"
+                        (search)="searchColaboradores($event)"
+                        (loadMore)="loadMoreColaboradores()"
+                        (retry)="retryColaboradores()"
+                      />
+                    </div>
+                    <div class="field">
+                      <label for="base">Base operacional *</label>
+                      <p-select
+                        inputId="base"
+                        [options]="lookups()?.bases || []"
+                        [(ngModel)]="idBaseOperacional"
+                        optionLabel="nome"
+                        optionValue="id"
+                        placeholder="Selecione a base"
+                        class="field-control"
+                        size="small"
+                        [filter]="true"
+                        appendTo="body"
+                      />
+                      @if (etapaTentada(2) && !idBaseOperacional()) {
+                        <small class="field-error">Selecione a base operacional.</small>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="processo">Processo</label>
+                      <p-select
+                        inputId="processo"
+                        [options]="lookups()?.processos || []"
+                        [(ngModel)]="idProcesso"
+                        optionLabel="nome"
+                        optionValue="id"
+                        placeholder="Opcional"
+                        class="field-control"
+                        size="small"
+                        [filter]="true"
+                        [showClear]="true"
+                        appendTo="body"
+                      />
+                    </div>
+                    <div class="field">
+                      <label for="equipe">Equipe</label>
+                      <p-select
+                        inputId="equipe"
+                        [options]="equipes()"
+                        [(ngModel)]="idEquipe"
+                        optionLabel="codigo"
+                        optionValue="id"
+                        placeholder="Opcional"
+                        class="field-control"
+                        size="small"
+                        [filter]="true"
+                        [showClear]="true"
+                        [loading]="equipesLoading()"
+                        [virtualScroll]="true"
+                        [virtualScrollItemSize]="38"
+                        [lazy]="true"
+                        appendTo="body"
+                        (onShow)="openEquipes()"
+                        (onFilter)="searchEquipes($event)"
+                        (onLazyLoad)="loadMoreEquipes()"
+                      />
+                    </div>
+                    <div class="field">
+                      <label for="veiculo">Veículo</label>
+                      <p-select
+                        inputId="veiculo"
+                        [options]="veiculos()"
+                        [(ngModel)]="idVeiculo"
+                        optionLabel="placa"
+                        optionValue="id"
+                        placeholder="Opcional"
+                        class="field-control"
+                        size="small"
+                        [filter]="true"
+                        filterBy="placa,modelo"
+                        [showClear]="true"
+                        [loading]="veiculosLoading()"
+                        [virtualScroll]="true"
+                        [virtualScrollItemSize]="38"
+                        [lazy]="true"
+                        appendTo="body"
+                        (onShow)="openVeiculos()"
+                        (onFilter)="searchVeiculos($event)"
+                        (onLazyLoad)="loadMoreVeiculos()"
+                      />
+                    </div>
+                    <div class="field md:col-span-2">
+                      <label for="localOcorrencia">Local exato da ocorrência</label>
+                      <input
+                        id="localOcorrencia"
+                        pInputText
+                        [(ngModel)]="localOcorrencia"
+                        maxlength="255"
+                        placeholder="Ex.: Rua X, próximo ao poste 123"
+                        class="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="subsection">
+                    <div class="subsection-title">
+                      <i class="pi pi-camera"></i><span>Registros disponíveis</span>
+                    </div>
+                    <div class="form-grid grid-cols-1 md:grid-cols-2">
+                      <div class="field">
+                        <label for="telemetria">Telemetria</label>
+                        <p-select
+                          inputId="telemetria"
+                          [options]="evidenciaOptions"
+                          [(ngModel)]="telemetria"
+                          optionLabel="label"
+                          optionValue="value"
+                          class="field-control"
+                          size="small"
+                          appendTo="body"
+                        />
+                      </div>
+                      <div class="field">
+                        <label for="filmagem">Filmagem</label>
+                        <p-select
+                          inputId="filmagem"
+                          [options]="evidenciaOptions"
+                          [(ngModel)]="filmagem"
+                          optionLabel="label"
+                          optionValue="value"
+                          class="field-control"
+                          size="small"
+                          appendTo="body"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <p-button
+                      label="VOLTAR"
+                      icon="pi pi-arrow-left"
+                      [text]="true"
+                      (onClick)="voltarEtapa()"
+                      styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]"
+                    />
+                    <p-button
+                      label="CONTINUAR"
+                      icon="pi pi-arrow-right"
+                      iconPos="right"
+                      (onClick)="avancar()"
+                      styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-600 !border-primary-700 dark:!border-primary-600 !py-2.5 !px-8 !font-bold !text-[10px] !text-white"
+                    />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="3">
+              <ng-template #content>
+                <div class="step-panel">
+                  <div class="step-intro">
+                    <span>Registre as consequências</span>
+                    <h2>Quem esteve envolvido e qual foi o impacto?</h2>
+                    <p>
+                      Informe responsáveis, pessoas envolvidas, lesão e documentação legal quando
+                      aplicável.
+                    </p>
+                  </div>
+
+                  <div class="field">
+                    <label for="tecnicos">Técnicos de segurança responsáveis *</label>
+                    <p-multiSelect
+                      inputId="tecnicos"
+                      [options]="colaboradores()"
+                      [(ngModel)]="idsTecnicos"
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="Selecione ao menos um técnico"
+                      [filter]="true"
+                      size="small"
+                      [loading]="colaboradoresLoading()"
+                      [virtualScroll]="true"
+                      [virtualScrollItemSize]="38"
+                      [lazy]="true"
+                      appendTo="body"
+                      class="field-control"
+                      (onFilter)="searchColaboradores($event)"
+                      (onLazyLoad)="loadMoreColaboradores()"
+                    />
+                    @if (etapaTentada(3) && !idsTecnicos().length) {
+                      <small class="field-error">Selecione ao menos um técnico responsável.</small>
+                    }
+                  </div>
+
+                  <div class="subsection">
+                    <div class="flex items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+                      <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-400 flex items-center justify-center">
+                          <i class="pi pi-users text-xs"></i>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Pessoas envolvidas</span>
+                          <span class="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary-100 dark:bg-primary-950/60 text-primary-700 dark:text-primary-400 border border-transparent dark:border-primary-800/40 text-[10px] font-bold">
+                            {{ envolvidos().length }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <p-button
+                          label="Colaborador"
+                          icon="pi pi-plus"
+                          size="small"
+                          [outlined]="true"
+                          (onClick)="adicionarEnvolvido('COLABORADOR')"
+                          styleClass="!text-[11px] !font-semibold !py-1 !px-2.5"
+                        />
+                        <p-button
+                          label="Terceiro"
+                          icon="pi pi-plus"
+                          size="small"
+                          [outlined]="true"
+                          severity="secondary"
+                          (onClick)="adicionarEnvolvido('TERCEIRO')"
+                          styleClass="!text-[11px] !font-semibold !py-1 !px-2.5"
+                        />
+                      </div>
+                    </div>
+
+                    @if (implicaLesao() && !temAcidentado()) {
+                      <div class="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 text-xs">
+                        <i class="pi pi-exclamation-triangle text-amber-600 dark:text-amber-400 shrink-0"></i>
+                        <span>Eventos com lesão exigem ao menos uma pessoa com o papel <strong>Acidentado</strong>.</span>
+                      </div>
+                    }
+
+                    <div class="flex flex-col gap-3">
+                      @for (envolvido of envolvidos(); track $index) {
+                        <div class="bg-slate-50/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 rounded-xl p-3.5 sm:p-4 flex flex-col gap-3 transition-colors">
+                          <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
+                              <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400">#{{ $index + 1 }}</span>
+                              <span
+                                class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase"
+                                [ngClass]="envolvido.tipo === 'COLABORADOR'
+                                  ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40'
+                                  : 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40'"
+                              >
+                                <i class="pi" [ngClass]="envolvido.tipo === 'COLABORADOR' ? 'pi-id-card' : 'pi-briefcase'"></i>
+                                {{ tipoEnvolvidoLabel(envolvido.tipo) }}
+                              </span>
+                              @if (envolvido.papel === 'ACIDENTADO') {
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
+                                  <i class="pi pi-heart text-[9px]"></i>
+                                  Acidentado
+                                </span>
+                              }
+                            </div>
+                            <p-button
+                              icon="pi pi-trash"
+                              [text]="true"
+                              [rounded]="true"
+                              severity="danger"
+                              size="small"
+                              pTooltip="Remover pessoa"
+                              (onClick)="removerEnvolvido($index)"
+                              styleClass="!w-7 !h-7 !p-0 text-red-500 hover:text-red-600 dark:text-red-400"
+                            />
+                          </div>
+
+                          @if (envolvido.tipo === 'COLABORADOR') {
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                              <div class="sm:col-span-4 flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Papel no evento *</label>
+                                <p-select
+                                  [options]="papelOptions"
+                                  [(ngModel)]="envolvido.papel"
+                                  optionLabel="label"
+                                  optionValue="value"
+                                  class="field-control w-full"
+                                  size="small"
+                                  appendTo="body"
+                                  (ngModelChange)="tocarEnvolvidos()"
+                                />
+                              </div>
+                              <div class="sm:col-span-8 flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Colaborador *</label>
+                                <ces-autocomplete
+                                  [(ngModel)]="envolvido.idColaborador"
+                                  [labelVisible]="false"
+                                  label="Colaborador"
+                                  placeholder="Digite para buscar pelo nome"
+                                  [options]="colaboradores()"
+                                  [loading]="colaboradoresLoading()"
+                                  [status]="colaboradoresStatus()"
+                                  [error]="colaboradoresError()"
+                                  [minLength]="2"
+                                  [clearable]="true"
+                                  [virtualScroll]="true"
+                                  [virtualScrollItemSize]="38"
+                                  appendTo="body"
+                                  class="w-full"
+                                  (search)="searchColaboradores($event)"
+                                  (loadMore)="loadMoreColaboradores()"
+                                  (retry)="retryColaboradores()"
+                                  (ngModelChange)="tocarEnvolvidos()"
+                                />
+                                @if (etapaTentada(3) && !envolvido.idColaborador) {
+                                  <small class="text-red-500 dark:text-red-400 text-[10px]">Selecione o colaborador.</small>
+                                }
+                              </div>
+                            </div>
+                          } @else {
+                            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                              <div class="sm:col-span-4 flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Papel no evento *</label>
+                                <p-select
+                                  [options]="papelOptions"
+                                  [(ngModel)]="envolvido.papel"
+                                  optionLabel="label"
+                                  optionValue="value"
+                                  class="field-control w-full"
+                                  size="small"
+                                  appendTo="body"
+                                  (ngModelChange)="tocarEnvolvidos()"
+                                />
+                              </div>
+                              <div class="sm:col-span-4 flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Nome completo *</label>
+                                <input
+                                  pInputText
+                                  [(ngModel)]="envolvido.nome"
+                                  maxlength="255"
+                                  placeholder="Nome do terceiro"
+                                  class="w-full !py-1.5 !text-xs"
+                                  (ngModelChange)="tocarEnvolvidos()"
+                                />
+                                @if (etapaTentada(3) && !envolvido.nome.trim()) {
+                                  <small class="text-red-500 dark:text-red-400 text-[10px]">Informe o nome.</small>
+                                }
+                              </div>
+                              <div class="sm:col-span-4 flex flex-col gap-1">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Empresa / Terceirizada *</label>
+                                <input
+                                  pInputText
+                                  [(ngModel)]="envolvido.empresa"
+                                  maxlength="150"
+                                  placeholder="Empresa do terceiro"
+                                  class="w-full !py-1.5 !text-xs"
+                                  (ngModelChange)="tocarEnvolvidos()"
+                                />
+                                @if (etapaTentada(3) && !envolvido.empresa.trim()) {
+                                  <small class="text-red-500 dark:text-red-400 text-[10px]">Informe a empresa.</small>
+                                }
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      } @empty {
+                        <div class="flex flex-col items-center justify-center gap-2.5 py-8 px-4 text-center bg-slate-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700/60">
+                          <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500">
+                            <i class="pi pi-users text-lg"></i>
+                          </div>
+                          <div class="flex flex-col gap-0.5">
+                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Nenhuma pessoa adicionada</span>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm">Incidentes sem lesão podem ser registrados sem envolvidos. Caso haja pessoas, adicione abaixo.</span>
+                          </div>
+                          <div class="flex items-center gap-2 mt-1">
+                            <p-button
+                              label="Adicionar Colaborador"
+                              icon="pi pi-plus"
+                              size="small"
+                              [outlined]="true"
+                              (onClick)="adicionarEnvolvido('COLABORADOR')"
+                              styleClass="!text-xs !font-semibold"
+                            />
+                            <p-button
+                              label="Adicionar Terceiro"
+                              icon="pi pi-plus"
+                              size="small"
+                              [outlined]="true"
+                              severity="secondary"
+                              (onClick)="adicionarEnvolvido('TERCEIRO')"
+                              styleClass="!text-xs !font-semibold"
+                            />
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  @if (implicaLesao()) {
+                    <div class="subsection impact-section">
+                      <div class="subsection-title text-red-700 dark:text-red-400">
+                        <i class="pi pi-heart"></i><span>Impacto à pessoa</span>
+                      </div>
+                      <div class="form-grid grid-cols-1 md:grid-cols-3">
+                        <div class="field">
+                          <label for="localLesao">Parte do corpo atingida *</label>
+                          <p-select
+                            inputId="localLesao"
+                            [options]="lookups()?.locaisLesao || []"
+                            [(ngModel)]="idLocalLesao"
+                            optionLabel="nome"
+                            optionValue="id"
+                            placeholder="Selecione"
+                            class="field-control"
+                            size="small"
+                            [filter]="true"
+                            appendTo="body"
+                          />
+                          @if (etapaTentada(3) && !idLocalLesao()) {
+                            <small class="field-error">Informe o local da lesão.</small>
+                          }
+                        </div>
+                        <div class="field">
+                          <label for="naturezaLesao">Natureza da lesão</label>
+                          <p-select
+                            inputId="naturezaLesao"
+                            [options]="lookups()?.naturezasLesao || []"
+                            [(ngModel)]="idNaturezaLesao"
+                            optionLabel="nome"
+                            optionValue="id"
+                            placeholder="Opcional"
+                            class="field-control"
+                            size="small"
+                            [filter]="true"
+                            [showClear]="true"
+                            appendTo="body"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="diasPerdidos">Dias perdidos</label>
+                          <p-inputNumber
+                            inputId="diasPerdidos"
+                            [(ngModel)]="diasPerdidos"
+                            [min]="0"
+                            [showButtons]="false"
+                            placeholder="0"
+                            styleClass="field-control"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  }
+
+                  <div class="subsection">
+                    <div class="subsection-title">
+                      <i class="pi pi-bolt"></i><span>Agente causador</span>
+                    </div>
+                    <div class="field max-w-xl">
+                      <label for="agente">O que causou a lesão ou o dano?</label>
+                      <p-select
+                        inputId="agente"
+                        [options]="lookups()?.agentesCausadores || []"
+                        [(ngModel)]="idAgenteCausador"
+                        optionLabel="nome"
+                        optionValue="id"
+                        placeholder="Opcional"
+                        class="field-control"
+                        size="small"
+                        [filter]="true"
+                        [showClear]="true"
+                        appendTo="body"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="subsection cat-section">
+                    <div class="subsection-head">
+                      <div class="subsection-title">
+                        <i class="pi pi-file-check"></i
+                        ><span>Comunicação de Acidente de Trabalho</span>
+                      </div>
+                      <label class="toggle-label" for="possuiCat"
+                        >CAT emitida
+                        <p-toggleswitch
+                          inputId="possuiCat"
+                          [(ngModel)]="possuiCat"
+                          (onChange)="onCatAlterada()"
+                      /></label>
+                    </div>
+                    @if (possuiCat()) {
+                      <div class="form-grid grid-cols-1 md:grid-cols-3">
+                        <div class="field">
+                          <label for="tipoCat">Tipo da CAT *</label
+                          ><p-select
+                            inputId="tipoCat"
+                            [options]="tipoCatOptions"
+                            [(ngModel)]="tipoCat"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Selecione"
+                            class="field-control"
+                            size="small"
+                            appendTo="body"
+                          />
+                          @if (etapaTentada(3) && !tipoCat()) {
+                            <small class="field-error">Informe o tipo da CAT.</small>
+                          }
+                        </div>
+                        <div class="field">
+                          <label for="numeroCat">Número da CAT</label
+                          ><input
+                            id="numeroCat"
+                            pInputText
+                            [(ngModel)]="numeroCat"
+                            maxlength="40"
+                            placeholder="Opcional"
+                            class="w-full"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="emissaoCat">Data de emissão</label
+                          ><p-datepicker
+                            inputId="emissaoCat"
+                            [(ngModel)]="dataEmissaoCat"
+                            dateFormat="dd/mm/yy"
+                            dateMask
+                            [showIcon]="true"
+                            iconDisplay="input"
+                            placeholder="dd/mm/aaaa"
+                            appendTo="body"
+                            size="small"
+                            styleClass="field-control"
+                          />
+                        </div>
+                      </div>
+                    } @else {
+                      <p class="subsection-empty">
+                        Ative esta opção somente quando a CAT já tiver sido emitida.
+                      </p>
+                    }
+                  </div>
+
+                  <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <p-button
+                      label="VOLTAR"
+                      icon="pi pi-arrow-left"
+                      [text]="true"
+                      (onClick)="voltarEtapa()"
+                      styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]"
+                    />
+                    <p-button
+                      label="CONTINUAR"
+                      icon="pi pi-arrow-right"
+                      iconPos="right"
+                      (onClick)="avancar()"
+                      styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-600 !border-primary-700 dark:!border-primary-600 !py-2.5 !px-8 !font-bold !text-[10px] !text-white"
+                    />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="4">
+              <ng-template #content>
+                <div class="step-panel">
+                  <div class="step-intro">
+                    <span>Confirme antes de registrar</span>
+                    <h2>Revise o evento</h2>
+                    <p>
+                      Se algo não estiver correto, volte à etapa correspondente. Evidências serão
+                      anexadas no detalhe após o registro.
+                    </p>
+                  </div>
+
+                  <div class="review-section">
+                    <div class="review-heading">
+                      <span>01</span>
+                      <div><strong>Ocorrência</strong><small>Fato e comunicação</small></div>
+                      <button type="button" (click)="activeStep.set(1)">Editar</button>
+                    </div>
+                    <div class="review-grid">
+                      <div class="review-card">
+                        <span>Tipo</span><strong>{{ tipoLabel() }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Classificação</span><strong>{{ classificacaoLabel() }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Ocorrência</span
+                        ><strong>{{ dataOcorrencia() | date: 'dd/MM/yyyy HH:mm' }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Comunicação</span
+                        ><strong>{{ dataComunicacao() | date: 'dd/MM/yyyy HH:mm' }}</strong>
+                      </div>
+                      <div class="review-card md:col-span-2">
+                        <span>Relato</span>
+                        <p>{{ descricao() }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="review-section">
+                    <div class="review-heading">
+                      <span>02</span>
+                      <div><strong>Contexto</strong><small>Onde e em qual atividade</small></div>
+                      <button type="button" (click)="activeStep.set(2)">Editar</button>
+                    </div>
+                    <div class="review-grid">
+                      <div class="review-card">
+                        <span>Atividade</span
+                        ><strong>{{ atividadeSelecionada()?.nome || 'Não informada' }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Gestor responsável</span><strong>{{ gestorLabel() }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Base</span><strong>{{ baseLabel() }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Processo</span><strong>{{ processoLabel() }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Equipe / veículo</span
+                        ><strong>{{ equipeLabel() }} · {{ veiculoLabel() }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Telemetria</span><strong>{{ evidenciaLabel(telemetria()) }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Filmagem</span><strong>{{ evidenciaLabel(filmagem()) }}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="review-section">
+                    <div class="review-heading">
+                      <span>03</span>
+                      <div>
+                        <strong>Pessoas e impacto</strong
+                        ><small>Responsáveis e consequências</small>
+                      </div>
+                      <button type="button" (click)="activeStep.set(3)">Editar</button>
+                    </div>
+                    <div class="review-grid">
+                      <div class="review-card md:col-span-2">
+                        <span>Técnicos responsáveis</span><strong>{{ nomesTecnicos() }}</strong>
+                      </div>
+                      <div class="review-card">
+                        <span>Pessoas envolvidas</span><strong>{{ envolvidos().length }}</strong>
+                        @for (envolvido of envolvidos(); track $index) {
+                          <p>{{ nomeEnvolvido(envolvido) }} · {{ papelLabel(envolvido.papel) }}</p>
+                        }
+                      </div>
+                      <div class="review-card">
+                        <span>CAT</span
+                        ><strong>{{ possuiCat() ? 'Emitida' : 'Não emitida' }}</strong>
+                      </div>
+                      @if (implicaLesao()) {
+                        <div class="review-card">
+                          <span>Lesão</span><strong>{{ localLesaoLabel() }}</strong>
+                          <p>{{ naturezaLesaoLabel() }}</p>
+                        </div>
+                        <div class="review-card">
+                          <span>Dias perdidos</span><strong>{{ diasPerdidos() ?? 0 }}</strong>
+                        </div>
+                      }
+                      <div class="review-card md:col-span-2">
+                        <span>Agente causador</span><strong>{{ agenteCausadorLabel() }}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="next-step-note">
+                    <i class="pi pi-paperclip"></i>
+                    <div>
+                      <strong>Depois de salvar</strong>
+                      <p>
+                        Você será levado ao detalhe do evento para anexar fotos, documentos da CAT e
+                        evidências da tratativa.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <p-button
+                      label="VOLTAR"
+                      icon="pi pi-arrow-left"
+                      [text]="true"
+                      (onClick)="voltarEtapa()"
+                      styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]"
+                    />
+                    <p-button
+                      [label]="editando() ? 'SALVAR CORREÇÃO' : 'REGISTRAR EVENTO'"
+                      [icon]="salvando() ? 'pi pi-spin pi-spinner' : 'pi pi-check'"
+                      [loading]="salvando()"
+                      [disabled]="salvando()"
+                      (onClick)="salvar()"
+                      styleClass="!rounded-lg !bg-primary-700 dark:!bg-primary-600 !border-primary-700 dark:!border-primary-600 !py-2.5 !px-8 !font-bold !text-[10px] !text-white"
+                    />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </section>
+  }
+</div>

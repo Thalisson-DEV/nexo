@@ -1,0 +1,255 @@
+.welcome-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--p-primary-200) 75%, white);
+  border-radius: 1.4rem 1.4rem 1.4rem 0.5rem;
+  background: white;
+  box-shadow: 0 8px 24px rgb(30 41 59 / 0.06);
+}
+
+.welcome-card::after {
+  position: absolute;
+  top: -2.6rem;
+  right: -2.6rem;
+  width: 7rem;
+  height: 7rem;
+  border: 1.4rem solid color-mix(in srgb, var(--p-primary-100) 56%, transparent);
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+}
+
+.welcome-avatar {
+  position: relative;
+  z-index: 1;
+  width: 5rem;
+  height: 5rem;
+  margin-bottom: 1rem;
+}
+
+.welcome-orbit {
+  position: absolute;
+  inset: 0;
+  border: 1px dashed var(--p-primary-300);
+  border-radius: 50%;
+  animation: orbit-spin 14s linear infinite;
+}
+
+:host ::ng-deep .assistant-welcome-avatar {
+  position: absolute;
+  inset: 0.4rem;
+  width: 4.2rem;
+  height: 4.2rem;
+  background: var(--p-primary-600);
+  color: white;
+  font-size: 1.15rem;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--p-primary-700) 22%, transparent);
+}
+
+.welcome-spark {
+  position: absolute;
+  top: -0.05rem;
+  right: -0.05rem;
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border-radius: 50%;
+  background: white;
+  color: var(--p-primary-600);
+  font-size: 0.65rem;
+  box-shadow: 0 3px 10px rgb(15 23 42 / 0.12);
+}
+
+.welcome-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-kicker {
+  color: var(--p-primary-700);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.welcome-copy h3 {
+  margin: 0.25rem 0 0;
+  color: #172033;
+  font-size: 1.18rem;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.welcome-copy p {
+  max-width: 23rem;
+  margin: 0.65rem 0 0;
+  color: #526177;
+  font-size: 0.79rem;
+  line-height: 1.62;
+}
+
+.assistant-capabilities {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+
+.assistant-capabilities span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.62rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--p-primary-50) 74%, #f8fafc);
+  color: #526177;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.assistant-capabilities i {
+  color: var(--p-primary-600);
+  font-size: 0.62rem;
+}
+
+.assistant-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.suggestions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.2rem;
+  color: #68778d;
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.suggestions-heading i {
+  font-size: 0.58rem;
+}
+
+:host ::ng-deep .assistant-suggestion {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0.72rem 0.85rem;
+  border-color: #dfe7f0;
+  border-radius: 0.95rem;
+  background: white;
+  color: #46566d;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: 0 2px 7px rgb(15 23 42 / 0.025);
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+:host ::ng-deep .assistant-suggestion .p-button-icon {
+  color: var(--p-primary-600);
+}
+
+:host ::ng-deep .assistant-suggestion:hover {
+  transform: translateX(0.2rem);
+  border-color: var(--p-primary-300);
+  box-shadow: 0 7px 18px rgb(15 23 42 / 0.07);
+}
+
+@media (max-width: 768px) {
+  .welcome-card { padding: 1rem; border-radius: 1.2rem 1.2rem 1.2rem 0.45rem; }
+  .welcome-avatar { width: 4.4rem; height: 4.4rem; margin-bottom: 0.75rem; }
+
+  :host ::ng-deep .assistant-welcome-avatar {
+    inset: 0.35rem;
+    width: 3.7rem;
+    height: 3.7rem;
+  }
+
+  .welcome-kicker { font-size: 12px; }
+  .welcome-copy h3 { font-size: 20px; }
+  .welcome-copy p { margin-top: 0.5rem; font-size: 14px; line-height: 1.5; }
+  .assistant-capabilities { gap: 0.35rem; margin-top: 0.75rem; }
+  .assistant-capabilities span { padding: 0.38rem 0.55rem; font-size: 11px; }
+  .suggestions-heading { font-size: 12px; }
+
+  :host ::ng-deep .assistant-suggestion {
+    min-height: 3rem;
+    padding: 0.7rem 0.8rem;
+    font-size: 13px;
+  }
+}
+
+/* ==========================================================================
+   WELCOME CARD - DARK MODE ADAPTATIONS
+   ========================================================================== */
+:host-context(.app-dark) .welcome-card {
+  border-color: var(--ces-border);
+  background: var(--ces-surface);
+  box-shadow: var(--ces-shadow-md);
+}
+
+:host-context(.app-dark) .welcome-card::after {
+  border-color: color-mix(in srgb, var(--ces-brand) 15%, transparent);
+}
+
+:host-context(.app-dark) .welcome-spark {
+  background: var(--ces-surface-muted);
+  color: var(--ces-brand);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+:host-context(.app-dark) .welcome-kicker {
+  color: var(--ces-brand);
+}
+
+:host-context(.app-dark) .welcome-copy h3 {
+  color: var(--ces-foreground);
+}
+
+:host-context(.app-dark) .welcome-copy p {
+  color: var(--ces-foreground-muted);
+}
+
+:host-context(.app-dark) .assistant-capabilities span {
+  background: var(--ces-surface-subtle);
+  color: var(--ces-foreground-muted);
+  border: 1px solid var(--ces-border);
+}
+
+:host-context(.app-dark) .assistant-capabilities i {
+  color: var(--ces-brand);
+}
+
+:host-context(.app-dark) .suggestions-heading {
+  color: var(--ces-foreground-muted);
+}
+
+:host-context(.app-dark) :host ::ng-deep .assistant-suggestion,
+:host-context(.app-dark) .assistant-suggestion {
+  background: var(--ces-surface) !important;
+  border-color: var(--ces-border) !important;
+  color: var(--ces-foreground) !important;
+  box-shadow: var(--ces-shadow-sm) !important;
+}
+
+:host-context(.app-dark) :host ::ng-deep .assistant-suggestion:hover,
+:host-context(.app-dark) .assistant-suggestion:hover {
+  background: var(--ces-surface-muted) !important;
+  border-color: var(--ces-brand) !important;
+  color: var(--ces-foreground) !important;
+}
+
+:host-context(.app-dark) :host ::ng-deep .assistant-suggestion .p-button-label {
+  color: var(--ces-foreground) !important;
+}
+
+:host-context(.app-dark) :host ::ng-deep .assistant-suggestion .p-button-icon {
+  color: var(--ces-brand) !important;
+}

@@ -1,0 +1,376 @@
+<style>
+  @media print {
+    body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      background: white !important;
+      color: black !important;
+    }
+    .min-h-screen { background: white !important; }
+
+    .print\:hidden { display: none !important; }
+    .print\:break-inside-avoid { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .print\:shadow-none { box-shadow: none !important; }
+    .print\:border { border: 1px solid #e2e8f0 !important; }
+    .print\:text-black { color: black !important; }
+    .print\:bg-white { background: white !important; }
+
+    /* Fix para tabelas do PrimeNG não cortarem na impressão */
+    .p-datatable, .p-datatable-wrapper, .p-datatable-table,
+    .overflow-hidden, .overflow-y-auto, .overflow-x-hidden, .custom-scrollbar {
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+
+    section { margin-bottom: 2rem !important; page-break-inside: avoid; }
+    .bg-primary-900 { background: white !important; color: black !important; border-bottom: 2px solid #3b82f6; padding: 2rem 0 !important; }
+    .bg-primary-900 h1, .bg-primary-900 h2, .bg-primary-900 p { color: black !important; }
+    .bg-primary-900 .pi-file-edit { display: none; }
+
+    .shadow-md, .shadow-xl, .shadow-sm { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
+  }
+</style>
+
+<div class="min-h-screen bg-slate-50 text-slate-800 font-sans pb-16 print:pb-0">
+
+    <!-- ==============================================
+         CABEÇALHO HERO
+    =============================================== -->
+    <div class="bg-primary-900 text-white py-16 px-6 shadow-md relative overflow-hidden print:shadow-none print:py-8">
+      <div class="absolute -right-20 -top-20 opacity-5 print:hidden">
+        <i class="pi pi-file-edit" style="font-size: 20rem"></i>
+      </div>
+
+      <div class="max-w-5xl mx-auto relative z-10 flex flex-col gap-3">
+        <div class="flex items-center gap-2 print:hidden">
+            <span class="text-xs font-bold px-3 py-1 bg-primary-700 text-primary-100 rounded uppercase tracking-widest border border-primary-700">Manual do Usuário</span>
+        </div>
+        <h1 class="text-4xl md:text-5xl font-bold mt-2 print:text-3xl">Módulo de Descontos em Folha</h1>
+        <h2 class="text-xl md:text-2xl font-light text-primary-200 mt-1 print:text-black print:font-medium">Guia Completo de Operação, Validação e Baixa Financeira</h2>
+        <p class="text-base text-primary-100 mt-4 max-w-3xl leading-relaxed print:text-black">
+          Bem-vindo ao material de treinamento oficial do sistema Nexo. Este documento explora todos os detalhes operacionais sobre como registrar, auditar e descontar equipamentos e materiais avariados ou perdidos.
+        </p>
+      </div>
+    </div>
+
+    <!-- ==============================================
+         CONTEÚDO PRINCIPAL
+    =============================================== -->
+    <div class="max-w-5xl mx-auto px-6 py-10 flex flex-col gap-20 print:gap-10 print:py-6">
+
+      <!-- ==============================================
+           SEÇÃO 1: COMO ACESSAR E O GUIA DE TELA
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-compass mr-3 text-primary-700"></i>1. Acesso ao Módulo e Ajuda Rápida</h2>
+            <p class="text-slate-600 text-lg">Veja o caminho no sistema para iniciar suas rotinas de descontos.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+
+            <!-- Imagem Guia Lateral -->
+            <div class="w-full flex justify-center items-center">
+                <img src="assets/manual/guia lateral descontos.png" alt="Guia Lateral Descontos" class="w-full max-w-sm rounded-lg border border-slate-300 shadow-sm print:shadow-none print:max-w-full">
+            </div>
+
+            <!-- Explicação do Guia de Tela -->
+            <div class="flex flex-col gap-6">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">Caminho de Navegação</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        No menu lateral do sistema, expanda <b>Departamento Pessoal</b>, depois clique em <b>Descontos em Folha</b> e selecione a área de trabalho (<b>Consulta de Descontos</b> para listagem, ou <b>Novo Desconto</b>).
+                    </p>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6 shadow-sm relative overflow-hidden print:border print:bg-indigo-50 print:shadow-none">
+                    <div class="absolute -right-6 -bottom-6 text-indigo-100"><i class="pi pi-question-circle" style="font-size: 8rem;"></i></div>
+                    <div class="relative z-10 flex flex-col gap-3">
+                        <div class="flex items-center gap-2 text-indigo-700 font-bold text-lg print:text-black">
+                            <i class="pi pi-info-circle text-2xl"></i> Não se perca: Use o Guia de Tela
+                        </div>
+                        <p class="text-indigo-900 text-sm leading-relaxed print:text-black">
+                            Esqueceu alguma regra enquanto usava o sistema? Em qualquer tela, procure pelo botão de <b>Ajuda (?)</b> localizado no topo direito da página. <br><br>
+                            Ele abrirá o <strong>Guia da Tela</strong>, um modal prático com dicas rápidas e lembretes sobre como utilizar os filtros, botões e tabelas daquela página específica!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SEÇÃO 2: CONCEITOS E CICLO DE VIDA
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-sync mr-3 text-primary-700"></i>2. Regras Rígidas do Ciclo de Vida</h2>
+            <p class="text-slate-600 text-lg">Como o desconto evolui e as restrições arquiteturais e financeiras de cada etapa.</p>
+        </div>
+
+        <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm print:border print:shadow-none print:p-4">
+            <h3 class="text-xl font-bold text-slate-700 mb-6 border-b border-slate-100 pb-3">O Caminho Sem Volta (Solicitado → Validado → Baixado)</h3>
+            <div class="flex flex-col gap-8 text-slate-700">
+                <div class="flex gap-4 items-start">
+                    <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xl shrink-0"><i class="pi pi-file-edit"></i></div>
+                    <div>
+                        <h4 class="text-lg font-bold text-slate-800">1. SOLICITADO (Fase de Rascunho)</h4>
+                        <p class="text-slate-600 mt-1 leading-relaxed">
+                            É o ponto de partida. O responsável pode adicionar materiais perdidos e remover itens equivocados.
+                            <br><b>Atenção:</b> Você <u>não poderá</u> aprovar um desconto se não incluir nenhum item financeiro nele.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start">
+                    <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xl shrink-0"><i class="pi pi-lock"></i></div>
+                    <div>
+                        <h4 class="text-lg font-bold text-slate-800">2. VALIDADO (Fase de Congelamento)</h4>
+                        <p class="text-slate-600 mt-1 leading-relaxed">
+                            Ao validar, o gestor atesta que a ocorrência procede e bate o martelo sobre o "Valor Validado".
+                            <br><span class="text-red-600 font-medium">Bloqueio do Sistema:</span> Imediatamente após clicar em Validar, a lista de itens fica <b>congelada</b>. Ninguém mais poderá adicionar ou excluir materiais.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start">
+                    <div class="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold text-xl shrink-0"><i class="pi pi-check-circle"></i></div>
+                    <div>
+                        <h4 class="text-lg font-bold text-slate-800">3. BAIXADO (Fase Terminal e Auditoria)</h4>
+                        <p class="text-slate-600 mt-1 leading-relaxed">
+                            O D.P. pega os descontos validados, insere os débitos no holerite e preenche o "Valor Baixado".
+                            <br><span class="text-red-600 font-medium">Imutabilidade:</span> A partir da baixa (ou de uma Rejeição), o desconto morre e vira documento contábil selado.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="text-xl font-bold text-slate-700 mt-4">Transparência: Os Três Tipos de Valores</h3>
+        <p class="text-slate-600 mb-2">Rastreamos as reduções/negociações que acontecem pelo caminho.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-white p-5 rounded-xl shadow-sm border-t-4 border-t-orange-400 border-x border-b border-slate-200 print:border">
+            <h4 class="font-bold text-slate-800 text-lg mb-2">1. Valor Sugerido</h4>
+            <p class="text-sm text-slate-600">
+              <strong class="text-slate-800">Automático.</strong> O sistema soma o preço de catálogo dos itens que você anexou. Ex: 1 bota (R$150) + 1 alicate (R$50) = R$ 200,00.
+            </p>
+          </div>
+
+          <div class="bg-white p-5 rounded-xl shadow-sm border-t-4 border-t-blue-500 border-x border-b border-slate-200 print:border">
+            <h4 class="font-bold text-slate-800 text-lg mb-2">2. Valor Validado</h4>
+            <p class="text-sm text-slate-600">
+              <strong class="text-slate-800">Aprovação.</strong> O gestor concorda que o colaborador perdeu os itens, mas decide cobrar apenas R$ 100,00 devido à depreciação de uso.
+            </p>
+          </div>
+
+          <div class="bg-white p-5 rounded-xl shadow-sm border-t-4 border-t-green-500 border-x border-b border-slate-200 print:border">
+            <h4 class="font-bold text-slate-800 text-lg mb-2">3. Valor Baixado</h4>
+            <p class="text-sm text-slate-600">
+              <strong class="text-slate-800">O que vale no fim.</strong> Valor exato extraído do espelho da folha de pagamento pelo DP, provando a cobrança.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SEÇÃO 3: TELA DE CONSULTA
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-list mr-3 text-primary-700"></i>3. Operando a Tela de Consulta</h2>
+            <p class="text-slate-600 text-lg">Visão geral, filtros de funil e leitura das divergências da tabela.</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md border border-slate-200 p-6 flex flex-col gap-6 print:shadow-none print:border">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-2">Como usar os Filtros</h3>
+                    <ul class="flex flex-col gap-3 text-slate-600 text-sm">
+                        <li><i class="pi pi-search mr-2 text-primary-700"></i><b>Busca Global:</b> Campo para achar textos nas Observações.</li>
+                        <li><i class="pi pi-users mr-2 text-primary-700"></i><b>Colaborador:</b> Dropdown inteligente para achar todas as avarias de uma pessoa.</li>
+                        <li><i class="pi pi-calendar mr-2 text-primary-700"></i><b>Período:</b> Datas para isolar os descontos de fechamento de folha.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-2">Ações Rápidas (Exportação/Impressão)</h3>
+                    <ul class="flex flex-col gap-3 text-slate-600 text-sm">
+                        <li><i class="pi pi-file-excel mr-2 text-green-600"></i><b>Exportar Relatórios:</b> Um botão "Exportar" permite baixar os dados em formato CSV (Excel).</li>
+                        <li><i class="pi pi-print mr-2 text-slate-500"></i><b>Impressão do Termo:</b> Ao lado do ícone de 'olho' na tabela, existe o atalho de 'impressora' para gerar o Termo de Desconto em PDF.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-4">
+                <div class="print:hidden bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-2">Caixa de Entrada e Pesquisa (Vídeo)</h4>
+                    <video controls class="w-full rounded-lg border border-slate-200">
+                        <source src="assets/videos/guia de descontos.mp4" type="video/mp4">
+                    </video>
+                </div>
+                
+                <div class="hidden print:block w-full">
+                    <h4 class="font-bold text-slate-700 mb-2">Tela Principal de Descontos</h4>
+                    <img src="assets/manual/tela de descontos.png" alt="Tela de Descontos" class="w-full rounded-lg border border-slate-300">
+                </div>
+            </div>
+
+            <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm flex gap-3 items-start mt-2 print:border print:bg-white print:text-black">
+                <i class="pi pi-info-circle text-lg mt-0.5"></i>
+                <p>
+                    <b>Exemplo de Divergência (Linha Carlos Souza):</b><br>
+                    O Sugerido foi R$ 45, mas o gestor Validou por R$ 50. O sistema exibe "R$ 50" acompanhado de uma seta laranja indicando o acréscimo de R$ 5 (+R$5 de divergência).
+                </p>
+            </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SEÇÃO 4: LANÇAMENTO (FORM)
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-file-edit mr-3 text-primary-700"></i>4. Como Lançar um Novo Desconto</h2>
+            <p class="text-slate-600 text-lg">Criar um desconto exige planejamento. Veja as diretrizes para preenchimento correto.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-4">
+            <div class="flex flex-col gap-6">
+                <h3 class="text-xl font-bold text-slate-700 border-b border-slate-100 pb-2">Passo a Passo de Criação</h3>
+
+                <div class="flex flex-col gap-6">
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-primary-700 text-white font-bold flex items-center justify-center shrink-0">1</div>
+                        <div>
+                            <h4 class="font-bold text-slate-800">Dados Básicos e o Teto de Parcelas</h4>
+                            <p class="text-sm text-slate-600 mt-1">
+                                Selecione o Colaborador e o Motivo. <b>Importante:</b> Ao selecionar o Motivo, o sistema aplica a regra de Teto de Parcelas. Se o teto for "3", o campo bloqueará o número 4.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-primary-700 text-white font-bold flex items-center justify-center shrink-0">2</div>
+                        <div>
+                            <h4 class="font-bold text-slate-800">Inclusão de Itens e Materiais (Obrigatório)</h4>
+                            <p class="text-sm text-slate-600 mt-1">
+                                Sem itens, o valor do desconto é ZERO. Você deve clicar em "Adicionar Item", selecionar o Grupo do Equipamento e digitar a descrição e o valor.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-primary-700 text-white font-bold flex items-center justify-center shrink-0">3</div>
+                        <div>
+                            <h4 class="font-bold text-slate-800">Upload de Anexos e Evidências</h4>
+                            <p class="text-sm text-slate-600 mt-1">
+                                Anexe Boletins de Ocorrência ou fotos de peças quebradas na aba de anexos, para resguardar juridicamente o desconto.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 w-full">
+                <div class="print:hidden bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-2">Criação - Acesso à Tela (Vídeo 1 e 2)</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <video controls class="w-full rounded-lg border border-slate-200">
+                            <source src="assets/videos/descontos nova pt1.mp4" type="video/mp4">
+                        </video>
+                        <video controls class="w-full rounded-lg border border-slate-200">
+                            <source src="assets/videos/descontos nova pt2.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+
+                <div class="print:hidden bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-2">Criação - Preenchimento Completo (Vídeo)</h4>
+                    <video controls class="w-full rounded-lg border border-slate-200">
+                        <source src="assets/videos/nova folha preenchimento.mp4" type="video/mp4">
+                    </video>
+                </div>
+                
+                <div class="hidden print:flex flex-col gap-6 w-full">
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2">Preenchimento PT1</h4>
+                        <img src="assets/manual/nova folha pt1.png" alt="Nova Folha PT1" class="w-full rounded-lg border border-slate-300 shadow-sm">
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2">Preenchimento PT2</h4>
+                        <img src="assets/manual/nova folha pt2.png" alt="Nova Folha PT2" class="w-full rounded-lg border border-slate-300 shadow-sm">
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2">Preenchimento PT3</h4>
+                        <img src="assets/manual/nova folha pt3.png" alt="Nova Folha PT3" class="w-full rounded-lg border border-slate-300 shadow-sm">
+                    </div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SEÇÃO 5: APROVAÇÃO, VALIDAÇÃO E BAIXA
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-verified mr-3 text-primary-700"></i>5. Painel de Aprovação (Gestor e D.P.)</h2>
+            <p class="text-slate-600 text-lg">Ao abrir os detalhes de um Desconto, acessamos a máquina de estados para validar ou baixar.</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md border border-slate-200 p-6 sm:p-8 print:shadow-none">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 border-b border-slate-100 pb-3">Fluxos de Decisão no Relatório</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center gap-3 text-blue-700 bg-blue-50 p-3 rounded-lg border border-blue-200 font-bold print:border-slate-300 print:text-black print:bg-white">
+                        <div class="w-8 h-8 rounded bg-blue-600 text-white flex items-center justify-center shrink-0"><i class="pi pi-user-edit"></i></div>
+                        Área do Gestor (Validar)
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Quando o desconto está no status "Solicitado", o gestor confere a lista de itens e define o <b>Valor Validado</b>.
+                    </p>
+                    <ul class="text-sm text-slate-600 flex flex-col gap-2">
+                        <li><i class="pi pi-check text-blue-500 mr-2"></i><b>Validar:</b> Envia para o RH. Sugerimos aceitar o valor sugerido.</li>
+                        <li><i class="pi pi-times text-red-500 mr-2"></i><b>Rejeitar:</b> Aborta o desconto. É obrigatório informar um motivo de rejeição.</li>
+                    </ul>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center gap-3 text-green-700 bg-green-50 p-3 rounded-lg border border-green-200 font-bold print:border-slate-300 print:text-black print:bg-white">
+                        <div class="w-8 h-8 rounded bg-green-600 text-white flex items-center justify-center shrink-0"><i class="pi pi-money-bill"></i></div>
+                        Área do Depto Pessoal (Baixar)
+                    </div>
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        Quando o desconto chega no status "Validado", é a vez do RH/DP agir, executando a cobrança no holerite.
+                    </p>
+                    <ul class="text-sm text-slate-600 flex flex-col gap-2">
+                        <li><i class="pi pi-check text-green-500 mr-2"></i><b>Valor Baixado:</b> O D.P. informa o quanto realmente foi descontado.</li>
+                        <li><i class="pi pi-ban text-slate-500 mr-2"></i><b>Pós-Baixa:</b> O desconto é selado, nada mais pode ser clicado, anexado ou escrito.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 w-full mt-4">
+                <div class="print:hidden bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-2">Detalhes e Validação Pós-Criação (Vídeo)</h4>
+                    <video controls class="w-full rounded-lg border border-slate-200">
+                        <source src="assets/videos/pos nova folha.mp4" type="video/mp4">
+                    </video>
+                </div>
+                <div class="hidden print:block w-full text-center text-slate-500 italic p-4 border border-slate-200 rounded-lg">
+                    Consulte o sistema para validação e baixa financeira.
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <div class="text-center pt-8 text-slate-500 text-sm flex flex-col items-center gap-2 print:hidden">
+        <i class="pi pi-check-circle text-2xl text-slate-300"></i>
+        <p>Você chegou ao fim do manual.<br>Sinta-se à vontade para manter esta página nos seus favoritos ou pressionar Ctrl+P para imprimir/salvar em PDF.</p>
+      </div>
+
+    </div>
+  </div>

@@ -1,0 +1,5 @@
+numero_contrato;cliente;data_vigencia;data_encerramento;coeficiente_faturamento
+001/2024;Concessionária;01/01/2024;31/12/2025;1,0
+002/2024;Concessionária;15/02/2024;14/02/2026;1,25
+003/2024;Empresa Engenharia;01/03/2024;31/12/2024;0,95
+004/2024;Concessionária;01/01/2024;01/01/2027;1,5

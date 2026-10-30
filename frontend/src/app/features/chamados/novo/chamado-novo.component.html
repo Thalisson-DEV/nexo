@@ -1,0 +1,172 @@
+<div class="flex flex-col gap-4 pb-28">
+  <div class="flex justify-between items-center">
+    <p-breadcrumb [model]="breadcrumb" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button icon="pi pi-arrow-left" label="Voltar" [text]="true" severity="secondary"
+      (onClick)="voltar()" styleClass="!text-slate-400 !text-[10px] !font-medium" />
+  </div>
+
+  @if (loading()) {
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 min-h-96 flex flex-col items-center justify-center gap-3">
+      <p-progress-spinner strokeWidth="3" [style]="{ width: '36px', height: '36px' }" />
+      <span class="text-[11px] text-slate-400">Preparando o formulário...</span>
+    </div>
+  } @else {
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden max-w-4xl w-full mx-auto">
+      <div class="px-5 md:px-8 py-6 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2 mb-3">
+          <i class="pi pi-ticket text-primary-700 dark:text-primary-400 text-xs"></i>
+          <span class="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-widest">Novo chamado</span>
+        </div>
+        <h1 class="text-base font-medium text-slate-800 dark:text-white">Solicitação de atendimento</h1>
+        <p class="text-[11px] text-slate-400 mt-1">Informe a necessidade, revise os dados e inclua evidências antes de abrir o chamado.</p>
+      </div>
+
+      <div class="px-5 md:px-8 py-6">
+        <p-stepper [(value)]="activeStep">
+          <p-step-list>
+            <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="!criado() && activeStep.set(1)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-pencil text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'">Dados</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-check text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'">Revisão e anexos</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="3" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-send text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'">Protocolo</span>
+                </button>
+              </ng-template>
+            </p-step>
+          </p-step-list>
+
+          <p-step-panels>
+            <p-step-panel [value]="1">
+              <ng-template #content>
+                <form [formGroup]="form" class="mt-6 flex flex-col gap-5">
+                  <div class="field">
+                    <label for="topico">Tópico *</label>
+                    <p-select inputId="topico" formControlName="topicoId" [options]="topicos()" optionLabel="nome"
+                      optionValue="id" placeholder="Selecione o assunto principal" [filter]="true"
+                      class="custom-select w-full" size="small" appendTo="body">
+                      <ng-template pTemplate="item" let-topico>
+                        <div class="flex flex-col py-1"><span class="text-[11px] font-medium text-slate-700 dark:text-slate-200">{{ topico.nome }}</span><span class="text-[9px] text-slate-400">{{ topico.descricao || topico.codigo }}</span></div>
+                      </ng-template>
+                    </p-select>
+                    @if (form.controls.topicoId.touched && form.controls.topicoId.invalid) { <small class="form-error">Selecione um tópico.</small> }
+                    @if (topicoSelecionado(); as topico) {
+                      <div class="topic-hint">
+                        <div><span>Equipe padrão</span><strong>{{ topico.equipePadrao.nome }}</strong></div>
+                        <div><span>Primeira resposta</span><strong>{{ topico.slaPrimeiraRespostaHoras }}h</strong></div>
+                        <div><span>Resolução</span><strong>{{ topico.slaResolucaoHoras }}h</strong></div>
+                      </div>
+                    }
+                  </div>
+                  <div class="field">
+                    <label for="assunto">Assunto *</label>
+                    <input id="assunto" pInputText formControlName="assunto" maxlength="150" class="custom-input" size="small" placeholder="Resuma sua necessidade em uma frase" />
+                    <div class="field-meta"><span class="form-error">@if (form.controls.assunto.touched && form.controls.assunto.invalid) { Informe o assunto. }</span><span>{{ form.controls.assunto.value.length }}/150</span></div>
+                  </div>
+                  <div class="field">
+                    <label for="descricao">Descrição *</label>
+                    <textarea id="descricao" pTextarea formControlName="descricao" rows="7" maxlength="5000"
+                      class="w-full !text-[11px]" placeholder="Explique o contexto, o resultado esperado, o que ocorreu e quando começou."></textarea>
+                    <div class="field-meta"><span class="form-error">@if (form.controls.descricao.touched && form.controls.descricao.invalid) { Use entre 10 e 5.000 caracteres. }</span><span>{{ form.controls.descricao.value.length }}/5000</span></div>
+                  </div>
+                  <div class="field">
+                    <label for="prioridade">Prioridade</label>
+                    <p-select inputId="prioridade" formControlName="prioridade" [options]="prioridadeOptions"
+                      optionLabel="label" optionValue="value" class="custom-select w-full" size="small" appendTo="body" />
+                    @if (topicoSelecionado()) { <span class="field-help">Prioridade padrão do tópico: {{ prioridadePadrao() }}.</span> }
+                  </div>
+                  <div class="flex justify-end mt-3">
+                    <p-button label="REVISAR" icon="pi pi-arrow-right" iconPos="right" (onClick)="revisar()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="2">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-6">
+                  <div>
+                    <div class="section-marker"><span>Resumo do chamado</span></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:pl-5">
+                      <div class="review-card"><span>Tópico</span><p>{{ topicoSelecionado()?.nome }}</p></div>
+                      <div class="review-card"><span>Prioridade</span><p>{{ prioridadeRevisao() }}</p></div>
+                      <div class="review-card md:col-span-2"><span>Assunto</span><p>{{ form.controls.assunto.value }}</p></div>
+                      <div class="review-card md:col-span-2"><span>Descrição</span><p class="whitespace-pre-wrap">{{ form.controls.descricao.value }}</p></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Evidências</span></div>
+                    <div class="md:pl-5">
+                      <label class="upload-button">
+                        <i class="pi pi-upload"></i><span>Selecionar arquivos</span>
+                        <input type="file" multiple hidden (change)="selecionarArquivos($event)"
+                          accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.log,.doc,.docx,.xls,.xlsx" />
+                      </label>
+                      <p class="mt-2 text-[9px] text-slate-400">Até 10 arquivos de 15 MB. Imagens, PDF, TXT/LOG, Word e Excel.</p>
+                      <div class="mt-3 flex flex-col gap-2">
+                        @for (arquivo of arquivos(); track arquivo.file.name + arquivo.file.size; let index = $index) {
+                          <div class="file-row"><i class="pi pi-file text-primary-700 dark:text-primary-400"></i><div class="min-w-0 flex-1"><p>{{ arquivo.file.name }}</p><span>{{ formatarBytes(arquivo.file.size) }}</span></div><p-button icon="pi pi-times" [text]="true" [rounded]="true" severity="secondary" (onClick)="removerArquivo(index)" styleClass="!w-7 !h-7" /></div>
+                        } @empty { <div class="empty-files">Nenhum arquivo selecionado.</div> }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-700/60 flex items-start gap-2">
+                    <i class="pi pi-info-circle text-primary-700 dark:text-primary-400 text-xs mt-0.5"></i>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400">O chamado será criado uma única vez. Cada anexo será enviado separadamente e poderá ser reenviado em caso de falha.</p>
+                  </div>
+                  <div class="flex justify-between mt-2">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="activeStep.set(1)" styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]" />
+                    <p-button label="ABRIR CHAMADO" icon="pi pi-send" [loading]="salvando()" (onClick)="salvar()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]" />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="3">
+              <ng-template #content>
+                @if (criado(); as chamado) {
+                  <div class="mt-6 flex flex-col gap-6">
+                    <div class="bg-primary-50/40 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/50 rounded-xl px-4 py-4 flex items-start gap-3">
+                      <i class="pi pi-check-circle text-primary-700 dark:text-primary-400 mt-0.5"></i>
+                      <div><p class="text-[10px] font-bold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Chamado aberto</p><p class="font-mono text-sm font-bold text-primary-700 dark:text-primary-400 mt-1">{{ chamado.protocolo }}</p><p class="text-[10px] text-primary-700 dark:text-primary-300 mt-1">O protocolo já está salvo e pode ser acompanhado em Meus chamados.</p></div>
+                    </div>
+                    <div>
+                      <div class="section-marker"><span>Status dos anexos</span></div>
+                      <div class="flex flex-col gap-2 md:pl-5">
+                        @for (arquivo of arquivos(); track arquivo.file.name + arquivo.file.size; let index = $index) {
+                          <div class="file-row"><i [class]="arquivo.status === 'concluido' ? 'pi pi-check-circle text-green-600 dark:text-green-400' : arquivo.status === 'erro' ? 'pi pi-exclamation-circle text-red-500 dark:text-red-400' : 'pi pi-spin pi-spinner text-primary-700 dark:text-primary-400'"></i><div class="min-w-0 flex-1"><p>{{ arquivo.file.name }}</p><span [class.!text-red-500]="arquivo.status === 'erro'">{{ arquivo.status === 'concluido' ? 'Enviado' : arquivo.status === 'erro' ? (arquivo.erro || 'Falha no envio') : 'Enviando...' }}</span></div>@if (arquivo.status === 'erro') { <p-button label="Tentar novamente" [text]="true" size="small" (onClick)="tentarNovamente(index)" styleClass="!text-[10px]" /> }</div>
+                        } @empty { <div class="empty-files">O chamado foi aberto sem anexos.</div> }
+                      </div>
+                    </div>
+                    <div class="flex justify-end pt-5 border-t border-slate-100 dark:border-slate-800">
+                      <p-button label="ACOMPANHAR CHAMADO" icon="pi pi-arrow-right" iconPos="right" (onClick)="irParaChamado()"
+                        styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]" />
+                    </div>
+                  </div>
+                }
+              </ng-template>
+            </p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </div>
+  }
+</div>

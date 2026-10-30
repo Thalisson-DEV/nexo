@@ -1,0 +1,188 @@
+@if (mensagem().papel === 'USUARIO') {
+  <article class="usuario" aria-label="Sua mensagem">
+    <div class="usuario__balao">
+      <p class="usuario__texto">{{ mensagem().texto }}</p>
+      @if (mensagem().anexos.length) {
+        <ul class="anexos" aria-label="Anexos enviados">
+          @for (anexo of mensagem().anexos; track anexo.id) {
+            <li>
+              @if (anexo.categoria === 'IMAGEM' && imagens()[anexo.id]) {
+                <img class="anexos__miniatura" [src]="imagens()[anexo.id]" [alt]="anexo.nome" />
+              }
+              <button type="button" class="arquivo" (click)="baixar(anexo)" [attr.aria-label]="'Baixar ' + anexo.nome">
+                <i [class]="iconeArquivo(anexo)" aria-hidden="true"></i>
+                <span class="arquivo__nome">{{ anexo.nome }}</span>
+                @if (anexo.codigo) {
+                  <span class="arquivo__codigo">{{ anexo.codigo }}</span>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+    @if (recorte(); as r) {
+      <p class="usuario__recorte" [attr.aria-label]="'Pergunta feita no painel ' + r.painel + ' com o recorte: ' + r.resumo">
+        <i class="pi pi-objects-column" aria-hidden="true"></i>
+        <span class="usuario__recorte-painel">{{ r.painel }}</span>
+        <span class="usuario__recorte-resumo">{{ r.resumo }}</span>
+      </p>
+    }
+  </article>
+} @else if (resposta(); as r) {
+  <article class="assistente" [attr.aria-busy]="emAndamento()" aria-label="Resposta do Copiloto">
+    <div class="assistente__avatar" aria-hidden="true">
+      <img src="icons/copiloto-2.png" alt="" />
+    </div>
+    <div class="assistente__corpo">
+      <div class="assistente__cabecalho">
+        <strong>Copiloto</strong>
+        @switch (r.status) {
+          @case ('CANCELADA') {
+            <ces-status tone="warning" icon="pi-stop-circle">Interrompida</ces-status>
+          }
+          @case ('FALHOU') {
+            <ces-status tone="danger" icon="pi-exclamation-triangle">Não concluída</ces-status>
+          }
+          @case ('INDISPONIVEL') {
+            <ces-status tone="danger" icon="pi-ban">Indisponível</ces-status>
+          }
+        }
+      </div>
+
+      <app-copiloto-etapas
+        [etapas]="r.etapas"
+        [observacoes]="notas()"
+        [emAndamento]="emAndamento()"
+        [duracaoMs]="r.duracaoMs"
+        (baixarArquivo)="baixar($event)"
+      ></app-copiloto-etapas>
+
+      @if (pensando()) {
+        <p class="assistente__pensando" role="status">
+          <span class="pontos" aria-hidden="true"><span></span><span></span><span></span></span>
+          Entendendo o pedido…
+        </p>
+      }
+
+      @if (texto()) {
+        <app-copiloto-markdown class="assistente__texto" [content]="texto()" [fontes]="r.fontes"></app-copiloto-markdown>
+        @if (emAndamento()) {
+          <span class="assistente__cursor" aria-hidden="true"></span>
+        }
+      }
+
+      @if (imagensGeradas().length) {
+        <div class="imagens">
+          @for (imagem of imagensGeradas(); track imagem.id) {
+            <figure class="imagem">
+              @if (imagens()[imagem.id]) {
+                <img [src]="imagens()[imagem.id]" [alt]="'Imagem gerada: ' + imagem.nome" />
+              } @else {
+                <div class="imagem__carregando" role="status">Carregando imagem…</div>
+              }
+              <figcaption>
+                <span>{{ imagem.nome }}</span>
+                <ces-icon-button icon="pi pi-download" [label]="'Baixar ' + imagem.nome" size="icon-sm" (pressed)="baixar(imagem)"></ces-icon-button>
+              </figcaption>
+            </figure>
+          }
+        </div>
+      }
+
+      @if (r.artefatos.length) {
+        <ul class="artefatos" aria-label="Artefatos criados nesta resposta">
+          @for (artefato of r.artefatos; track artefato.codigo) {
+            <li>
+              <button type="button" class="artefato" (click)="abrir(artefato)">
+                <span class="artefato__icone" aria-hidden="true"><i [class]="iconeArtefato[artefato.tipo] || 'pi pi-file'"></i></span>
+                <span class="artefato__texto">
+                  <span class="artefato__titulo">{{ artefato.titulo }}</span>
+                  <span class="artefato__tipo">{{ rotuloArtefato[artefato.tipo] || artefato.tipo }} · {{ artefato.codigo }}</span>
+                </span>
+                <span class="artefato__abrir">Abrir <i class="pi pi-arrow-right" aria-hidden="true"></i></span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (demaisArquivos().length) {
+        <ul class="anexos anexos--gerados" aria-label="Arquivos gerados">
+          @for (arquivo of demaisArquivos(); track arquivo.id) {
+            <li>
+              <button type="button" class="arquivo arquivo--gerado" (click)="baixar(arquivo)" [attr.aria-label]="'Baixar ' + arquivo.nome">
+                <i [class]="iconeArquivo(arquivo)" aria-hidden="true"></i>
+                <span class="arquivo__nome">{{ arquivo.nome }}</span>
+                <span class="arquivo__codigo">{{ formatarTamanho(arquivo.tamanhoBytes) }}</span>
+                <i class="pi pi-download" aria-hidden="true"></i>
+              </button>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (r.fontes.length) {
+        <section class="fontes" aria-label="Fontes externas consultadas">
+          <h3>Fontes externas</h3>
+          <ol>
+            @for (fonte of r.fontes; track fonte.numero) {
+              <li>
+                <span class="fontes__numero">{{ fonte.numero }}</span>
+                <a [href]="fonte.url" target="_blank" rel="noopener noreferrer">{{ fonte.titulo }}</a>
+                <span class="fontes__dominio">{{ fonte.dominio }}</span>
+              </li>
+            }
+          </ol>
+        </section>
+      }
+
+      @if (acoes().length) {
+        <div class="acoes" role="group" aria-label="Atalhos sugeridos no Nexo">
+          @for (item of acoes(); track $index) {
+            <ces-button variant="outline" size="sm" icon="pi pi-arrow-up-right" [label]="item.acao.rotulo" (pressed)="navegar(item.acao)"></ces-button>
+          }
+        </div>
+      }
+
+      @if (filtrosSugeridos().length) {
+        <div class="acoes" role="group" aria-label="Filtros sugeridos para a tabela em tela">
+          @for (item of filtrosSugeridos(); track $index) {
+            <ces-button variant="outline" size="sm" icon="pi pi-filter" [label]="'Aplicar: ' + item.filtro.rotulo"
+              [ariaLabel]="'Aplicar filtro na tabela: ' + item.resumo" (pressed)="aplicarFiltro(item.filtro)"></ces-button>
+          }
+        </div>
+      }
+
+      @for (proposta of propostas(); track proposta.acaoId) {
+        @if (ehCadastro(proposta)) {
+          <app-copiloto-cartao-cadastro [proposta]="proposta" />
+        } @else {
+          <ces-callout tone="warning" [title]="proposta.titulo" icon="pi-shield" [dense]="true">
+            Esta ação altera dados e precisa da sua confirmação explícita. Nada foi executado.
+          </ces-callout>
+        }
+      }
+
+      @if (r.erro) {
+        <ces-callout tone="danger" title="Resposta não concluída" icon="pi-exclamation-triangle" [dense]="true">
+          {{ r.erro }}
+        </ces-callout>
+      }
+
+      @if (r.concluida) {
+        <div class="assistente__rodape">
+          @if (r.status === 'CANCELADA') {
+            <span>Geração interrompida pelo usuário.</span>
+          }
+          @if (rodape()) {
+            <span>{{ rodape() }}</span>
+          }
+          @if (texto()) {
+            <ces-icon-button icon="pi pi-copy" label="Copiar resposta" size="icon-sm" (pressed)="copiar()"></ces-icon-button>
+          }
+        </div>
+      }
+    </div>
+  </article>
+}

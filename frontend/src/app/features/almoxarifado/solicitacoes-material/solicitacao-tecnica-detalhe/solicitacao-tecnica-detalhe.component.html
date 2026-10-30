@@ -1,0 +1,1387 @@
+<div
+  class="min-h-full min-h-screen bg-[var(--ces-surface)] text-[var(--ces-foreground)] p-4 md:p-8 print:p-0 print:min-h-0 print:bg-white print:dark:bg-white print:text-black"
+>
+  <!-- LOADING -->
+  @if (state() === 'loading') {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state
+        [state]="'loading'"
+        title="Carregando relatório da solicitação técnica..."
+        description="Consultando informações da solicitação..."
+      ></ces-async-state>
+    </div>
+  }
+
+  <!-- ERRO -->
+  @else if (state() === 'error') {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state
+        [state]="'error'"
+        title="Solicitação indisponível"
+        description="Não foi possível carregar o detalhe técnico."
+        actionLabel="Tentar novamente"
+        (action)="reload()"
+      ></ces-async-state>
+    </div>
+  }
+
+  <!-- RELATÓRIO CONTÍNUO DE PÁGINA ÚNICA -->
+  @else if (detail(); as request) {
+    @if (request.tecnico; as tech) {
+      <div class="max-w-6xl mx-auto pb-32 print:max-w-full print:pb-0 rise print:animate-none">
+        <!-- CABEÇALHO CORPORATIVO OFICIAL -->
+        <div
+          class="grid grid-cols-3 items-center border-b border-slate-200 dark:border-slate-800 pb-6 mb-6 print:pb-2 print:mb-2"
+          aria-label="Cabeçalho institucional"
+        >
+          <div class="flex justify-start">
+            <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14" onerror="this.style.display = 'none'" />
+          </div>
+          <div class="text-center flex flex-col gap-1">
+            <h1 class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">NOME DA EMPRESA</h1>
+            <p class="text-[11px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest">
+              Almoxarifado Central & Gestão de Materiais
+            </p>
+            <p class="text-[11px] text-slate-600 dark:text-slate-400 font-medium">Serviços prestados à Concessionária</p>
+          </div>
+          <div class="flex justify-end">
+            <img
+              src="logo_vertical.svg"
+              alt="Logo Cliente"
+              class="h-16 print:h-14 grayscale opacity-25"
+              onerror="this.style.display = 'none'"
+            />
+          </div>
+        </div>
+
+        <!-- TÍTULO CENTRALIZADO DO RELATÓRIO -->
+        <div class="py-4 text-center border-y border-slate-200 dark:border-slate-800 my-4 print:py-2 print:my-2">
+          <h2 class="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight uppercase">
+            Relatório Técnico de Solicitação de Material
+          </h2>
+          <div class="flex items-center justify-center gap-2 mt-1.5 flex-wrap text-xs text-slate-600 dark:text-slate-300 font-medium">
+            <span class="font-bold text-slate-900 dark:text-slate-100">ID {{ request.id.slice(0, 8) }}</span>
+            <span>·</span>
+            <span
+              >Emissão: <strong class="text-slate-900 dark:text-slate-100">{{ dataEmissao | date: 'dd/MM/yyyy HH:mm' }}</strong></span
+            >
+          </div>
+        </div>
+
+        <!-- ALERTAS DE CONEXÃO E RETENTATIVA IDEMPOTENTE -->
+        @if (!isOnline()) {
+          <div
+            class="flex items-center gap-3 p-3.5 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/80 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 mb-4 print:hidden"
+          >
+            <i class="pi pi-wifi text-amber-600 text-lg shrink-0"></i>
+            <div class="flex flex-col gap-0.5 text-xs">
+              <span class="font-bold">Modo Offline (Sem Conexão)</span>
+              <span class="text-[11px] text-amber-700 dark:text-amber-300"
+                >O snapshot atual é somente leitura. Comandos operacionais serão reabilitados automaticamente ao reconectar.</span
+              >
+            </div>
+          </div>
+        }
+
+        @if (pendingSeparation(); as sep) {
+          <div
+            class="flex items-center justify-between gap-3 p-3.5 rounded-lg border border-sky-200 dark:border-sky-900 bg-sky-50/80 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 mb-4 print:hidden"
+          >
+            <div class="flex items-center gap-2.5">
+              <i class="pi pi-refresh text-sky-600 text-base animate-spin"></i>
+              <div class="flex flex-col gap-0.5 text-xs">
+                <span class="font-bold">Resposta de separação não confirmada</span>
+                <span class="text-[11px] text-sky-700 dark:text-sky-300"
+                  >Repita com a mesma chave e o mesmo corpo para evitar duplicidade.</span
+                >
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <ces-button label="Tentar Novamente" size="sm" variant="primary" (pressed)="separation(sep.kind, true)" />
+              <ces-button label="Descartar" size="sm" variant="ghost" (pressed)="discardSeparationRetry()" />
+            </div>
+          </div>
+        }
+
+        <!-- VISUAL STAGE TRACKER (ETAPAS DO FLUXO OFICIAL) -->
+        <div class="mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xs print:hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"> Fluxo da Solicitação </span>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400"> 4 etapas integradas </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            @for (stage of stages(); track stage.number) {
+              <div
+                class="flex items-start gap-3 p-3 rounded-lg border transition-all"
+                [ngClass]="{
+                  'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200':
+                    stage.state === 'completed',
+                  'bg-primary-50/80 dark:bg-primary-950/40 border-primary-300 dark:border-primary-700 text-primary-900 dark:text-primary-100 ring-2 ring-primary-500/20 shadow-xs':
+                    stage.state === 'current',
+                  'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 opacity-80':
+                    stage.state === 'waiting',
+                }"
+              >
+                <div class="relative shrink-0">
+                  <div
+                    class="w-8 h-8 rounded-full flex items-center justify-center text-xs"
+                    [ngClass]="{
+                      'bg-emerald-600 text-white': stage.state === 'completed',
+                      'bg-primary-600 text-white shadow-xs': stage.state === 'current',
+                      'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400': stage.state === 'waiting',
+                    }"
+                  >
+                    <i
+                      [class]="
+                        stage.icon +
+                        ' workflow-stage-icon ' +
+                        (stage.state === 'waiting' ? 'workflow-stage-icon--waiting' : 'workflow-stage-icon--active')
+                      "
+                    ></i>
+                  </div>
+                  @if (stage.state === 'completed') {
+                    <span
+                      class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-700 text-white rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-900"
+                      title="Etapa concluída"
+                    >
+                      <i class="pi pi-check text-[7px]"></i>
+                    </span>
+                  }
+                </div>
+                <div class="flex flex-col min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="font-bold text-xs tracking-tight truncate">
+                      {{ stage.label }}
+                    </span>
+                    @if (stage.badge) {
+                      <span
+                        class="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0"
+                        [ngClass]="{
+                          'bg-emerald-200/70 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200': stage.state === 'completed',
+                          'bg-primary-200 dark:bg-primary-900/60 text-primary-800 dark:text-primary-200': stage.state === 'current',
+                          'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400': stage.state === 'waiting',
+                        }"
+                      >
+                        {{ stage.badge }}
+                      </span>
+                    }
+                  </div>
+                  <span class="text-[10px] text-slate-600 dark:text-slate-400 leading-tight mt-0.5 line-clamp-2">
+                    {{ stage.description }}
+                  </span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- BLOCO EM EVIDÊNCIA DA OBRA (OCUPANDO TODAS AS COLUNAS) -->
+        <div
+          class="mb-6 bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 md:p-5 print:p-3 print:mb-3 shadow-2xs"
+        >
+          <!-- Linha 1: Identificação Principal e Número da Obra em Evidência -->
+          <div
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200/80 dark:border-slate-700"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-950/80 text-primary-700 dark:text-primary-300 flex items-center justify-center border border-primary-200 dark:border-primary-800 shrink-0"
+              >
+                <i class="pi pi-building text-lg"></i>
+              </div>
+              <div class="flex flex-col">
+                <div class="flex items-center gap-2 flex-wrap">
+                  @if (obraInfo(); as o) {
+                    <a
+                      [routerLink]="['/obras', o.id]"
+                      class="text-sm md:text-base font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      {{ o.numero }}
+                    </a>
+                  } @else {
+                    <span class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100">
+                      {{ tech.idObra.slice(0, 8) }}
+                    </span>
+                  }
+                  <span class="text-slate-400 dark:text-slate-500 font-medium">·</span>
+                  <span class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
+                    {{ obraInfo()?.titulo || obraDisplay() }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Badges e Ocorrência em Destaque -->
+            <div class="flex items-center gap-2 flex-wrap sm:justify-end">
+              @if (tech.ocorrencia) {
+                <span
+                  class="text-xs font-bold px-2.5 py-1 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 flex items-center gap-1.5"
+                  title="Ocorrência vinculada à obra"
+                >
+                  <i class="pi pi-file-edit text-xs"></i>
+                  <span>OC/OS: {{ tech.ocorrencia.codigo }}</span>
+                </span>
+              }
+              @if (obraInfo(); as o) {
+                @if (o.notaObra) {
+                  <span
+                    class="text-xs font-medium px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5"
+                  >
+                    <i class="pi pi-receipt text-xs text-slate-500 dark:text-slate-400"></i>
+                    <span
+                      >Nota: <strong class="text-slate-900 dark:text-slate-100">{{ o.notaObra }}</strong></span
+                    >
+                  </span>
+                  <span
+                    class="text-xs font-medium px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5"
+                  >
+                    <i class="pi pi-tag text-xs text-slate-500 dark:text-slate-400"></i>
+                    <span
+                      >Tipo: <strong class="text-slate-900 dark:text-slate-100">{{ tech.tipoObra }}</strong></span
+                    >
+                  </span>
+                }
+                <span
+                  class="text-xs font-semibold px-2.5 py-1 rounded-md uppercase tracking-tight bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
+                >
+                  {{ o.statusNome }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <!-- Linhas Dedicadas com Informações Complementares da Obra -->
+          @if (obraInfo(); as o) {
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-3 text-xs">
+              <div class="flex flex-col">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Município</span>
+                <span class="font-semibold text-slate-900 dark:text-slate-100 truncate" [title]="o.municipioNome || '—'">{{
+                  o.municipioNome || '—'
+                }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Base Operacional</span>
+                <span class="font-semibold text-slate-900 dark:text-slate-100 truncate" [title]="o.baseOperacionalNome || '—'">{{
+                  o.baseOperacionalNome || '—'
+                }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Processo</span>
+                <span class="font-semibold text-slate-900 dark:text-slate-100 truncate" [title]="o.processoNome || '—'">{{
+                  o.processoNome || '—'
+                }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Centro de Custo</span>
+                <span class="font-semibold text-slate-900 dark:text-slate-100 truncate" [title]="o.centroCustoNome || '—'">{{
+                  o.centroCustoNome || '—'
+                }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Supervisor</span>
+                <span class="font-semibold text-slate-900 dark:text-slate-100 truncate" [title]="o.supervisorNome || '—'">{{
+                  o.supervisorNome || '—'
+                }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Fiscal da Obra</span>
+                <span class="font-semibold text-slate-900 dark:text-slate-100 truncate" [title]="o.agenteResponsavelNome || '—'">{{
+                  o.agenteResponsavelNome || '—'
+                }}</span>
+              </div>
+            </div>
+          }
+        </div>
+
+        <app-solicitacao-pendencias [detalhe]="request"
+          [podeEditar]="isOnline() && !!tech.idObra && request.status !== 'REJEITADO' && request.status !== 'CANCELADO' && request.status !== 'ENTREGUE' && !request.encerrada"
+          (atualizado)="reload()" />
+
+        <!-- BLOCO DE REJEIÇÃO -->
+        @if (request.status === 'REJEITADO' && request.motivoRejeicao) {
+          <div
+            class="mb-6 p-4 bg-rose-50/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl animate-in fade-in slide-in-from-top-4 duration-500"
+          >
+            <div class="flex items-start gap-4">
+              <div
+                class="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-300 flex items-center justify-center shrink-0 border border-rose-200 dark:border-rose-800"
+              >
+                <i class="pi pi-times-circle text-base"></i>
+              </div>
+              <div class="flex flex-col gap-2 w-full">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider">
+                    Informações da Rejeição —
+                    <span class="text-xs text-rose-800 dark:text-rose-300 font-bold uppercase">{{
+                      request.dataVerificacao | date: 'dd/MM/yyyy HH:mm'
+                    }}</span>
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1">
+                  <div class="flex flex-col gap-1">
+                    <span class="text-xs font-bold text-rose-900 dark:text-rose-200 uppercase">{{ request.motivoRejeicao.nome }}</span>
+                    <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+                      {{ request.motivoRejeicao.descricao }}
+                    </p>
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <span class="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold tracking-wider">Descrição / Justificativa</span>
+                    <div class="p-3 bg-white/80 dark:bg-slate-900/80 rounded-lg border border-rose-200 dark:border-rose-900/60 min-h-[60px]">
+                      <p class="text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
+                        "{{ request.justificativaRejeicao || 'Sem justificativa detalhada' }}"
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- DADOS GERAIS AGRUPADOS EM 3 COLUNAS (.KV) -->
+        <div
+          class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6 bg-slate-50/60 dark:bg-slate-900/40 p-4 md:p-5 rounded-xl border border-slate-200 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:mb-2 print:p-2"
+        >
+          <!-- Coluna 1: Atendimento & Almoxarifado -->
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+              <i class="pi pi-box text-primary-500 text-xs"></i>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Atendimento & Almoxarifado</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Almoxarifado</span><span class="kv-v font-semibold" [title]="warehouseName()">{{ warehouseName() }}</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Equipe Responsável</span><span class="kv-v font-semibold" [title]="teamName()">{{ teamName() }}</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Responsável</span>
+              <span class="kv-v font-semibold" [title]="plannedWithdrawalName()">
+                {{ plannedWithdrawalName() }}
+                @if (tech.saqueForaEquipe) {
+                  <span> · fora da equipe</span>
+                }
+              </span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Requisitante</span><span class="kv-v font-semibold">{{ formatUser(request.idRequisitante) }}</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Data da Solicitação</span>
+              <span class="kv-v">{{ request.dataSolicitacao | date: 'dd/MM/yyyy HH:mm' }}</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Data Prevista</span>
+              <span class="kv-v">{{ tech.dataPrevista ? (tech.dataPrevista | date: 'dd/MM/yyyy' : 'UTC') : 'Não definida' }}</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Data Atendimento</span>
+              <span
+                class="kv-v"
+                [class.text-emerald-600]="!!(dataEntrega() || request.dataEntrega)"
+                [class.dark:text-emerald-400]="!!(dataEntrega() || request.dataEntrega)"
+              >{{
+                (dataEntrega() || request.dataEntrega) ? ((dataEntrega() || request.dataEntrega) | date: 'dd/MM/yyyy HH:mm') : 'Pendente'
+              }}</span>
+            </div>
+          </div>
+
+          <!-- Coluna 2: Status & Fluxo Operacional -->
+          <div class="flex flex-col gap-3 md:border-x md:border-slate-200 dark:md:border-slate-800 md:px-6">
+            <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+              <i class="pi pi-tag text-primary-500 text-xs"></i>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Status & Fluxo Operacional</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Tipo Técnico</span>
+              <span
+                class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold tracking-wide"
+                [ngClass]="
+                  typeIsAdicao(tech.tipoTecnico)
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+                    : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60'
+                "
+              >
+                <i [class]="typeIcon(tech.tipoTecnico)" class="text-[11px]"></i>
+                {{ typeLabel(tech.tipoTecnico) }}
+              </span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Status Operacional</span>
+              <ces-status [tone]="statusTone(request.status)">{{ statusLabel(request.status) }}</ces-status>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Status Separação</span>
+              @if (typeIsAdicao(tech.tipoTecnico)) {
+                <ces-status [tone]="separacaoTone(tech.statusSeparacao)">{{ separacaoLabel(tech.statusSeparacao) }}</ces-status>
+              } @else {
+                <span class="kv-v text-slate-500 dark:text-slate-400">Não se aplica</span>
+              }
+            </div>
+            <div class="kv">
+              <span class="kv-l">Situação Cronológica</span>
+              @if (tech.atrasada) {
+                <ces-status tone="danger" icon="pi pi-clock">Atrasada</ces-status>
+              } @else {
+                <span class="kv-v text-emerald-600 dark:text-emerald-400 font-semibold">No prazo</span>
+              }
+            </div>
+            @if (tech.foraPrazoSaque) {
+              <div class="kv items-start">
+                <span class="kv-l">Prazo de Solicitação</span>
+                <ces-status tone="warning" icon="pi pi-exclamation-triangle">Solicitada fora do prazo</ces-status>
+              </div>
+            }
+            @if (tech.encerrada || tech.encerradaEm) {
+              <div class="kv items-start">
+                <span class="kv-l">Encerramento</span>
+                <span class="text-[11px] font-semibold leading-snug text-right text-amber-700 dark:text-amber-300">
+                  A solicitação já foi encerrada.
+                </span>
+              </div>
+            }
+          </div>
+
+          <!-- Coluna 3: Reserva Externa & Governança -->
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+              <i class="pi pi-bookmark text-primary-500 text-xs"></i>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Reserva Externa</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Número da Reserva</span>
+              <span
+                class="kv-v font-bold"
+                [ngClass]="tech.reserva ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-slate-400'"
+              >
+                {{ tech.reserva?.numero || 'Não registrada' }}
+              </span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Data Criação Reserva</span>
+              <span class="kv-v">{{ tech.reserva?.dataCriacao ? (tech.reserva!.dataCriacao | date: 'dd/MM/yyyy' : 'UTC') : '—' }}</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Fiscal da Reserva</span>
+              <span class="kv-v font-semibold" [title]="tech.reserva?.nomeAgente || '—'">{{ tech.reserva?.nomeAgente || '—' }}</span>
+            </div>
+            <div class="kv">
+              <span class="kv-l">Total de Itens</span><span class="kv-v font-bold">{{ request.itens.length }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- OBSERVAÇÃO / MOTIVO DE ENCERRAMENTO -->
+        @if (tech.observacao) {
+          <div class="mb-6 flex flex-col gap-1 px-1">
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Observação do Planejamento</span>
+            <p
+              class="text-xs text-slate-800 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-900/60 p-3.5 rounded-lg border border-slate-200 dark:border-slate-800"
+            >
+              {{ tech.observacao }}
+            </p>
+          </div>
+        }
+
+        <!-- ACUMULADORES TÉCNICOS (MÉTRICAS - OCULTO NA IMPRESSÃO) -->
+        <div class="mb-6 px-1 print:hidden">
+          <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-tight text-slate-800 dark:text-slate-200">Acumuladores & Totais Físicos</span>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div
+              class="flex flex-col gap-1 p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 shadow-2xs"
+            >
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Qtd. Solicitada</span>
+              <span class="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">{{ number(tech.totais.solicitada) }}</span>
+            </div>
+            <div
+              class="flex flex-col gap-1 p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 shadow-2xs"
+            >
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{
+                typeIsAdicao(tech.tipoTecnico) ? 'Entrega Bruta' : 'Devolução Bruta'
+              }}</span>
+              <span class="text-lg font-bold text-slate-900 dark:text-slate-100 tabular-nums">{{
+                number(typeIsAdicao(tech.tipoTecnico) ? tech.totais.entregaBruta : tech.totais.devolucaoBruta)
+              }}</span>
+            </div>
+            <div
+              class="flex flex-col gap-1 p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 shadow-2xs"
+            >
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">{{
+                typeIsAdicao(tech.tipoTecnico) ? 'Entrega Estornada' : 'Devolução Estornada'
+              }}</span>
+              <span class="text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums">{{
+                number(typeIsAdicao(tech.tipoTecnico) ? tech.totais.entregaEstornada : tech.totais.devolucaoEstornada)
+              }}</span>
+            </div>
+            <div
+              class="flex flex-col gap-1 p-3.5 rounded-lg border border-primary-300 dark:border-primary-800 bg-primary-50/70 dark:bg-primary-950/40 shadow-2xs"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-primary-700 dark:text-primary-300">Saldo Pendente</span>
+                <span class="text-[10px] font-semibold text-slate-600 dark:text-slate-400"
+                  >Líq: {{ number(typeIsAdicao(tech.tipoTecnico) ? tech.totais.entregaLiquida : tech.totais.devolucaoLiquida) }}</span
+                >
+              </div>
+              <span class="text-lg font-black text-primary-700 dark:text-primary-300 tabular-nums">{{ number(tech.totais.pendente) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ITENS DA SOLICITAÇÃO TÉCNICA -->
+        <div class="mb-6 px-1 print:mb-3">
+          <div class="flex items-center justify-between mb-3 border-l-2 border-primary-500 pl-3">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-tight text-slate-800 dark:text-slate-200"
+                >Materiais & Itens Solicitados</span
+              >
+              <span class="text-xs text-slate-500 dark:text-slate-400 font-semibold">({{ request.itens.length }})</span>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-2xs bg-white dark:bg-slate-900/60">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr
+                    class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200"
+                  >
+                    <th class="py-2.5 px-3">Código</th>
+                    <th class="py-2.5 px-3">Descrição</th>
+                    <th class="py-2.5 px-3 text-center">Unid.</th>
+                    <th class="py-2.5 px-3 text-center">Centro</th>
+                    <th class="py-2.5 px-3">Avaliação</th>
+                    <th class="py-2.5 px-3 text-center">SUPR/MATR</th>
+                    <th class="py-2.5 px-3 text-right">Solicitada</th>
+                    <th class="py-2.5 px-3 text-right">
+                      {{ typeIsAdicao(tech.tipoTecnico) ? 'Entregue' : 'Devolvida' }}
+                    </th>
+                    <th class="py-2.5 px-3 text-right">Pendente</th>
+                    <th class="py-2.5 px-3 text-center">Pendência</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                  @for (item of request.itens; track item.id) {
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                      <td class="py-2.5 px-3 whitespace-nowrap">
+                        <div class="flex items-center gap-1.5">
+                          <span class="font-bold text-xs text-slate-900 dark:text-slate-100">{{ item.material.codigo }}</span>
+                          @if (item.material.detalhaSerie) {
+                            <span
+                              class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800"
+                              >SÉRIE</span
+                            >
+                          }
+                        </div>
+                      </td>
+                      <td class="py-2.5 px-3">
+                        <span class="text-xs font-medium text-slate-800 dark:text-slate-200">{{ item.material.descricao }}</span>
+                      </td>
+                      <td class="py-2.5 px-3 text-center text-[11px] text-slate-600 dark:text-slate-400 uppercase">
+                        {{ item.material.unidadeMedida || '—' }}
+                      </td>
+                      <td class="py-2.5 px-3 text-center text-[11px] text-slate-600 dark:text-slate-400 font-mono">
+                        {{ item.material.centroInvestimento?.codigo || '—' }}
+                      </td>
+                      <td class="py-2.5 px-3 text-[11px] text-slate-600 dark:text-slate-400">
+                        {{ item.material.avaliacaoTecnica?.nome || '—' }}
+                      </td>
+                      <td class="py-2.5 px-3 text-center text-[11px] text-slate-600 dark:text-slate-400 uppercase">
+                        {{ item.material.suprMatrFlag || '—' }}
+                      </td>
+                      <td class="py-2.5 px-3 text-right font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                        {{ number(item.quantidade) }}
+                      </td>
+                      <td class="py-2.5 px-3 text-right tabular-nums text-slate-900 dark:text-slate-100 font-semibold">
+                        @if (typeIsAdicao(tech.tipoTecnico)) {
+                          <div>
+                            {{ number(item.quantidadeEntregaLiquida ?? item.quantidadeEntregue) }}
+                          </div>
+                          @if ((item.quantidadeEntregaEstornada || 0) > 0) {
+                            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                              ({{ number(item.quantidadeEntregaEstornada || 0) }} estornado)
+                            </div>
+                          }
+                        } @else {
+                          <div>{{ number(item.quantidadeDevolucaoLiquida ?? 0) }}</div>
+                          @if ((item.quantidadeDevolucaoEstornada || 0) > 0) {
+                            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                              ({{ number(item.quantidadeDevolucaoEstornada || 0) }} estornado)
+                            </div>
+                          }
+                        }
+                      </td>
+                      <td class="py-2.5 px-3 text-right font-bold text-primary-600 dark:text-primary-400 tabular-nums">
+                        {{ number(item.quantidadePendente || 0) }}
+                      </td>
+                      <td class="py-2.5 px-3 text-center">
+                        @if (item.motivoPendencia) {
+                          <button
+                            type="button"
+                            class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-amber-500 hover:text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors cursor-pointer"
+                            title="Ver pendência do material"
+                            (click)="abrirModalPendenciaItem(item)"
+                          >
+                            <i class="pi pi-exclamation-triangle text-base"></i>
+                          </button>
+                        } @else {
+                          <span
+                            class="inline-flex items-center justify-center w-7 h-7 text-emerald-500 dark:text-emerald-400"
+                            title="Sem pendência"
+                          >
+                            <i class="pi pi-check-circle text-base"></i>
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTÓRICO DE ENTREGAS E DEVOLUÇÕES (SANFONA PRINCIPAL COM SUB-SANFONAS AMIGÁVEIS - OCULTO NA IMPRESSÃO) -->
+        <div class="mb-6 px-1 print:hidden">
+          <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 shadow-2xs overflow-hidden">
+            <!-- SANFONA MAIOR (CABEÇALHO PRINCIPAL) -->
+            <button
+              type="button"
+              (click)="toggleOperations()"
+              class="w-full py-3.5 px-4 flex items-center justify-between gap-3 bg-slate-50/90 dark:bg-slate-800/70 hover:bg-slate-100/90 dark:hover:bg-slate-800 transition-colors text-left cursor-pointer select-none border-b"
+              [class.border-slate-200]="operationsOpen()"
+              [class.dark:border-slate-700]="operationsOpen()"
+              [class.border-transparent]="!operationsOpen()"
+              [attr.aria-expanded]="operationsOpen()"
+              aria-controls="historico-movimentacoes-painel"
+            >
+              <div class="flex items-center gap-3">
+                <div
+                  class="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-950/80 text-primary-700 dark:text-primary-300 flex items-center justify-center border border-primary-200 dark:border-primary-800 shrink-0"
+                >
+                  <i class="pi pi-box text-sm"></i>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100">Histórico de Operações</span>
+                    <span
+                      class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-700 text-slate-800 dark:text-slate-200"
+                    >
+                      {{ tech.operacoes.length }}
+                      {{ tech.operacoes.length === 1 ? 'movimentação' : 'movimentações' }}
+                    </span>
+                  </div>
+                  <span class="text-xs text-slate-600 dark:text-slate-300 font-normal">
+                    {{ operationsSummary() }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2.5 shrink-0 print:hidden">
+                <span class="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                  {{ operationsOpen() ? 'Recolher' : 'Ver movimentações' }}
+                </span>
+                <i
+                  class="pi text-xs text-primary-600 dark:text-primary-400 transition-transform duration-200"
+                  [class.pi-chevron-up]="operationsOpen()"
+                  [class.pi-chevron-down]="!operationsOpen()"
+                ></i>
+              </div>
+            </button>
+
+            <!-- CONTEÚDO DA SANFONA MAIOR -->
+            <div
+              id="historico-movimentacoes-painel"
+              [class.hidden]="!operationsOpen()"
+              class="p-3 md:p-4 flex flex-col gap-3 bg-slate-50/30 dark:bg-slate-900/30"
+            >
+              @if (tech.operacoes.length > 0) {
+                <!-- Barra de Ações Rápidas -->
+                <div class="flex items-center justify-between gap-2 pb-1">
+                  <span class="text-xs text-slate-600 dark:text-slate-300">
+                    Clique em qualquer movimentação abaixo para visualizar os materiais e números de série entregues:
+                  </span>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      (click)="expandAllOperations()"
+                      class="text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
+                    >
+                      Expandir todas
+                    </button>
+                    <span class="text-slate-400 dark:text-slate-600">·</span>
+                    <button
+                      type="button"
+                      (click)="collapseAllOperations()"
+                      class="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:underline cursor-pointer"
+                    >
+                      Recolher todas
+                    </button>
+                  </div>
+                </div>
+
+                <!-- LISTA DE SUB-SANFONAS (UMA PARA CADA MOVIMENTAÇÃO) -->
+                <div class="flex flex-col gap-2.5">
+                  @for (op of tech.operacoes; track op.id; let idx = $index) {
+                    <div
+                      class="rounded-lg border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900/80 shadow-2xs overflow-hidden"
+                    >
+                      <!-- CABEÇALHO DA SUB-SANFONA (MOVIMENTAÇÃO INDIVIDUAL) -->
+                      <button
+                        type="button"
+                        (click)="toggleOperation(op.id)"
+                        class="w-full p-3 flex items-center justify-between gap-3 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors text-left cursor-pointer select-none"
+                        [attr.aria-expanded]="isOperationExpanded(op.id)"
+                      >
+                        <div class="flex items-center gap-3">
+                          <!-- Ícone com Tom Semântico Claro -->
+                          <div
+                            class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border"
+                            [ngClass]="{
+                              'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800':
+                                op.tipo === 'ENTREGA',
+                              'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800':
+                                op.tipo === 'DEVOLUCAO',
+                              'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-300 border-amber-200 dark:border-amber-800':
+                                op.tipo === 'ESTORNO',
+                              'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-800':
+                                isEncerramentoOp(op.tipo),
+                            }"
+                          >
+                            <i [class]="operationIcon(op.tipo)" class="text-sm"></i>
+                          </div>
+
+                          <!-- Título e Detalhes Amigáveis -->
+                          <div class="flex flex-col gap-0.5">
+                            <div class="flex items-center gap-2 flex-wrap">
+                              <span
+                                class="text-xs font-bold"
+                                [ngClass]="
+                                  isEncerramentoOp(op.tipo) ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-slate-100'
+                                "
+                              >
+                                {{ operationFriendlyTitle(op.tipo) }}
+                              </span>
+                              <span class="text-xs text-slate-500 dark:text-slate-400 font-mono" [title]="op.id">
+                                #{{ op.id.slice(0, 8) }}
+                              </span>
+                            </div>
+
+                            <div class="flex items-center gap-2 flex-wrap text-xs text-slate-600 dark:text-slate-300">
+                              <span class="inline-flex items-center gap-1"
+                                ><i class="pi pi-calendar text-xs text-slate-500"></i>
+                                {{ op.realizadaEm | date: 'dd/MM/yyyy às HH:mm' }}</span
+                              >
+                              <span>·</span>
+                              <span class="inline-flex items-center gap-1"
+                                ><i class="pi pi-user text-xs text-slate-500"></i> Responsável:
+                                <strong class="text-slate-900 dark:text-slate-100 font-semibold">{{
+                                  formatUser(op.idUsuarioOperador)
+                                }}</strong></span
+                              >
+                              <span>·</span>
+                              <span class="inline-flex items-center gap-1"
+                                ><i class="pi pi-users text-xs text-slate-500"></i> Equipe:
+                                <strong class="text-slate-900 dark:text-slate-100 font-semibold">{{
+                                  getTeamName(op.idEquipe)
+                                }}</strong></span
+                              >
+                              @if (op.tipo === 'ENTREGA') {
+                                <span>·</span>
+                                <span class="inline-flex items-center gap-1"
+                                  ><i class="pi pi-user-edit text-xs text-slate-500"></i> Saque:
+                                  <strong class="text-slate-900 dark:text-slate-100 font-semibold">{{
+                                    op.idColaboradorSaque ? formatUser(op.idColaboradorSaque) : 'Não informado'
+                                  }}</strong>
+                                  @if (op.saqueForaEquipe) {
+                                    <span> (fora da equipe)</span>
+                                  }
+                                </span>
+                              }
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Resumo de Itens e Seta -->
+                        <div class="flex items-center gap-3 shrink-0">
+                          <span
+                            class="text-xs font-bold px-2 py-0.5 rounded border"
+                            [ngClass]="
+                              isEncerramentoOp(op.tipo)
+                                ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                            "
+                          >
+                            {{
+                              isEncerramentoOp(op.tipo)
+                                ? 'Encerrada'
+                                : (op.itens ? op.itens.length : 0) + ' ' + (op.itens && op.itens.length === 1 ? 'item' : 'itens')
+                            }}
+                          </span>
+                          <i
+                            class="pi text-xs text-slate-400 dark:text-slate-400 transition-transform duration-200"
+                            [class.pi-chevron-up]="isOperationExpanded(op.id)"
+                            [class.pi-chevron-down]="!isOperationExpanded(op.id)"
+                          ></i>
+                        </div>
+                      </button>
+
+                      <!-- CONTEÚDO DA SUB-SANFONA (DETALHES DOS MATERIAIS OU PAINEL INFORMATIVO) -->
+                      <div
+                        [class.hidden]="!isOperationExpanded(op.id)"
+                        class="border-t border-slate-100 dark:border-slate-800 p-3 bg-slate-50/40 dark:bg-slate-900/40"
+                      >
+                        <!-- Box Explicativo para Estornos / Correções -->
+                        @if (op.tipo === 'ESTORNO') {
+                          <div
+                            class="mb-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 text-xs flex flex-col gap-1"
+                          >
+                            <div class="flex items-center gap-1.5 font-bold">
+                              <i class="pi pi-info-circle text-amber-600"></i>
+                              <span>Informação sobre esta correção</span>
+                            </div>
+                            @if (op.idOperacaoOriginal) {
+                              <p>
+                                Esta operação cancelou/corrigiu o lançamento anterior
+                                <strong>#{{ op.idOperacaoOriginal.slice(0, 8) }}</strong
+                                >.
+                              </p>
+                            }
+                            @if (op.motivo) {
+                              <p><strong>Motivo informado:</strong> "{{ op.motivo }}"</p>
+                            }
+                          </div>
+                        }
+
+                        <!-- Se houver itens: Tabela de Materiais -->
+                        @if (!isEncerramentoOp(op.tipo) && op.itens && op.itens.length > 0) {
+                          <div class="rounded border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900">
+                            <table class="w-full text-left text-xs border-collapse">
+                              <thead>
+                                <tr
+                                  class="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200"
+                                >
+                                  <th class="py-2 px-3">Código</th>
+                                  <th class="py-2 px-3">Descrição do Material</th>
+                                  <th class="py-2 px-3 text-right">Quantidade</th>
+                                  <th class="py-2 px-3">Condição</th>
+                                  <th class="py-2 px-3">Número de Série</th>
+                                </tr>
+                              </thead>
+                              <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                                @for (it of op.itens; track it.id) {
+                                  <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                                    <td class="py-2 px-3 font-bold text-slate-900 dark:text-slate-100">
+                                      {{ it.codigoMaterial }}
+                                    </td>
+                                    <td class="py-2 px-3 text-slate-800 dark:text-slate-200">
+                                      {{ it.descricaoMaterial }}
+                                    </td>
+                                    <td class="py-2 px-3 text-right font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                                      {{ number(it.quantidade) }}
+                                    </td>
+                                    <td class="py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">
+                                      {{ it.condicao === 'SUCATA' ? 'Sucata' : 'Novo' }}
+                                    </td>
+                                    <td class="py-2 px-3">
+                                      @if (it.numeroSerie) {
+                                        <span
+                                          class="inline-flex items-center gap-1 font-mono font-bold text-[11px] px-2 py-0.5 rounded bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800"
+                                        >
+                                          <i class="pi pi-tag text-[10px]"></i>
+                                          {{ it.numeroSerie }}
+                                        </span>
+                                      } @else {
+                                        <span class="text-slate-500 dark:text-slate-400 text-xs italic"> Material comum (sem série) </span>
+                                      }
+                                    </td>
+                                  </tr>
+                                }
+                              </tbody>
+                            </table>
+                          </div>
+                        } @else {
+                          <!-- Painel Vermelho/Informativo para Encerramento de Saldo / Cancelamento -->
+                          <div
+                            class="rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 p-3.5 flex flex-col gap-2"
+                          >
+                            <div class="flex items-center gap-2 text-rose-800 dark:text-rose-200 font-semibold text-xs">
+                              <i class="pi pi-lock text-rose-600 dark:text-rose-400"></i>
+                              <span>Encerramento de Saldo Remanescente</span>
+                            </div>
+                            @if (op.motivo) {
+                              <div
+                                class="text-xs text-rose-900 dark:text-rose-200 bg-white/80 dark:bg-slate-900/80 p-2.5 rounded border border-rose-200/80 dark:border-rose-900/80"
+                              >
+                                <span class="font-bold text-rose-700 dark:text-rose-400 block text-[10px] uppercase tracking-wider mb-0.5"
+                                  >Motivo Registrado:</span
+                                >
+                                "{{ op.motivo }}"
+                              </div>
+                            }
+                            <p class="text-xs text-rose-700/90 dark:text-rose-300">
+                              Esta operação encerrou formalmente o saldo restante desta solicitação no almoxarifado sem movimentar novas
+                              peças físicas.
+                            </p>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <!-- ESTADO VAZIO AMIGÁVEL -->
+                <div class="py-6 px-4 text-center flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400">
+                  <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-1">
+                    <i class="pi pi-inbox text-slate-400 text-lg"></i>
+                  </div>
+                  <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Nenhuma movimentação realizada ainda</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+                    Assim que forem registradas entregas ou devoluções de materiais para esta solicitação, elas aparecerão listadas aqui.
+                  </span>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTÓRICO & AUDITORIA — OCULTO POR PADRÃO (SANFONA - OCULTO NA IMPRESSÃO) -->
+        @if (can('VER_HISTORICO')) {
+          <div class="mb-6 px-1 print:hidden">
+            <p-accordion [value]="timelineValue()" (valueChange)="timelineValue.set($event)">
+              <p-accordion-panel value="timeline">
+                <p-accordion-header>
+                  <div class="flex items-center justify-between w-full gap-3 min-w-0 pr-2">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <div class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <i class="pi pi-history text-slate-600 dark:text-slate-300 text-sm"></i>
+                      </div>
+                      <div class="flex flex-col gap-0.5 min-w-0 text-left">
+                        <span class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100">Linha do tempo de alterações</span>
+                        <span class="text-xs text-slate-600 dark:text-slate-300 font-normal"
+                          >Veja todas as ações realizadas nesta solicitação em ordem cronológica.</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </p-accordion-header>
+                <p-accordion-content>
+                  @if (isTimelineOpen()) {
+                    <div class="pt-3">
+                      <app-solicitacao-tecnica-historico [idSolicitacao]="request.id" />
+                    </div>
+                  }
+                </p-accordion-content>
+              </p-accordion-panel>
+            </p-accordion>
+          </div>
+        }
+
+        <!-- TERMO FORMAL DE RESPONSABILIDADE & QUADRO DE ASSINATURAS -->
+        <div class="mb-8 px-1 page-break-inside-avoid print:mb-4 print:mt-6">
+          <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-tight text-slate-800 dark:text-slate-200"
+              >Termo de Responsabilidade & Assinaturas Formais</span
+            >
+          </div>
+
+          <div
+            class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 p-4 md:p-5 flex flex-col gap-5 print:p-3 print:bg-transparent print:border-slate-400"
+          >
+            <!-- Texto do Termo de Declaração -->
+            <p
+              class="text-xs leading-relaxed text-slate-700 dark:text-slate-300 text-justify print:text-[10px] print:leading-normal print:text-slate-800"
+            >
+              Declaramos para os devidos fins que os materiais discriminados nesta solicitação técnica foram devidamente conferidos e
+              movimentados em conformidade com as especificações da empresa e da concessionária. A equipe
+              responsável assume integral custódia pela aplicação na obra indicada, conservação e devolução de eventuais sobras técnicas ao
+              almoxarifado central.
+            </p>
+
+            <!-- Grade de 2 Vias de Assinatura (Almoxarifado & Equipe) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 print:grid-cols-2 print:gap-4 print:pt-3">
+              <!-- 1. Almoxarifado / Expedição -->
+              <div
+                class="flex flex-col items-center justify-between border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 rounded-lg p-4 text-center min-h-[140px] print:border-slate-400 print:min-h-[110px] print:p-2"
+              >
+                <div class="w-full">
+                  <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block"
+                    >Almoxarifado</span
+                  >
+                  <span class="text-[11px] text-slate-600 dark:text-slate-400 block">Expedição & Atendimento</span>
+                </div>
+
+                <div class="w-full flex flex-col items-center mt-4 print:mt-3">
+                  <div class="signature-slot">
+                    @if (assinaturaAlmoxUrl()) {
+                      <img [src]="assinaturaAlmoxUrl()" class="signature-image" alt="Assinatura Almoxarifado" />
+                    }
+                  </div>
+                  <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-full">{{ delivererName() }}</span>
+                  <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Responsável pela Entrega</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {{ (dataEntrega() || request.dataEntrega) ? ((dataEntrega() || request.dataEntrega) | date: 'dd/MM/yyyy HH:mm') : 'Data: ____/____/________' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- 2. Equipe / Recebedor -->
+              <div
+                class="flex flex-col items-center justify-between border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/70 rounded-lg p-4 text-center min-h-[140px] print:border-slate-400 print:min-h-[110px] print:p-2"
+              >
+                <div class="w-full">
+                  <span class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 block">Equipe Receptora</span>
+                  <span class="text-[11px] text-slate-600 dark:text-slate-400 block truncate font-medium" [title]="teamName()">{{
+                    teamName()
+                  }}</span>
+                </div>
+
+                <div class="w-full flex flex-col items-center mt-4 print:mt-3">
+                  <div class="signature-slot">
+                    @if (assinaturaEquipeUrl()) {
+                      <img [src]="assinaturaEquipeUrl()" class="signature-image" alt="Assinatura Requisitante" />
+                    }
+                  </div>
+                  <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-full">{{ responsavelSaqueNome() }}</span>
+                  <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Responsável pelo Saque</span>
+                  <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {{ (dataEntrega() || request.dataEntrega) ? ((dataEntrega() || request.dataEntrega) | date: 'dd/MM/yyyy HH:mm') : 'Data: ____/____/________' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AUDITORIA & RODAPÉ DE EMISSÃO -->
+        <footer
+          class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 dark:text-slate-300 print:mt-4 print:pt-2"
+        >
+          <div class="flex flex-col gap-0.5">
+            <span
+              >Criado em:
+              <strong class="text-slate-900 dark:text-slate-100">{{ request.dataSolicitacao | date: 'dd/MM/yyyy HH:mm' }}</strong></span
+            >
+            @if (tech.reserva?.atualizadaEm) {
+              <span
+                >Última atualização de reserva:
+                <strong class="text-slate-900 dark:text-slate-100">{{
+                  tech.reserva!.atualizadaEm | date: 'dd/MM/yyyy HH:mm'
+                }}</strong></span
+              >
+            }
+          </div>
+          <div class="text-right sm:text-right font-semibold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Documento emitido eletronicamente via Sistema Nexo · Almoxarifado
+          </div>
+        </footer>
+      </div>
+
+      <!-- AÇÕES FLUTUANTES (PADRÃO IDÊNTICO AO RELATÓRIO DE OBRA) -->
+      <div
+        class="fixed bottom-6 right-6 md:bottom-8 md:right-12 flex items-center flex-wrap gap-2.5 print:hidden animate-in slide-in-from-right-4 duration-500 z-50"
+      >
+        <p-button
+          icon="pi pi-arrow-left"
+          label="VOLTAR"
+          (onClick)="voltar()"
+          styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"
+        ></p-button>
+
+        <p-button
+          icon="pi pi-print"
+          label="IMPRIMIR"
+          (onClick)="print()"
+          styleClass="!rounded-lg !bg-[var(--report-action-strong-bg)] !border-[var(--report-action-strong-bg)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--report-action-strong-bg-hover)] cursor-pointer"
+        ></p-button>
+
+        @if (canPlanning()) {
+          <p-button
+            icon="pi pi-pencil"
+            [label]="isInitialPlanning() ? 'PLANEJAR' : 'REPLANEJAR'"
+            (onClick)="openPlanning()"
+            [disabled]="!isOnline()"
+            [styleClass]="
+              isInitialPlanning()
+                ? '!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-primary-700 cursor-pointer'
+                : '!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer'
+            "
+          ></p-button>
+        }
+
+        @if (can('INICIAR_SEPARACAO')) {
+          <p-button
+            icon="pi pi-box"
+            label="INICIAR SEPARAÇÃO"
+            (onClick)="separation('start')"
+            [loading]="commandLoading()"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-primary-700 cursor-pointer"
+          ></p-button>
+        }
+
+        @if (canRegistrarPendencia()) {
+          <p-button
+            icon="pi pi-exclamation-triangle"
+            label="PENDÊNCIA"
+            (onClick)="abrirModalPendenciaSolicitacao()"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-[var(--ces-warning)] !border-[var(--ces-warning)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-warning-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (can('REJEITAR')) {
+          <p-button
+            icon="pi pi-times"
+            label="REJEITAR"
+            (onClick)="rejectSolicitacao()"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-[var(--ces-danger)] !border-[var(--ces-danger)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-danger-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (can('PULAR_SEPARACAO')) {
+          <p-button
+            icon="pi pi-step-forward"
+            label="PULAR SEPARAÇÃO"
+            (onClick)="separation('skip')"
+            [loading]="commandLoading()"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-amber-500 !text-amber-600 dark:!text-amber-400 !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-amber-50 dark:hover:!bg-amber-950/30 cursor-pointer"
+          ></p-button>
+        }
+
+        @if (can('CONCLUIR_SEPARACAO')) {
+          <p-button
+            icon="pi pi-check"
+            label="CONCLUIR SEPARAÇÃO"
+            (onClick)="separation('finish')"
+            [loading]="commandLoading()"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-[var(--ces-success)] !border-[var(--ces-success)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-success-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (can('ENTREGAR')) {
+          <p-button
+            icon="pi pi-box"
+            label="CONFIRMAR ENTREGA"
+            (onClick)="openAction('deliver')"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-[var(--ces-success)] !border-[var(--ces-success)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-success-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (can('CONFIRMAR_DEVOLUCAO')) {
+          <p-button
+            icon="pi pi-inbox"
+            label="RECEBER DEVOLUÇÃO"
+            (onClick)="openAction('return')"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-[var(--ces-success)] !border-[var(--ces-success)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-success-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (can('ESTORNAR')) {
+          <p-button
+            icon="pi pi-replay"
+            label="ESTORNAR OPERAÇÃO"
+            (onClick)="openAction('reverse')"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-[var(--ces-warning)] !border-[var(--ces-warning)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-warning-hover)] cursor-pointer"
+          ></p-button>
+        }
+
+        @if (can('ENCERRAR_SALDO')) {
+          <p-button
+            icon="pi pi-lock"
+            label="ENCERRAR SALDO"
+            (onClick)="openAction('close')"
+            [disabled]="!isOnline()"
+            styleClass="!rounded-lg !bg-[var(--ces-danger)] !border-[var(--ces-danger)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-danger-hover)] cursor-pointer"
+          ></p-button>
+        }
+      </div>
+
+      <!-- MODAIS DE AÇÃO -->
+      @if (selectedAction(); as mode) {
+        <app-solicitacao-tecnica-acao
+          [visible]="actionVisible()"
+          (visibleChange)="actionVisible.set($event)"
+          [detail]="request"
+          [mode]="mode"
+          (completed)="actionCompleted($event)"
+          (conflict)="actionConflict($event)"
+        />
+      }
+
+      @if (planningVisible()) {
+        <app-solicitacao-tecnica-planejamento
+          [visible]="planningVisible()"
+          (visibleChange)="planningVisible.set($event)"
+          [detail]="request"
+          (completed)="planningCompleted($event)"
+          (conflict)="planningConflict($event)"
+        />
+      }
+
+      @if (teamVisible()) {
+        <app-solicitacao-tecnica-equipe
+          [visible]="teamVisible()"
+          (visibleChange)="teamVisible.set($event)"
+          [detail]="request"
+          [teams]="teams()"
+          (completed)="teamCompleted($event)"
+          (conflict)="planningConflict($event)"
+        />
+      }
+
+      <app-solicitacao-pendencia-modal
+        [(visible)]="pendenciaModalVisible"
+        [idSolicitacao]="request.id"
+        [itens]="request.itens"
+        [idItem]="pendenciaModalItemId()"
+        [itemLabel]="pendenciaModalItemLabel()"
+        [motivoAtual]="pendenciaModalMotivoAtual()"
+        [justificativaAtual]="pendenciaModalJustificativaAtual()"
+        (pendenciaSalva)="reload()"
+        (pendenciaResolvida)="reload()"
+      />
+    }
+  }
+</div>
+
+<!-- MODAL DE CONFLITO DE VERSÃO (409) -->
+<ces-dialog-shell
+  [title]="'Conflito de versão'"
+  description="Esta solicitação foi atualizada recentemente no servidor."
+  size="sm"
+  [(visible)]="conflictVisible"
+>
+  <div class="flex flex-col gap-3 py-1">
+    <div
+      class="flex items-center gap-2.5 p-2.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 text-amber-800 dark:text-amber-300"
+    >
+      <i class="pi pi-exclamation-triangle text-amber-600 text-base shrink-0"></i>
+      <div class="flex flex-col gap-0.5 text-xs">
+        <span class="font-medium">Atualização de segurança</span>
+        <span class="text-[11px] text-amber-700 dark:text-amber-300">Os dados mudaram para evitar sobrescrita acidental.</span>
+      </div>
+    </div>
+    <div class="text-xs text-slate-600 dark:text-slate-400 flex flex-col gap-1.5">
+      <p><span class="font-medium">Ação em execução:</span> {{ conflictIntent() }}</p>
+      @if (conflictVersions()) {
+        <p class="text-slate-500 text-[11px] bg-slate-100 dark:bg-slate-800 p-2 rounded">
+          {{ conflictVersions() }}
+        </p>
+      }
+      <p class="mt-0.5 text-[11px]">
+        Clique em <span class="font-medium">Recarregar</span> para atualizar a tela com os dados mais recentes.
+      </p>
+    </div>
+  </div>
+  <div dialog-footer>
+    <ces-button label="Fechar" variant="ghost" size="sm" (pressed)="conflictVisible.set(false)" />
+    <ces-button label="Recarregar e atualizar" icon="pi pi-refresh" variant="primary" size="sm" (pressed)="reconcile()" />
+  </div>
+</ces-dialog-shell>
+
+<!-- MODAL DE REJEIÇÃO -->
+<ces-dialog-shell
+  [title]="'Rejeitar Solicitação Técnica'"
+  description="A rejeição cancelará permanentemente a solicitação técnica de material."
+  size="md"
+  [(visible)]="displayRejectModal"
+>
+  <div class="flex flex-col gap-4 py-1">
+    <div class="bg-rose-50/70 dark:bg-rose-950/40 p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/60 flex items-start gap-3">
+      <i class="pi pi-exclamation-circle text-rose-600 dark:text-rose-400 mt-0.5 text-base shrink-0"></i>
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider">Atenção</span>
+        <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+          A rejeição é irreversível e impedirá separações ou entregas físicas para esta solicitação.
+        </p>
+      </div>
+    </div>
+
+    <!-- Detalhes e Descrição da Solicitação -->
+    @if (detail(); as sol) {
+      <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex flex-col gap-2">
+        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-1.5">
+          <span class="font-semibold text-slate-700 dark:text-slate-300">Solicitação:</span>
+          <span class="font-mono text-slate-600 dark:text-slate-400">{{ sol.id }}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div>
+            <span class="text-slate-500 dark:text-slate-400">Obra:</span>
+            <span class="font-medium text-slate-800 dark:text-slate-200 ml-1">{{ obraDisplay() }}</span>
+          </div>
+          <div>
+            <span class="text-slate-500 dark:text-slate-400">Tipo:</span>
+            <span class="font-medium text-slate-800 dark:text-slate-200 ml-1">{{ typeLabel(sol.tecnico?.tipoTecnico) }}</span>
+          </div>
+        </div>
+        @if (sol.tecnico?.observacao) {
+          <div class="flex flex-col gap-0.5 pt-1 border-t border-slate-200 dark:border-slate-700">
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Descrição / Observação da Solicitação:</span>
+            <span class="text-[11px] text-slate-700 dark:text-slate-300 italic">{{ sol.tecnico?.observacao }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="flex flex-col gap-3.5">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+          Motivo da Rejeição <span class="text-rose-500">*</span>
+        </label>
+        <p-select
+          [(ngModel)]="rejectionData.idMotivoRejeicao"
+          [options]="motivosRejeicaoOptions()"
+          optionLabel="nome"
+          size="small"
+          optionValue="id"
+          placeholder="Selecione o motivo..."
+          class="w-full text-xs"
+          appendTo="body"
+        >
+          <ng-template let-motivo pTemplate="item">
+            <div class="flex flex-col gap-0.5">
+              <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ motivo.nome }}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">{{ motivo.descricao }}</span>
+            </div>
+          </ng-template>
+        </p-select>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+          Descrição / Justificativa da Rejeição <span class="text-rose-500">*</span>
+        </label>
+        <textarea
+          pTextarea
+          [(ngModel)]="rejectionData.justificativa"
+          rows="4"
+          placeholder="Descreva detalhadamente o porquê desta rejeição..."
+          class="w-full text-xs rounded-xl border-slate-300 dark:border-slate-700 focus:border-rose-500 bg-white dark:bg-slate-900"
+        ></textarea>
+        <span class="text-[10px] text-slate-500 dark:text-slate-400 italic">* Mínimo de 5 caracteres.</span>
+      </div>
+    </div>
+  </div>
+
+  <div dialog-footer>
+    <ces-button label="Cancelar" variant="ghost" size="sm" (pressed)="displayRejectModal.set(false)" />
+    <ces-button
+      label="Confirmar Rejeição"
+      icon="pi pi-times-circle"
+      variant="destructive"
+      size="sm"
+      [loading]="rejectLoading()"
+      [disabled]="!isOnline() || !rejectionData.idMotivoRejeicao || !rejectionData.justificativa || rejectionData.justificativa.trim().length < 5"
+      (pressed)="confirmRejection()"
+    />
+  </div>
+</ces-dialog-shell>

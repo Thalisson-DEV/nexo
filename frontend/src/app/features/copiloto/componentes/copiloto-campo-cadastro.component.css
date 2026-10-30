@@ -1,0 +1,236 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+:host(.campo--largo) {
+  grid-column: 1 / -1;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.campo--booleano {
+  justify-content: flex-end;
+  min-height: 100%;
+  padding-bottom: 0.35rem;
+}
+
+.campo--leitura {
+  gap: 0.25rem;
+}
+
+.leitura__rotulo,
+.multiplo__rotulo {
+  font-size: var(--ces-form-label-size, var(--ces-font-caption));
+  font-weight: 600;
+  color: var(--ces-foreground);
+}
+
+.leitura__valor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: var(--ces-control-height-md);
+  padding: 0 0.75rem;
+  border: 1px dashed var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  font-size: var(--ces-font-control);
+  color: var(--ces-foreground-muted);
+  background: var(--ces-surface-subtle);
+}
+
+.leitura__valor i {
+  font-size: 0.8rem;
+}
+
+.opcional {
+  font-weight: 400;
+  color: var(--ces-foreground-subtle);
+}
+
+/* Sugestões quando o nome dito bate com mais de um cadastro */
+.candidatos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.candidato {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  max-width: 100%;
+  min-height: 2rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--ces-border);
+  border-radius: 999px;
+  background: var(--ces-surface);
+  color: var(--ces-foreground);
+  font: inherit;
+  font-size: var(--ces-font-caption);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--ces-duration-fast) var(--ces-ease-standard),
+    background-color var(--ces-duration-fast) var(--ces-ease-standard);
+}
+
+.candidato small {
+  font-weight: 400;
+  color: var(--ces-foreground-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidato:hover:not(:disabled) {
+  border-color: var(--ces-brand);
+  background: var(--ces-brand-soft);
+}
+
+.candidato:focus-visible {
+  outline: none;
+  box-shadow: var(--ces-focus-ring);
+}
+
+.candidato:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Listas (materiais, integrantes, itens) */
+.lista,
+.grupo {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.lista__titulo,
+.grupo__titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-size: var(--ces-form-label-size, var(--ces-font-caption));
+  font-weight: 600;
+  color: var(--ces-foreground);
+}
+
+.lista__contagem {
+  min-width: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--ces-surface-muted);
+  color: var(--ces-foreground-muted);
+  font-size: 0.7rem;
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.lista__vazia {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: var(--ces-font-caption);
+  color: var(--ces-foreground-subtle);
+}
+
+.lista__vazia--problema {
+  color: var(--ces-danger-text);
+}
+
+.lista__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+  background: var(--ces-surface-subtle);
+}
+
+.lista__campos,
+.grupo__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.lista__remover {
+  margin-top: 1.4rem;
+}
+
+.grupo__campos {
+  gap: var(--ces-form-field-gap, 1rem);
+}
+
+/* Vários registros num campo (técnicos, equipes) */
+.multiplo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.multiplo__lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.multiplo__item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.15rem 0.1rem 0.65rem;
+  border: 1px solid var(--ces-border);
+  border-radius: 999px;
+  background: var(--ces-surface);
+  font-size: var(--ces-font-caption);
+  font-weight: 600;
+}
+
+.multiplo__item--problema {
+  border-color: var(--ces-danger);
+  border-radius: var(--ces-radius-md);
+  padding: 0.35rem 0.5rem;
+}
+
+.multiplo__problema {
+  flex-basis: 100%;
+  font-weight: 400;
+  color: var(--ces-danger-text);
+}
+
+@media (max-width: 40rem) {
+  .lista__item {
+    padding: 0.6rem;
+  }
+
+  .lista__campos,
+  .grupo__campos {
+    grid-template-columns: 1fr;
+  }
+}

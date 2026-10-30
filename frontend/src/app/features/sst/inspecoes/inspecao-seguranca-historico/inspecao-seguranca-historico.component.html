@@ -1,0 +1,158 @@
+<section class="history-timeline" aria-labelledby="history-title">
+  @if (!ocultarCabecalho) {
+    <header class="timeline-header">
+      <div class="timeline-header-info">
+        <h2 id="history-title">Linha do tempo</h2>
+        <p>Registro cronológico dos eventos e alterações desta inspeção.</p>
+      </div>
+    </header>
+  }
+
+  @if (loading()) {
+    <ces-async-state [state]="'loading'" title="Carregando histórico..." />
+  } @else if (error()) {
+    <ces-async-state
+      [state]="'error'"
+      [description]="error()"
+      actionLabel="Tentar novamente"
+      (action)="load()"
+    />
+  } @else if (response(); as data) {
+    @if (integrityInfo(); as integrity) {
+      <div
+        class="integrity-banner"
+        [class.integrity-ok]="integrity.status === 'INTEGRO'"
+        [class.integrity-warn]="integrity.status === 'NAO_VERIFICADO'"
+        [class.integrity-fail]="integrity.status === 'VIOLADO'"
+        role="status"
+      >
+        @if (integrity.status === 'INTEGRO') {
+          <i class="pi pi-shield" aria-hidden="true"></i>
+          <span><strong>INTEGRO</strong> — cadeia verificada; todos os eventos estão íntegros.</span>
+        } @else if (integrity.status === 'VIOLADO') {
+          <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+          <span><strong>VIOLADO</strong> — inconsistência detectada na sequência criptográfica de eventos.</span>
+        } @else {
+          <i class="pi pi-info-circle" aria-hidden="true"></i>
+          <span><strong>NAO_VERIFICADO</strong> — baseline sem cadeia anterior para verificação.</span>
+        }
+      </div>
+    }
+
+    @if (sortedEvents().length) {
+      <ol class="timeline" aria-label="Linha do tempo de eventos">
+        @for (event of sortedEvents(); track event.id; let last = $last) {
+          <li class="timeline-item">
+            <div class="timeline-rail">
+              <div
+                class="timeline-dot"
+                [class.dot-info]="eventTone(event.tipo) === 'info'"
+                [class.dot-success]="eventTone(event.tipo) === 'success'"
+                [class.dot-danger]="eventTone(event.tipo) === 'danger'"
+                [class.dot-warning]="eventTone(event.tipo) === 'warning'"
+                [class.dot-neutral]="eventTone(event.tipo) === 'neutral'"
+              >
+                <i [class]="eventIcon(event.tipo)" aria-hidden="true"></i>
+              </div>
+              @if (!last) {
+                <div class="timeline-connector" aria-hidden="true"></div>
+              }
+            </div>
+
+            <div class="timeline-content">
+              <div class="event-head">
+                <div class="event-title-row">
+                  <span class="event-label">{{ eventLabel(event.tipo) }}</span>
+                </div>
+                <time class="event-time" [attr.datetime]="event.ocorridoEm">{{
+                  event.ocorridoEm | date: 'dd/MM/yyyy · HH:mm'
+                }}</time>
+              </div>
+
+              <div class="event-meta">
+                <span class="event-author">
+                  <i class="pi pi-user" aria-hidden="true"></i> {{ formatAuthor(event.autor) }}
+                </span>
+                @if (event.origem && event.origem !== 'UI') {
+                  <span class="event-origin">via {{ event.origem }}</span>
+                }
+              </div>
+
+              @if (event.justificativa) {
+                <div class="event-note">
+                  <i class="pi pi-comment" aria-hidden="true"></i>
+                  <span>{{ event.justificativa }}</span>
+                </div>
+              }
+
+              @if (alterations(event).length) {
+                <div class="event-changes" aria-label="Alterações registradas">
+                  <span class="changes-title">O que mudou:</span>
+                  @for (diff of alterations(event); track $index) {
+                    <div
+                      class="change-row"
+                      [class.change-inclusion]="changeKind(diff) === 'inclusao'"
+                      [class.change-removal]="changeKind(diff) === 'remocao'"
+                    >
+                      <span class="change-field">
+                        {{ fieldLabel(diff.caminho) }}
+                      </span>
+                      <span class="change-values">
+                        <span class="change-context">de</span>
+                        <span class="change-old">{{ oldDisplayValue(diff) }}</span>
+                        <span class="change-context">para</span>
+                        <span class="change-new">{{ newDisplayValue(diff) }}</span>
+                      </span>
+                    </div>
+                  }
+                </div>
+              }
+
+              @if (hasSnapshots(event)) {
+                <div class="event-changes" aria-label="Detalhes registrados">
+                  <span class="changes-title">Detalhes registrados:</span>
+                  @for (snap of extractSnapshots(event); track $index) {
+                    <div class="change-row">
+                      <span class="change-field">{{ snap.rotulo }}</span>
+                      <span class="change-new">{{ snap.valor }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </li>
+        }
+      </ol>
+
+      @if (totalPages() > 1) {
+        <nav class="timeline-pagination" aria-label="Paginação do histórico">
+          <ces-button
+            variant="secondary"
+            size="sm"
+            [disabled]="page() === 0"
+            (pressed)="previous()"
+            label="Anteriores"
+            icon="pi pi-chevron-left"
+          />
+          <span class="pagination-info">
+            Página {{ page() + 1 }} de {{ totalPages() }}
+          </span>
+          <ces-button
+            variant="secondary"
+            size="sm"
+            [disabled]="page() + 1 >= totalPages()"
+            (pressed)="next()"
+            label="Próximos"
+            icon="pi pi-chevron-right"
+          />
+        </nav>
+      }
+    } @else {
+      <ces-async-state
+        [state]="'empty'"
+        title="Nenhum evento registrado"
+        description="Esta inspeção ainda não possui eventos históricos registrados."
+      />
+    }
+  }
+</section>

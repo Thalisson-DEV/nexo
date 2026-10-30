@@ -1,0 +1,136 @@
+@let c = campo();
+@switch (true) {
+  @case (c.tipo === 'LISTA') {
+    <fieldset class="lista" [class.lista--problema]="!!c.problema">
+      <legend class="lista__titulo">
+        {{ c.rotulo }}
+        @if (c.itens?.length) { <span class="lista__contagem">{{ c.itens!.length }}</span> }
+      </legend>
+      @if (c.problema && !c.itens?.length) {
+        <p class="lista__vazia lista__vazia--problema"><i class="pi pi-info-circle" aria-hidden="true"></i>{{ c.problema }}</p>
+      } @else if (!c.itens?.length) {
+        <p class="lista__vazia">Nenhum item.</p>
+      }
+      @for (item of c.itens ?? []; track $index; let i = $index) {
+        <div class="lista__item" role="group" [attr.aria-label]="rotuloItem(i)">
+          <div class="lista__campos">
+            @for (filho of item; track filho.caminho) {
+              <app-copiloto-campo-cadastro [campo]="filho" [desabilitado]="desabilitado()" (ajustar)="repassar($event)" />
+            }
+          </div>
+          <ces-icon-button class="lista__remover" icon="pi pi-trash" size="icon-sm" [label]="'Remover ' + rotuloItem(i)"
+            [disabled]="desabilitado()" (pressed)="removerItem(i)"></ces-icon-button>
+        </div>
+      }
+      <ces-button variant="ghost" size="sm" icon="pi pi-plus" label="Adicionar item" [disabled]="desabilitado()"
+        (pressed)="incluirItem()"></ces-button>
+    </fieldset>
+  }
+  @case (c.tipo === 'OBJETO' && !!c.grupo) {
+    <fieldset class="grupo">
+      <legend class="grupo__titulo">{{ c.rotulo }}</legend>
+      @if (!c.grupo.length) {
+        <p class="lista__vazia">Escolha o tipo acima para ver os campos.</p>
+      }
+      <div class="grupo__campos">
+        @for (filho of c.grupo; track filho.caminho) {
+          <app-copiloto-campo-cadastro [campo]="filho" [desabilitado]="desabilitado()" (ajustar)="repassar($event)" />
+        }
+      </div>
+    </fieldset>
+  }
+  @case (c.tipo === 'REFERENCIA' && !!c.multiplo) {
+    <div class="multiplo" role="group" [attr.aria-label]="c.rotulo">
+      <span class="multiplo__rotulo">{{ c.rotulo }}@if (!c.obrigatorio) { <span class="opcional"> (opcional)</span> }</span>
+      @if (selecionados().length) {
+        <ul class="multiplo__lista">
+          @for (item of selecionados(); track item.indice) {
+            <li class="multiplo__item" [class.multiplo__item--problema]="!!item.problema">
+              <span class="multiplo__nome">{{ item.rotulo }}</span>
+              <ces-icon-button icon="pi pi-times" size="icon-sm" [label]="'Tirar ' + item.rotulo" [disabled]="desabilitado()"
+                (pressed)="tirarDaLista(item.indice)"></ces-icon-button>
+              @if (item.problema) {
+                <span class="multiplo__problema">{{ item.problema }}</span>
+                @if (item.candidatos.length) {
+                  <span class="candidatos">
+                    @for (cand of item.candidatos; track cand.valor) {
+                      <button type="button" class="candidato" [disabled]="desabilitado()" (click)="escolherCandidato(cand, item.indice)">
+                        {{ cand.rotulo }}@if (cand.detalhe) { <small>{{ cand.detalhe }}</small> }
+                      </button>
+                    }
+                  </span>
+                }
+              }
+            </li>
+          }
+        </ul>
+      }
+      <ces-autocomplete [label]="'Adicionar ' + c.rotulo.toLowerCase()" [labelVisible]="false" [inputId]="id()"
+        [options]="buscaOpcoes()" [status]="buscaStatus()" [loading]="buscaStatus() === 'loading'" [minLength]="1"
+        [showSearchInstruction]="false" [disabled]="desabilitado()" [error]="erro()"
+        placeholder="Pesquisar para adicionar" [ngModel]="null" (ngModelChange)="incluirNaLista($event)"
+        (search)="buscar($event)"></ces-autocomplete>
+    </div>
+  }
+  @case (c.tipo === 'REFERENCIA') {
+    <div class="campo">
+      <ces-autocomplete [label]="c.rotulo" [inputId]="id()" [required]="c.obrigatorio" [showOptional]="!c.obrigatorio"
+        [options]="opcoesReferencia()" [status]="buscaStatus()" [loading]="buscaStatus() === 'loading'" [minLength]="1"
+        [showSearchInstruction]="false" [clearable]="!c.obrigatorio" [disabled]="desabilitado()" [error]="erro()"
+        [description]="ajuda()" [placeholder]="c.problema && c.exibicao ? c.exibicao : 'Pesquisar'"
+        [ngModel]="referencia()" (ngModelChange)="escolherReferencia($event)" (search)="buscar($event)"></ces-autocomplete>
+      @if (c.candidatos?.length) {
+        <div class="candidatos" role="group" [attr.aria-label]="'Sugestões para ' + c.rotulo">
+          @for (cand of c.candidatos!; track cand.valor) {
+            <button type="button" class="candidato" [disabled]="desabilitado()" (click)="escolherCandidato(cand)">
+              {{ cand.rotulo }}@if (cand.detalhe) { <small>{{ cand.detalhe }}</small> }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+  @case (c.tipo === 'OPCAO') {
+    <ces-select [label]="c.rotulo" [inputId]="id()" [required]="c.obrigatorio" [showOptional]="!c.obrigatorio"
+      [options]="opcoesSelect()" [value]="opcao()" (valueChange)="escolherOpcao($event)" [clearable]="!c.obrigatorio"
+      [disabled]="desabilitado()" [error]="erro()"></ces-select>
+  }
+  @case (c.tipo === 'BOOLEANO') {
+    <div class="campo campo--booleano">
+      <ces-boolean-control kind="toggle" [label]="c.rotulo" [inputId]="id()" [value]="booleano()"
+        (valueChange)="escolherBooleano($event)" [disabled]="desabilitado()" [error]="erro()"></ces-boolean-control>
+    </div>
+  }
+  @case (c.tipo === 'DATA' || c.tipo === 'DATA_HORA') {
+    <ces-datepicker [label]="c.rotulo" [inputId]="id()" [required]="c.obrigatorio" [showOptional]="!c.obrigatorio"
+      [showTime]="c.tipo === 'DATA_HORA'" [value]="data()" (valueChange)="escolherData($event)"
+      [disabled]="desabilitado()" [error]="erro()"></ces-datepicker>
+  }
+  @case (ehNumero()) {
+    <div class="campo" (focusout)="confirmarNumero()" (keydown.enter)="confirmarNumero()">
+      <ces-number-input [label]="c.rotulo" [inputId]="id()" [required]="c.obrigatorio" [showOptional]="!c.obrigatorio"
+        [mode]="c.tipo === 'MOEDA' ? 'currency' : 'decimal'" [maxFractionDigits]="c.tipo === 'INTEIRO' ? 0 : (c.tipo === 'MOEDA' ? 2 : 3)"
+        [value]="numero()" (valueChange)="numero.set($event)" [disabled]="desabilitado()" [error]="erro()"></ces-number-input>
+    </div>
+  }
+  @case (c.tipo === 'TEXTO_LONGO') {
+    <div class="campo" (focusout)="confirmarTexto()">
+      <ces-textarea [label]="c.rotulo" [inputId]="id()" [required]="c.obrigatorio" [showOptional]="!c.obrigatorio"
+        [rows]="3" [autoResize]="true" [value]="texto()" (valueChange)="texto.set($event)"
+        [disabled]="desabilitado()" [error]="erro()"></ces-textarea>
+    </div>
+  }
+  @case (c.tipo === 'SENHA') {
+    <div class="campo campo--leitura">
+      <span class="leitura__rotulo">{{ c.rotulo }}</span>
+      <span class="leitura__valor"><i class="pi pi-lock" aria-hidden="true"></i>{{ c.exibicao || 'Provisória, mostrada ao concluir' }}</span>
+    </div>
+  }
+  @default {
+    <div class="campo" (focusout)="confirmarTexto()" (keydown.enter)="confirmarTexto()">
+      <ces-text-input [label]="c.rotulo" [inputId]="id()" [required]="c.obrigatorio" [showOptional]="!c.obrigatorio"
+        [maxlength]="c.tamanhoMaximo" [value]="texto()" (valueChange)="texto.set($event)"
+        [disabled]="desabilitado()" [error]="erro()"></ces-text-input>
+    </div>
+  }
+}

@@ -1,0 +1,11 @@
+<section class="context-shell" [attr.data-contexto]="tipo().toLowerCase()">
+  <div class="context-heading">
+    <div class="context-copy">
+      <span>Área de trabalho</span>
+      <strong>{{ tipo() === 'CIPA' ? 'CIPA' : 'Brigada de Incêndio' }}</strong>
+      <small>Consulte e altere informações sobre {{ tipo() === 'CIPA' ? 'a CIPA' : 'a Brigada' }}.</small>
+    </div>
+  </div>
+
+
+</section>

@@ -1,0 +1,1741 @@
+@layer ces.components {
+  .ces-button.p-button,
+  .ces-icon-button.p-button {
+    border-radius: var(--ces-radius-sm);
+    font-size: var(--ces-font-control);
+    font-weight: 700;
+    letter-spacing: 0.025em;
+    transition:
+      background-color var(--ces-duration-fast) var(--ces-ease-standard),
+      border-color var(--ces-duration-fast) var(--ces-ease-standard),
+      color var(--ces-duration-fast) var(--ces-ease-standard),
+      box-shadow var(--ces-duration-fast) var(--ces-ease-standard);
+  }
+
+  .ces-button--sm.p-button,
+  .ces-button--icon-sm.p-button,
+  .ces-icon-button--icon-sm.p-button {
+    min-height: var(--ces-control-height-sm);
+  }
+
+  .ces-button--md.p-button,
+  .ces-button--icon-md.p-button,
+  .ces-icon-button--icon-md.p-button {
+    min-height: var(--ces-control-height-md);
+  }
+
+  .ces-button--lg.p-button,
+  .ces-button--icon-lg.p-button,
+  .ces-icon-button--icon-lg.p-button {
+    min-height: var(--ces-control-height-lg);
+  }
+
+  .ces-button--primary.p-button,
+  .p-button.p-button-primary,
+  .p-button-primary {
+    border-color: var(--p-primary-700, #1d4ed8) !important;
+    background: var(--p-primary-700, #1d4ed8) !important;
+    color: #ffffff !important;
+  }
+
+  .ces-button--primary.p-button *,
+  .p-button.p-button-primary *,
+  .p-button-primary * {
+    color: #ffffff !important;
+  }
+
+  .ces-button--primary.p-button:not(:disabled):hover,
+  .p-button.p-button-primary:not(:disabled):hover,
+  .p-button-primary:not(:disabled):hover {
+    border-color: var(--p-primary-800, #1e40af) !important;
+    background: var(--p-primary-800, #1e40af) !important;
+    color: #ffffff !important;
+  }
+
+  .ces-button--success.p-button,
+  .p-button.p-button-success,
+  .p-button-success {
+    border-color: var(--ces-success, #15803d) !important;
+    background: var(--ces-success, #15803d) !important;
+    color: #ffffff !important;
+  }
+
+  .ces-button--success.p-button *,
+  .p-button.p-button-success *,
+  .p-button-success * {
+    color: #ffffff !important;
+  }
+
+  .ces-button--success.p-button:not(:disabled):hover,
+  .p-button.p-button-success:not(:disabled):hover,
+  .p-button-success:not(:disabled):hover {
+    border-color: var(--ces-success-hover, #166534) !important;
+    background: var(--ces-success-hover, #166534) !important;
+    color: #ffffff !important;
+  }
+
+  .ces-button--destructive.p-button,
+  .p-button.p-button-danger,
+  .p-button-danger {
+    border-color: var(--ces-danger, #b91c1c) !important;
+    background: var(--ces-danger, #b91c1c) !important;
+    color: #ffffff !important;
+  }
+
+  .ces-button--destructive.p-button *,
+  .p-button.p-button-danger *,
+  .p-button-danger * {
+    color: #ffffff !important;
+  }
+
+  .ces-button--destructive.p-button:not(:disabled):hover,
+  .p-button.p-button-danger:not(:disabled):hover,
+  .p-button-danger:not(:disabled):hover {
+    border-color: var(--ces-danger-hover, #991b1b) !important;
+    background: var(--ces-danger-hover, #991b1b) !important;
+    color: #ffffff !important;
+  }
+
+  .ces-button--secondary.p-button:not(:disabled),
+  .ces-icon-button--secondary.p-button:not(:disabled),
+  .p-button.p-button-secondary,
+  .p-button.p-button-outlined:not(.p-button-danger):not(.p-button-success):not(.p-button-info):not(.p-button-warn) {
+    border-color: var(--ces-border) !important;
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .ces-button--secondary.p-button:not(:disabled):hover,
+  .ces-icon-button--secondary.p-button:not(:disabled):hover,
+  .p-button.p-button-secondary:hover,
+  .p-button.p-button-outlined:not(.p-button-danger):not(.p-button-success):not(.p-button-info):not(.p-button-warn):hover {
+    border-color: var(--ces-border-strong) !important;
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .ces-button--outline.p-button:not(:disabled),
+  .ces-icon-button--outline.p-button:not(:disabled) {
+    border-color: var(--ces-border) !important;
+    background: transparent !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .ces-button--outline.p-button:not(:disabled):hover,
+  .ces-icon-button--outline.p-button:not(:disabled):hover {
+    border-color: var(--ces-border-strong) !important;
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .ces-button--ghost.p-button:not(:disabled),
+  .ces-icon-button--ghost.p-button:not(:disabled) {
+    border-color: transparent !important;
+    background: transparent !important;
+    color: var(--ces-foreground-muted) !important;
+  }
+
+  .ces-button--ghost.p-button:not(:disabled):hover,
+  .ces-icon-button--ghost.p-button:not(:disabled):hover {
+    border-color: transparent !important;
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .ces-icon-button--icon-sm.p-button {
+    width: var(--ces-control-height-sm);
+    padding: 0;
+  }
+
+  .ces-icon-button--icon-md.p-button {
+    width: var(--ces-control-height-md);
+    padding: 0;
+  }
+
+  .ces-icon-button--icon-lg.p-button {
+    width: var(--ces-control-height-lg);
+    padding: 0;
+  }
+
+  .ces-surface {
+    display: block;
+    border-radius: var(--ces-radius-lg);
+    color: var(--ces-foreground);
+  }
+
+  .ces-surface--padded {
+    padding: 1rem;
+  }
+
+  .ces-surface[data-variant='plain'] {
+    background: var(--ces-surface);
+  }
+
+  .ces-surface[data-variant='raised'] {
+    border: 1px solid var(--ces-border);
+    background: var(--ces-surface);
+    box-shadow: var(--ces-shadow-md);
+  }
+
+  .ces-surface[data-variant='outlined'],
+  .ces-surface[data-variant='interactive'] {
+    border: 1px solid var(--ces-border);
+    background: var(--ces-surface);
+    box-shadow: var(--ces-shadow-sm);
+  }
+
+  .ces-surface[data-variant='subtle'] {
+    background: var(--ces-surface-subtle);
+  }
+
+  .ces-surface[data-variant='interactive'] {
+    cursor: pointer;
+    transition: border-color var(--ces-duration-normal) var(--ces-ease-standard), box-shadow var(--ces-duration-normal) var(--ces-ease-standard);
+  }
+
+  .ces-surface[data-variant='interactive']:hover {
+    border-color: var(--ces-border-strong);
+    box-shadow: var(--ces-shadow-md);
+  }
+
+  .ces-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: fit-content;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid var(--ces-status-border, transparent);
+    border-radius: 999px;
+    font-size: var(--ces-font-caption);
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .ces-status[data-tone='neutral'] {
+    --ces-status-color: var(--ces-foreground-muted);
+    --ces-status-ink: var(--ces-foreground-muted);
+    --ces-status-soft: var(--ces-surface-muted);
+    --ces-status-border: var(--ces-border);
+  }
+  .ces-status[data-tone='brand'] {
+    --ces-status-color: var(--ces-brand);
+    --ces-status-ink: var(--ces-brand);
+    --ces-status-soft: var(--ces-brand-soft);
+    --ces-status-border: color-mix(in srgb, var(--ces-brand) 30%, transparent);
+  }
+  .ces-status[data-tone='info'] {
+    --ces-status-color: var(--ces-info);
+    --ces-status-ink: var(--ces-info-text);
+    --ces-status-soft: var(--ces-info-soft);
+    --ces-status-border: #bfdbfe;
+  }
+  .ces-status[data-tone='success'] {
+    --ces-status-color: var(--ces-success);
+    --ces-status-ink: var(--ces-success-text);
+    --ces-status-soft: var(--ces-success-soft);
+    --ces-status-border: #bbf7d0;
+  }
+  .ces-status[data-tone='warning'] {
+    --ces-status-color: var(--ces-warning);
+    --ces-status-ink: var(--ces-warning-text);
+    --ces-status-soft: var(--ces-warning-soft);
+    --ces-status-border: #fde68a;
+  }
+  .ces-status[data-tone='danger'] {
+    --ces-status-color: var(--ces-danger);
+    --ces-status-ink: var(--ces-danger-text);
+    --ces-status-soft: var(--ces-danger-soft);
+    --ces-status-border: #fecaca;
+  }
+  .ces-status[data-emphasis='soft'] {
+    background: var(--ces-status-soft);
+    color: var(--ces-status-ink);
+    border-color: var(--ces-status-border, transparent);
+  }
+  .ces-status[data-emphasis='outline'] { border-color: currentColor; color: var(--ces-status-ink); }
+  .ces-status[data-emphasis='solid'] { background: var(--ces-status-color); color: #fff; }
+
+  .ces-status--devolucao,
+  .ces-status[data-tipo='DEVOLUCAO'],
+  .ces-status[data-tipo='DEVOLUCAO_COMERCIAL'] {
+    --ces-status-color: #6366f1;
+    --ces-status-ink: #4338ca;
+    --ces-status-soft: #e0e7ff;
+    --ces-status-border: #c7d2fe;
+    background: #e0e7ff !important;
+    border-color: #c7d2fe !important;
+    color: #4338ca !important;
+  }
+
+  .app-dark .ces-status[data-tone='neutral'],
+  .dark .ces-status[data-tone='neutral'] {
+    --ces-status-border: var(--ces-border-strong);
+  }
+  .app-dark .ces-status[data-tone='brand'],
+  .dark .ces-status[data-tone='brand'] {
+    --ces-status-border: color-mix(in srgb, var(--ces-brand) 40%, transparent);
+  }
+  .app-dark .ces-status[data-tone='info'],
+  .dark .ces-status[data-tone='info'] {
+    --ces-status-border: rgba(59, 130, 246, 0.4);
+  }
+  .app-dark .ces-status[data-tone='success'],
+  .dark .ces-status[data-tone='success'] {
+    --ces-status-border: rgba(34, 197, 94, 0.4);
+  }
+  .app-dark .ces-status[data-tone='warning'],
+  .dark .ces-status[data-tone='warning'] {
+    --ces-status-border: rgba(245, 158, 11, 0.4);
+  }
+  .app-dark .ces-status[data-tone='danger'],
+  .dark .ces-status[data-tone='danger'] {
+    --ces-status-border: rgba(239, 68, 68, 0.4);
+  }
+
+  .app-dark .ces-status--devolucao,
+  .app-dark .ces-status[data-tipo='DEVOLUCAO'],
+  .app-dark .ces-status[data-tipo='DEVOLUCAO_COMERCIAL'],
+  .dark .ces-status--devolucao,
+  .dark .ces-status[data-tipo='DEVOLUCAO'],
+  .dark .ces-status[data-tipo='DEVOLUCAO_COMERCIAL'] {
+    --ces-status-color: #818cf8;
+    --ces-status-ink: #c7d2fe;
+    --ces-status-soft: rgba(49, 46, 129, 0.45);
+    --ces-status-border: rgba(99, 102, 241, 0.4);
+    background: rgba(49, 46, 129, 0.45) !important;
+    border-color: rgba(99, 102, 241, 0.4) !important;
+    color: #c7d2fe !important;
+  }
+
+  .ces-field {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .ces-field__heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .ces-field__label {
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-font-caption);
+    font-weight: 700;
+    letter-spacing: 0.055em;
+    text-transform: capitalize;
+  }
+
+  .ces-field__required { color: var(--ces-danger-text); }
+  .ces-field__optional,
+  .ces-field__counter { color: var(--ces-foreground-subtle); font-size: var(--ces-font-caption); font-weight: 600; text-transform: none; }
+  .ces-field__control { min-width: 0; }
+  .ces-field__message { margin: 0; color: var(--ces-foreground-subtle); font-size: var(--ces-font-caption); line-height: 1.45; }
+  .ces-field__message--error { display: flex; align-items: flex-start; gap: 0.35rem; color: var(--ces-danger-text); }
+  .ces-field--disabled { opacity: 0.62; }
+  .ces-field--readonly .ces-field__control { color: var(--ces-foreground-muted); }
+
+  .ces-field--inline {
+    grid-template-columns: max-content auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.5rem;
+    row-gap: 0.25rem;
+  }
+  .ces-field--inline .ces-field__heading { grid-column: 1; grid-row: 1; }
+  .ces-field--inline .ces-field__control { grid-column: 2; grid-row: 1; display: inline-flex; align-items: center; }
+  .ces-field--inline .ces-field__message {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ces-field--inline .ces-field__label { white-space: nowrap; }
+
+  @media (max-width: 639px) {
+    .ces-field--inline { grid-template-columns: max-content auto; }
+    .ces-field--inline .ces-field__message {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+    }
+  }
+
+  .ces-async-state {
+    display: flex;
+    min-height: 12rem;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 2rem 1rem;
+    color: var(--ces-foreground-muted);
+    text-align: center;
+  }
+
+  .ces-async-state__icon {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--ces-surface-muted);
+    color: var(--ces-foreground-subtle);
+    font-size: 1.2rem;
+  }
+
+  .ces-async-state[data-tone='danger'] .ces-async-state__icon { background: var(--ces-danger-soft); color: var(--ces-danger-text); }
+  .ces-async-state[data-tone='warning'] .ces-async-state__icon { background: var(--ces-warning-soft); color: var(--ces-warning-text); }
+  .ces-async-state__copy { display: grid; max-width: 28rem; gap: 0.35rem; }
+  .ces-async-state__copy strong { color: var(--ces-foreground); font-size: var(--ces-font-title); }
+  .ces-async-state__copy p { margin: 0; color: var(--ces-foreground-muted); font-size: var(--ces-font-body); line-height: 1.5; }
+  .ces-async-state[data-state='refreshing'] { min-height: auto; flex-direction: row; padding: 0.75rem; text-align: left; }
+  .ces-async-state__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+
+  .ces-callout {
+    --ces-callout-color: var(--ces-foreground-muted);
+    --ces-callout-soft: var(--ces-surface-muted);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--ces-callout-color) 32%, transparent);
+    border-left: 3px solid var(--ces-callout-color);
+    border-radius: var(--ces-radius-md);
+    background: var(--ces-callout-soft);
+    color: var(--ces-foreground);
+  }
+
+  .ces-callout--dense { padding: 0.625rem 0.75rem; gap: 0.55rem; }
+
+  .ces-callout[data-tone='neutral'] { --ces-callout-color: var(--ces-foreground-muted); --ces-callout-ink: var(--ces-foreground-muted); --ces-callout-soft: var(--ces-surface-muted); }
+  .ces-callout[data-tone='brand'] { --ces-callout-color: var(--ces-brand); --ces-callout-ink: var(--ces-brand); --ces-callout-soft: var(--ces-brand-soft); }
+  .ces-callout[data-tone='info'] { --ces-callout-color: var(--ces-info); --ces-callout-ink: var(--ces-info-text); --ces-callout-soft: var(--ces-info-soft); }
+  .ces-callout[data-tone='success'] { --ces-callout-color: var(--ces-success); --ces-callout-ink: var(--ces-success-text); --ces-callout-soft: var(--ces-success-soft); }
+  .ces-callout[data-tone='warning'] { --ces-callout-color: var(--ces-warning); --ces-callout-ink: var(--ces-warning-text); --ces-callout-soft: var(--ces-warning-soft); }
+  .ces-callout[data-tone='danger'] { --ces-callout-color: var(--ces-danger); --ces-callout-ink: var(--ces-danger-text); --ces-callout-soft: var(--ces-danger-soft); }
+
+  .ces-callout__icon {
+    flex: none;
+    color: var(--ces-callout-ink, var(--ces-callout-color));
+    font-size: var(--ces-font-body);
+    line-height: 1.35;
+  }
+
+  .ces-callout__body { display: grid; gap: 0.2rem; min-width: 0; }
+
+  .ces-callout__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin: 0;
+  }
+
+  .ces-callout__label {
+    color: var(--ces-callout-ink, var(--ces-callout-color));
+    font-size: var(--ces-font-caption);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .ces-callout__title {
+    color: var(--ces-foreground);
+    font-size: var(--ces-callout-font-size, var(--ces-font-body));
+    font-weight: 600;
+  }
+
+  /* `--ces-callout-font-size` permite que contextos de leitura longa (manuais) usem um corpo
+     maior que o das telas de dados, sem duplicar o componente. */
+  .ces-callout__content {
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-callout-font-size, var(--ces-font-body));
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  .ces-callout__content :is(p, ul, ol):first-child { margin-top: 0; }
+  .ces-callout__content :is(p, ul, ol):last-child { margin-bottom: 0; }
+
+
+  /* Correção de host bindings para seletores PrimeNG 21 no Angular */
+  p-select,
+  p-multiselect,
+  p-datepicker,
+  p-cascadeselect,
+  p-treeselect,
+  p-dropdown,
+  p-inputnumber {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  p-select.w-full,
+  p-multiselect.w-full,
+  p-datepicker.w-full,
+  p-cascadeselect.w-full,
+  p-treeselect.w-full,
+  p-dropdown.w-full,
+  p-inputnumber.w-full {
+    display: flex !important;
+  }
+
+  .ces-prime-control,
+  .ces-prime-control.p-inputtext,
+  .ces-prime-control .p-inputtext:not(.p-select-label):not(.p-multiselect-label):not(.p-cascadeselect-label):not(.p-treeselect-label),
+  .ces-prime-control.p-select,
+  .ces-prime-control.p-multiselect,
+  .ces-prime-control.p-datepicker,
+  .ces-prime-control.p-inputnumber {
+    width: 100%;
+    min-height: var(--ces-control-height-sm);
+    border-radius: var(--ces-radius-sm);
+    font-size: var(--ces-font-control);
+  }
+
+  /* Robust reset for PrimeNG select inner DOM that might be broken by global forms styling */
+  p-select.ces-prime-control > .p-select,
+  p-multiselect.ces-prime-control > .p-multiselect,
+  .ces-prime-control .p-select,
+  .ces-prime-control .p-multiselect {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+    min-height: var(--ces-control-height-sm) !important;
+  }
+
+  p-select.ces-prime-control .p-select-label,
+  p-multiselect.ces-prime-control .p-multiselect-label,
+  .ces-prime-control .p-select-label,
+  .ces-prime-control .p-multiselect-label {
+    flex: 1 1 auto !important;
+    width: 1% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    display: block !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* No multiselect o rótulo fica dentro de um container; quem divide o espaço é o container. */
+  .ces-prime-control .p-multiselect-label-container {
+    flex: 1 1 auto !important;
+    width: 1% !important;
+    min-width: 0 !important;
+  }
+
+  p-multiselect.ces-prime-control .p-multiselect-label,
+  .ces-prime-control .p-multiselect-label {
+    width: 100% !important;
+  }
+
+  p-select.ces-prime-control .p-select-dropdown,
+  p-multiselect.ces-prime-control .p-multiselect-dropdown,
+  .ces-prime-control .p-select-dropdown,
+  .ces-prime-control .p-multiselect-dropdown {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 2.5rem !important;
+    min-height: 0 !important;
+  }
+
+  .ces-prime-overlay {
+    border: 1px solid var(--ces-border);
+    border-radius: var(--ces-radius-md);
+    background: var(--ces-surface);
+    box-shadow: var(--ces-shadow-lg);
+  }
+
+  .ces-dialog.p-dialog {
+    overflow: hidden;
+    border: 1px solid var(--ces-border);
+    border-radius: var(--ces-radius-lg);
+    background: var(--ces-surface);
+    box-shadow: var(--ces-shadow-lg);
+  }
+
+  .ces-table.p-datatable .p-datatable-thead > tr > th {
+    border-color: var(--ces-border);
+    background: var(--ces-surface-subtle);
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-font-caption);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .ces-table.p-datatable .p-datatable-tbody > tr > td {
+    border-color: var(--ces-border);
+    color: var(--ces-foreground-muted);
+    font-size: var(--ces-font-control);
+  }
+
+  /* PrimeNG PanelMenu / Sidebar Navigation Adapter */
+  .custom-panelmenu,
+  .p-panelmenu {
+    background: transparent !important;
+    border: 0 !important;
+  }
+
+  .custom-panelmenu .p-panelmenu-panel,
+  .custom-panelmenu .p-panelmenu-header,
+  .custom-panelmenu .p-panelmenu-header-content,
+  .custom-panelmenu .p-panelmenu-content,
+  .custom-panelmenu .p-panelmenu-root-list,
+  .custom-panelmenu .p-panelmenu-submenu,
+  .custom-panelmenu .p-panelmenu-item,
+  .custom-panelmenu .p-panelmenu-item-content {
+    background: transparent !important;
+    border: 0 !important;
+    color: inherit !important;
+    box-shadow: none !important;
+  }
+
+  .custom-panelmenu .p-panelmenu-content {
+    padding-left: 0.75rem !important;
+  }
+
+  .custom-panelmenu .p-panelmenu-header-link,
+  .custom-panelmenu .p-panelmenu-item-link {
+    background: transparent !important;
+    border: 0 !important;
+    color: inherit !important;
+    padding: 0 !important;
+  }
+
+  .custom-panelmenu .p-panelmenu-header:not(.p-disabled) .p-panelmenu-header-content:hover,
+  .custom-panelmenu .p-panelmenu-item:not(.p-disabled) .p-panelmenu-item-content:hover,
+  .custom-panelmenu .p-panelmenu-header-link:hover,
+  .custom-panelmenu .p-panelmenu-item-link:hover,
+  .custom-panelmenu .p-panelmenu-item.p-focus > .p-panelmenu-item-content,
+  .custom-panelmenu .p-panelmenu-header.p-focus > .p-panelmenu-header-content {
+    background: transparent !important;
+    color: inherit !important;
+  }
+
+  .ces-sidebar-active-link,
+  .active-link {
+    background-color: var(--ces-brand-soft) !important;
+    color: var(--ces-brand) !important;
+    font-weight: 700 !important;
+  }
+
+  .ces-sidebar-active-link i,
+  .active-link i {
+    color: var(--ces-brand) !important;
+  }
+
+  /* PrimeNG Global Overlays and Dropdown Panels */
+  .p-select-overlay,
+  .p-multiselect-overlay,
+  .p-datepicker-panel,
+  .p-cascadeselect-overlay,
+  .p-treeselect-overlay,
+  .p-popover,
+  .p-dialog,
+  .p-confirmdialog,
+  .p-confirm-dialog,
+  .custom-dialog.p-dialog,
+  .custom-dialog .p-dialog {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    border: 1px solid var(--ces-border) !important;
+    box-shadow: var(--ces-shadow-lg) !important;
+  }
+
+  .ces-dialog .p-dialog-header,
+  .p-dialog-header {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    border-bottom: 1px solid var(--ces-border) !important;
+    padding: 1.25rem 1.5rem !important;
+  }
+
+  .p-dialog-title {
+    color: var(--ces-foreground) !important;
+    font-weight: 700 !important;
+  }
+
+  .ces-dialog .p-dialog-content,
+  .p-dialog-content {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    padding: 1.25rem 1.5rem !important;
+  }
+
+  .ces-dialog .p-dialog-footer,
+  .p-dialog-footer {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    border-top: 1px solid var(--ces-border) !important;
+    padding: 1.25rem 1.5rem !important;
+  }
+
+  .ces-dialog-shell .p-dialog-footer:not(:has([dialog-footer])),
+  .ces-dialog-shell .p-dialog-footer:has(.ces-dialog-shell__footer:empty),
+  .ces-dialog .p-dialog-footer:has(.ces-dialog-shell__footer:empty),
+  .p-dialog-footer:empty {
+    display: none !important;
+  }
+
+  .p-confirmdialog-message,
+  .p-confirm-dialog-message,
+  .p-dialog-message {
+    color: var(--ces-foreground-muted) !important;
+    font-size: 0.875rem !important;
+    line-height: 1.6 !important;
+    flex: 1 1 auto !important;
+    word-break: break-word !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* PrimeNG Confirm Dialog Modern Layout & Spacing */
+  .p-confirmdialog,
+  .p-confirm-dialog,
+  .ces-confirm-dialog {
+    max-width: 480px !important;
+    width: 90vw !important;
+    border-radius: var(--ces-radius-xl, 0.75rem) !important;
+    overflow: hidden !important;
+  }
+
+  .p-confirmdialog .p-dialog-header,
+  .p-confirm-dialog .p-dialog-header,
+  .ces-confirm-dialog .p-dialog-header {
+    padding: 1.25rem 1.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    border-bottom: 1px solid var(--ces-border) !important;
+  }
+
+  .p-confirmdialog .p-dialog-content,
+  .p-confirm-dialog .p-dialog-content,
+  .ces-confirm-dialog .p-dialog-content {
+    padding: 1.5rem !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 1.25rem !important;
+  }
+
+  .p-confirmdialog .p-confirmdialog-icon,
+  .p-confirm-dialog .p-confirmdialog-icon,
+  .ces-confirm-dialog .p-confirmdialog-icon,
+  .p-confirmdialog .p-dialog-message-icon {
+    font-size: 1.75rem !important;
+    color: var(--ces-primary-600, #2563eb) !important;
+    flex-shrink: 0 !important;
+    margin-top: 0.125rem !important;
+  }
+
+  .p-confirmdialog .p-dialog-footer,
+  .p-confirm-dialog .p-dialog-footer,
+  .ces-confirm-dialog .p-dialog-footer {
+    padding: 1.25rem 1.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 0.75rem !important;
+    border-top: 1px solid var(--ces-border) !important;
+  }
+
+  .p-popover-content {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  /* PrimeNG Menus, ContextMenus, and Dropdown Lists */
+  .p-menu,
+  .p-tieredmenu,
+  .p-contextmenu,
+  .p-splitbutton-menu {
+    background: var(--ces-surface) !important;
+    border: 1px solid var(--ces-border) !important;
+    color: var(--ces-foreground) !important;
+    box-shadow: var(--ces-shadow-md) !important;
+  }
+
+  .p-menuitem-link,
+  .p-menuitem-content {
+    color: var(--ces-foreground-muted) !important;
+  }
+
+  .p-menuitem-link:hover,
+  .p-menuitem-content:hover,
+  .p-menuitem.p-focus > .p-menuitem-content {
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  /* PrimeNG Tooltip */
+  .p-tooltip .p-tooltip-text {
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+    border: 1px solid var(--ces-border) !important;
+    box-shadow: var(--ces-shadow-md) !important;
+  }
+
+  /* PrimeNG Breadcrumb */
+  .p-breadcrumb {
+    background: transparent !important;
+    border: 0 !important;
+    padding: 0 !important;
+  }
+
+  .p-breadcrumb-item-link,
+  .p-breadcrumb-item-label,
+  .p-breadcrumb-separator {
+    color: var(--ces-foreground-subtle) !important;
+    font-size: 11px !important;
+  }
+
+  .p-breadcrumb-item-link:hover {
+    color: var(--ces-brand) !important;
+  }
+
+  /* PrimeNG Tabs / TabView */
+  .p-tablist,
+  .p-tablist-tab-list {
+    background: transparent !important;
+    border-color: var(--ces-border) !important;
+  }
+
+  .p-tab {
+    background: transparent !important;
+    color: var(--ces-foreground-muted) !important;
+    border-color: transparent !important;
+  }
+
+  .p-tab:hover {
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-tab.p-tab-active {
+    color: var(--ces-brand) !important;
+    border-color: var(--ces-brand) !important;
+  }
+
+  .p-tabpanels,
+  .p-tabpanel {
+    background: transparent !important;
+    color: inherit !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  /* Select, Multiselect and Autocomplete overlays/options */
+  .p-select-overlay,
+  .p-multiselect-overlay,
+  .p-autocomplete-overlay {
+    border: 1px solid var(--ces-border) !important;
+    border-radius: var(--ces-radius-md) !important;
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    box-shadow: var(--ces-shadow-md) !important;
+  }
+
+  .p-select-list,
+  .p-select-list-container,
+  .p-multiselect-list,
+  .p-multiselect-list-container,
+  .p-autocomplete-list,
+  .p-autocomplete-list-container {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-select-option,
+  .p-multiselect-option,
+  .p-autocomplete-option {
+    background: transparent !important;
+    color: var(--ces-foreground-muted) !important;
+  }
+
+  .p-select-option:hover,
+  .p-multiselect-option:hover,
+  .p-autocomplete-option:hover,
+  .p-autocomplete-option.p-focus {
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-select-option.p-select-option-selected,
+  .p-multiselect-option.p-multiselect-option-selected,
+  .p-autocomplete-option.p-autocomplete-option-selected {
+    background: var(--ces-brand-soft) !important;
+    color: var(--ces-brand) !important;
+    font-weight: 700 !important;
+  }
+
+  .p-select-empty-message,
+  .p-multiselect-empty-message,
+  .p-autocomplete-empty-message {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground-muted) !important;
+  }
+
+  /* DatePicker panel complete styling & high contrast */
+  .p-datepicker-panel {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    border: 1px solid var(--ces-border) !important;
+    box-shadow: var(--ces-shadow-md) !important;
+    border-radius: var(--ces-radius-md) !important;
+  }
+
+  .p-datepicker-header {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    border-bottom: 1px solid var(--ces-border) !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  .p-datepicker-title,
+  .p-datepicker-select-month,
+  .p-datepicker-select-year,
+  .p-datepicker-decade {
+    color: var(--ces-foreground) !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+  }
+
+  .p-datepicker-prev-button,
+  .p-datepicker-next-button {
+    color: var(--ces-foreground-muted) !important;
+    background: var(--ces-surface-subtle) !important;
+    border: 1px solid var(--ces-border) !important;
+    border-radius: var(--ces-radius-sm) !important;
+    width: 2rem !important;
+    height: 2rem !important;
+  }
+
+  .p-datepicker-prev-button:hover,
+  .p-datepicker-next-button:hover {
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-datepicker-day-view th,
+  .p-datepicker-weekdays th,
+  .p-datepicker-weekday-cell,
+  .p-datepicker-weekday,
+  .p-datepicker-day-view th *,
+  .p-datepicker-weekdays th *,
+  .p-datepicker table thead th,
+  .p-datepicker table thead th span {
+    color: var(--ces-foreground-muted) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+  }
+
+  .p-datepicker-day,
+  .p-datepicker-day-view td > span,
+  .p-datepicker-day-view td > a {
+    color: var(--ces-foreground) !important;
+    border-radius: var(--ces-radius-sm) !important;
+    font-weight: 500 !important;
+    transition: all 150ms ease !important;
+  }
+
+  .p-datepicker-day:not(.p-datepicker-day-selected):not(.p-disabled):hover,
+  .p-datepicker-day-view td > span:not(.p-datepicker-day-selected):hover {
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-datepicker-day.p-datepicker-day-selected,
+  .p-datepicker-day-selected,
+  .p-datepicker-day-view td > span.p-datepicker-day-selected {
+    background: var(--ces-brand) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+  }
+
+  /* Today / Current Date - Distinct Subtle Border & Brand Tint (Never light grey with white text) */
+  .p-datepicker-day.p-datepicker-today:not(.p-datepicker-day-selected),
+  .p-datepicker-day[data-p-today="true"]:not(.p-datepicker-day-selected),
+  .p-datepicker-today:not(.p-datepicker-day-selected) > span,
+  .p-datepicker-today:not(.p-datepicker-day-selected) > a,
+  .p-datepicker-day-view td.p-datepicker-today > span:not(.p-datepicker-day-selected),
+  .p-datepicker-day-view td > span.p-datepicker-today:not(.p-datepicker-day-selected) {
+    background: var(--ces-brand-soft) !important;
+    color: var(--ces-brand) !important;
+    border: 1px solid var(--ces-brand) !important;
+    font-weight: 700 !important;
+  }
+
+  .p-datepicker-day.p-datepicker-other-month,
+  .p-datepicker-day.p-disabled,
+  .p-datepicker-other-month {
+    color: var(--ces-foreground-subtle) !important;
+    opacity: 0.35 !important;
+  }
+
+  .p-datepicker-buttonbar {
+    border-top: 1px solid var(--ces-border) !important;
+    background: var(--ces-surface-subtle) !important;
+    padding: 0.5rem 0.75rem !important;
+    display: flex !important;
+    justify-content: space-between !important;
+  }
+
+  .p-datepicker-buttonbar button,
+  .p-datepicker-buttonbar .p-button {
+    border: 1px solid var(--ces-border) !important;
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    border-radius: var(--ces-radius-sm) !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    padding: 0.35rem 0.75rem !important;
+  }
+
+  .p-datepicker-buttonbar button:hover,
+  .p-datepicker-buttonbar .p-button:hover {
+    background: var(--ces-surface-muted) !important;
+    border-color: var(--ces-border-strong) !important;
+  }
+
+  /* Form & Filter Labels High-Contrast Styling */
+  .filter-label,
+  label.filter-label,
+  .field label,
+  .dash-field label,
+  .p-field label,
+  label.form-label {
+    color: var(--ces-foreground-muted) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em;
+  }
+
+  /* PrimeNG Table dark mode & contrast adapter */
+  .p-datatable .p-datatable-thead > tr > th {
+    background: var(--ces-surface-subtle) !important;
+    color: var(--ces-foreground-muted) !important;
+    border-color: var(--ces-border) !important;
+  }
+
+  .p-datatable .p-datatable-tbody > tr {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground-muted) !important;
+  }
+
+  .p-datatable .p-datatable-tbody > tr:hover {
+    background: var(--ces-surface-muted) !important;
+  }
+
+  .p-datatable .p-datatable-tbody > tr > td {
+    border-color: var(--ces-border) !important;
+    color: var(--ces-foreground-muted) !important;
+  }
+
+  /* PrimeNG Paginator - Centralized, Harmonious Sizing & Mobile-First Responsiveness */
+  .p-datatable .p-datatable-paginator-bottom,
+  .p-datatable-paginator-bottom,
+  .p-datatable-paginator-top,
+  .p-paginator {
+    border-top: 1px solid var(--ces-border) !important;
+    background: transparent !important;
+    color: var(--ces-foreground-muted) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.375rem !important;
+    padding: 0.625rem 0.75rem !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .p-paginator-current {
+    font-size: var(--ces-font-caption, 0.6875rem) !important;
+    font-weight: 600 !important;
+    color: var(--ces-foreground-subtle) !important;
+    padding: 0 0.5rem !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .p-paginator .p-paginator-pages {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.25rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .p-paginator .p-paginator-page,
+  .p-paginator .p-paginator-first,
+  .p-paginator .p-paginator-prev,
+  .p-paginator .p-paginator-next,
+  .p-paginator .p-paginator-last {
+    color: var(--ces-foreground-muted) !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: var(--ces-radius-sm, 0.5rem) !important;
+    min-width: 2rem !important;
+    height: 2rem !important;
+    padding: 0 0.375rem !important;
+    font-size: var(--ces-font-control, 0.75rem) !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer;
+    transition: background-color var(--ces-duration-fast, 120ms) ease,
+      color var(--ces-duration-fast, 120ms) ease,
+      border-color var(--ces-duration-fast, 120ms) ease;
+  }
+
+  .p-paginator .p-paginator-page:hover,
+  .p-paginator .p-paginator-first:hover,
+  .p-paginator .p-paginator-prev:hover,
+  .p-paginator .p-paginator-next:hover,
+  .p-paginator .p-paginator-last:hover {
+    background: var(--ces-surface-muted) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-paginator .p-paginator-page.p-paginator-page-selected {
+    background: var(--ces-brand-soft) !important;
+    border-color: color-mix(in srgb, var(--ces-brand) 30%, transparent) !important;
+    color: var(--ces-brand) !important;
+    font-weight: 700 !important;
+  }
+
+  .p-paginator .p-disabled,
+  .p-paginator .p-paginator-first.p-disabled,
+  .p-paginator .p-paginator-prev.p-disabled,
+  .p-paginator .p-paginator-next.p-disabled,
+  .p-paginator .p-paginator-last.p-disabled {
+    opacity: 0.35 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+  }
+
+  .p-paginator p-select,
+  .p-paginator .p-select,
+  .p-paginator p-dropdown,
+  .p-paginator .p-dropdown,
+  .p-paginator-rpp-dropdown,
+  .p-datatable-paginator-bottom p-select,
+  .p-datatable-paginator-bottom .p-select,
+  .p-datatable-paginator-bottom p-dropdown,
+  .p-datatable-paginator-bottom .p-dropdown {
+    width: auto !important;
+    min-width: 3.75rem !important;
+    max-width: 4.75rem !important;
+    display: inline-flex !important;
+    height: 2rem !important;
+    min-height: 2rem !important;
+    margin: 0 0 0 0.375rem !important;
+    background: var(--ces-surface) !important;
+    border: 1px solid var(--ces-border) !important;
+    border-radius: var(--ces-radius-sm, 0.5rem) !important;
+    color: var(--ces-foreground) !important;
+    align-items: center !important;
+    box-shadow: none !important;
+    transition: border-color var(--ces-duration-fast, 120ms) ease;
+  }
+
+  .p-paginator p-select:hover,
+  .p-paginator .p-select:hover,
+  .p-paginator p-dropdown:hover,
+  .p-paginator .p-dropdown:hover,
+  .p-paginator-rpp-dropdown:hover {
+    border-color: var(--ces-border-strong) !important;
+  }
+
+  .p-paginator p-select:focus-within,
+  .p-paginator .p-select:focus-within,
+  .p-paginator p-dropdown:focus-within,
+  .p-paginator .p-dropdown:focus-within,
+  .p-paginator-rpp-dropdown:focus-within {
+    border-color: var(--ces-brand) !important;
+    outline: 2px solid var(--ces-focus-ring) !important;
+    outline-offset: 1px !important;
+  }
+
+  .p-paginator p-select .p-select-label,
+  .p-paginator .p-select .p-select-label,
+  .p-paginator .p-dropdown-label,
+  .p-paginator-rpp-dropdown .p-select-label,
+  .p-paginator-rpp-dropdown .p-dropdown-label {
+    padding: 0.15rem 0.35rem 0.15rem 0.45rem !important;
+    font-size: var(--ces-font-control, 0.75rem) !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    flex: 1 1 auto !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-paginator p-select .p-select-dropdown,
+  .p-paginator .p-select .p-select-dropdown,
+  .p-paginator .p-dropdown-trigger,
+  .p-paginator-rpp-dropdown .p-select-dropdown,
+  .p-paginator-rpp-dropdown .p-dropdown-trigger {
+    width: 1.125rem !important;
+    padding-right: 0.25rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--ces-foreground-subtle) !important;
+    font-size: 0.625rem !important;
+  }
+
+  /* Responsive Paginator */
+  @media (max-width: 640px) {
+    .p-datatable .p-datatable-paginator-bottom,
+    .p-datatable-paginator-bottom,
+    .p-datatable-paginator-top,
+    .p-paginator {
+      gap: 0.25rem !important;
+      padding: 0.5rem 0.25rem !important;
+      justify-content: center !important;
+    }
+
+    .p-paginator-current {
+      width: 100% !important;
+      justify-content: center !important;
+      text-align: center !important;
+      margin-bottom: 0.25rem !important;
+      order: -1;
+    }
+
+    .p-paginator .p-paginator-page,
+    .p-paginator .p-paginator-first,
+    .p-paginator .p-paginator-prev,
+    .p-paginator .p-paginator-next,
+    .p-paginator .p-paginator-last {
+      min-width: 1.75rem !important;
+      height: 1.75rem !important;
+      font-size: 0.6875rem !important;
+      padding: 0 0.2rem !important;
+    }
+
+    .p-paginator p-select,
+    .p-paginator .p-select,
+    .p-paginator p-dropdown,
+    .p-paginator .p-dropdown,
+    .p-paginator-rpp-dropdown {
+      height: 1.75rem !important;
+      min-height: 1.75rem !important;
+      min-width: 3.5rem !important;
+      margin: 0 0 0 0.25rem !important;
+    }
+  }
+
+  /* PrimeNG Form Controls - Universal Dark & Light Adaptation (Zero Shadows) */
+  .p-inputtext,
+  input.p-inputtext,
+  textarea.p-textarea,
+  .p-textarea,
+  p-select,
+  .p-select,
+  p-multiselect,
+  .p-multiselect,
+  p-datepicker,
+  .p-datepicker,
+  .p-datepicker-input,
+  p-inputnumber,
+  .p-inputnumber,
+  .p-inputnumber-input,
+  .custom-input,
+  .custom-select,
+  .custom-date {
+    background-color: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    border-color: var(--ces-border) !important;
+    box-shadow: none !important;
+  }
+
+  p-select,
+  p-multiselect,
+  p-datepicker {
+    display: inline-flex !important;
+    width: 100% !important;
+  }
+
+  .p-select,
+  .p-multiselect,
+  .p-datepicker {
+    width: 100% !important;
+  }
+
+  .p-inputtext,
+  input.p-inputtext,
+  .custom-input,
+  .p-select,
+  .p-multiselect,
+  .p-datepicker-input {
+    min-height: 2.25rem !important;
+    font-size: 0.8125rem !important;
+    border-radius: var(--ces-radius-sm) !important;
+  }
+
+  .p-inputtext,
+  input.p-inputtext,
+  .custom-input,
+  .p-datepicker-input {
+    padding-block: 0.45rem !important;
+    padding-inline: 0.75rem !important;
+    line-height: 1.5 !important;
+  }
+
+  /* PrimeNG IconField Support - Garante espaçamento adequado e centralização perfeita do ícone */
+  .p-iconfield {
+    position: relative;
+    display: inline-flex !important;
+    align-items: center;
+    width: 100%;
+  }
+
+  .p-iconfield .p-inputicon {
+    position: absolute;
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100% !important;
+    z-index: 10;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .p-iconfield .p-inputicon:first-child,
+  .p-iconfield.p-iconfield-left .p-inputicon,
+  .p-iconfield:has(.p-inputicon:first-child) .p-inputicon {
+    inset-inline-start: 0 !important;
+    left: 0 !important;
+    width: 2.75rem !important;
+  }
+
+  .p-iconfield .p-inputicon:last-child,
+  .p-iconfield.p-iconfield-right .p-inputicon,
+  .p-iconfield:has(.p-inputicon:last-child) .p-inputicon {
+    inset-inline-end: 0 !important;
+    right: 0 !important;
+    width: 2.75rem !important;
+  }
+
+  .p-iconfield .p-inputtext:not(:first-child),
+  .p-iconfield input.p-inputtext:not(:first-child),
+  .p-iconfield .p-password input.p-inputtext,
+  .p-iconfield .p-inputwrapper:not(:first-child) input.p-inputtext,
+  .p-iconfield.p-iconfield-left .p-inputtext,
+  .p-iconfield.p-iconfield-left input.p-inputtext,
+  .p-iconfield.p-iconfield-left .p-password input.p-inputtext,
+  .p-iconfield:has(.p-inputicon:first-child) .p-inputtext,
+  .p-iconfield:has(.p-inputicon:first-child) input.p-inputtext,
+  .p-iconfield:has(> .p-inputicon:first-child) .p-password input.p-inputtext {
+    padding-left: 2.75rem !important;
+    padding-inline-start: 2.75rem !important;
+  }
+
+  .p-iconfield .p-inputtext:not(:last-child),
+  .p-iconfield input.p-inputtext:not(:last-child),
+  .p-iconfield .p-password:not(:last-child) input.p-inputtext,
+  .p-iconfield.p-iconfield-right .p-inputtext,
+  .p-iconfield.p-iconfield-right input.p-inputtext,
+  .p-iconfield.p-iconfield-right .p-password input.p-inputtext,
+  .p-iconfield:has(.p-inputicon:last-child) .p-inputtext,
+  .p-iconfield:has(.p-inputicon:last-child) input.p-inputtext {
+    padding-right: 2.75rem !important;
+    padding-inline-end: 2.75rem !important;
+  }
+
+  .p-select .p-select-label,
+  .p-multiselect .p-multiselect-label {
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.5 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .p-select .p-select-dropdown,
+  .p-multiselect .p-multiselect-dropdown {
+    width: 2.25rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .p-inputtext:focus,
+  .p-select:focus,
+  .p-multiselect:focus,
+  .p-datepicker-input:focus,
+  .custom-input:focus {
+    border-color: var(--ces-brand) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px var(--ces-brand-soft) !important;
+  }
+
+  .p-inputtext::placeholder,
+  .p-select-placeholder,
+  .p-datepicker-input::placeholder,
+  .custom-input::placeholder {
+    color: var(--ces-foreground-subtle) !important;
+  }
+
+  .p-select .p-select-label,
+  .p-multiselect .p-multiselect-label {
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-select .p-select-label.p-placeholder,
+  .p-multiselect .p-multiselect-label.p-placeholder {
+    color: var(--ces-foreground-subtle) !important;
+  }
+
+  .p-select .p-select-dropdown,
+  .p-multiselect .p-multiselect-dropdown,
+  .p-datepicker .p-datepicker-button-icon {
+    color: var(--ces-foreground-subtle) !important;
+  }
+
+  /* PrimeNG Checkbox Adaptation */
+  .p-checkbox {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+
+  .p-checkbox .p-checkbox-box {
+    background-color: var(--ces-surface-subtle) !important;
+    border: 1px solid var(--ces-border) !important;
+    border-radius: var(--ces-radius-sm) !important;
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    transition: all 150ms ease !important;
+  }
+
+  .p-checkbox .p-checkbox-box:hover {
+    border-color: var(--ces-brand) !important;
+  }
+
+  .p-checkbox.p-checkbox-checked .p-checkbox-box,
+  .p-checkbox-checked .p-checkbox-box,
+  .p-checkbox .p-checkbox-box[data-p-checked="true"] {
+    background-color: var(--ces-brand) !important;
+    border-color: var(--ces-brand) !important;
+    color: #ffffff !important;
+  }
+
+  .p-checkbox .p-checkbox-icon,
+  .p-checkbox-checked .p-checkbox-icon {
+    color: #ffffff !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* PrimeNG Tag & Badge Styles */
+  .p-tag {
+    border: 1px solid var(--ces-border) !important;
+    background: var(--ces-surface-subtle) !important;
+    color: var(--ces-foreground-muted) !important;
+    font-weight: 700;
+  }
+
+  .p-tag.p-tag-success {
+    background: var(--ces-success-soft) !important;
+    color: var(--ces-success) !important;
+    border-color: color-mix(in srgb, var(--ces-success) 30%, transparent) !important;
+  }
+
+  .p-tag.p-tag-info {
+    background: var(--ces-info-soft) !important;
+    color: var(--ces-info) !important;
+    border-color: color-mix(in srgb, var(--ces-info) 30%, transparent) !important;
+  }
+
+  .p-tag.p-tag-warn,
+  .p-tag.p-tag-warning {
+    background: var(--ces-warning-soft) !important;
+    color: var(--ces-warning) !important;
+    border-color: color-mix(in srgb, var(--ces-warning) 30%, transparent) !important;
+  }
+
+  .p-tag.p-tag-danger {
+    background: var(--ces-danger-soft) !important;
+    color: var(--ces-danger) !important;
+    border-color: color-mix(in srgb, var(--ces-danger) 30%, transparent) !important;
+  }
+
+  /* PrimeNG SelectButton & ToggleButton Universal Adaptation */
+  p-selectbutton,
+  .p-selectbutton {
+    display: inline-flex !important;
+    border-radius: var(--ces-radius-sm, 0.5rem) !important;
+    gap: 0.25rem;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .p-selectbutton .p-togglebutton,
+  p-selectbutton p-togglebutton,
+  .p-togglebutton {
+    border-radius: var(--ces-radius-sm, 0.5rem) !important;
+    font-size: var(--ces-font-control, 0.75rem) !important;
+    font-weight: 600 !important;
+    transition: all var(--ces-duration-fast, 150ms) ease !important;
+    border: 1px solid var(--ces-border, #e2e8f0) !important;
+    background-color: var(--ces-surface, #f8fafc) !important;
+    color: var(--ces-foreground-muted, #64748b) !important;
+    padding: 0.45rem 0.75rem !important;
+    min-height: 2rem !important;
+  }
+
+  .p-selectbutton .p-togglebutton:not(.p-togglebutton-checked):hover,
+  .p-togglebutton:not(.p-togglebutton-checked):hover {
+    background-color: var(--ces-surface-muted, #f1f5f9) !important;
+    color: var(--ces-foreground, #1e293b) !important;
+    border-color: var(--ces-border-strong, #cbd5e1) !important;
+  }
+
+  .app-dark .p-selectbutton .p-togglebutton,
+  .app-dark p-selectbutton p-togglebutton,
+  .app-dark .p-togglebutton,
+  .dark .p-selectbutton .p-togglebutton,
+  .dark p-selectbutton p-togglebutton,
+  .dark .p-togglebutton {
+    background-color: var(--ces-surface, #1e293b) !important;
+    border-color: var(--ces-border, #334155) !important;
+    color: var(--ces-foreground-muted, #94a3b8) !important;
+  }
+
+  .app-dark .p-selectbutton .p-togglebutton:not(.p-togglebutton-checked):hover,
+  .app-dark .p-togglebutton:not(.p-togglebutton-checked):hover,
+  .dark .p-selectbutton .p-togglebutton:not(.p-togglebutton-checked):hover,
+  .dark .p-togglebutton:not(.p-togglebutton-checked):hover {
+    background-color: var(--ces-surface-muted, #334155) !important;
+    color: var(--ces-foreground, #f8fafc) !important;
+    border-color: var(--ces-border-strong, #475569) !important;
+  }
+
+  /* SELECTED STATE - Uses Primary Brand Color with White Text */
+  .p-selectbutton .p-togglebutton.p-togglebutton-checked,
+  .p-selectbutton .p-togglebutton[data-p-checked="true"],
+  .p-selectbutton .p-togglebutton[aria-pressed="true"],
+  p-selectbutton p-togglebutton[aria-pressed="true"],
+  .p-togglebutton.p-togglebutton-checked,
+  .p-togglebutton[data-p-checked="true"],
+  .p-togglebutton[aria-pressed="true"] {
+    background-color: var(--p-primary-600, #2563eb) !important;
+    border-color: var(--p-primary-600, #2563eb) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+  }
+
+  .p-selectbutton .p-togglebutton.p-togglebutton-checked *,
+  .p-selectbutton .p-togglebutton[data-p-checked="true"] *,
+  .p-selectbutton .p-togglebutton[aria-pressed="true"] *,
+  .p-togglebutton.p-togglebutton-checked *,
+  .p-togglebutton[data-p-checked="true"] *,
+  .p-togglebutton[aria-pressed="true"] * {
+    color: #ffffff !important;
+  }
+
+  .app-dark .p-selectbutton .p-togglebutton.p-togglebutton-checked,
+  .app-dark .p-selectbutton .p-togglebutton[data-p-checked="true"],
+  .app-dark .p-selectbutton .p-togglebutton[aria-pressed="true"],
+  .app-dark p-selectbutton p-togglebutton[aria-pressed="true"],
+  .app-dark .p-togglebutton.p-togglebutton-checked,
+  .app-dark .p-togglebutton[data-p-checked="true"],
+  .app-dark .p-togglebutton[aria-pressed="true"],
+  .dark .p-selectbutton .p-togglebutton.p-togglebutton-checked,
+  .dark .p-selectbutton .p-togglebutton[data-p-checked="true"],
+  .dark .p-selectbutton .p-togglebutton[aria-pressed="true"],
+  .dark p-selectbutton p-togglebutton[aria-pressed="true"],
+  .dark .p-togglebutton.p-togglebutton-checked,
+  .dark .p-togglebutton[data-p-checked="true"],
+  .dark .p-togglebutton[aria-pressed="true"] {
+    background-color: var(--p-primary-600, #2563eb) !important;
+    border-color: var(--p-primary-500, #3b82f6) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  /* PrimeNG Stepper Adapter & Universal Centering */
+  p-stepper,
+  .p-stepper {
+    display: block !important;
+    width: 100% !important;
+    background: transparent !important;
+  }
+
+  p-step-list,
+  .p-steplist {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    max-width: 38rem !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 0.5rem 1rem !important;
+    list-style: none !important;
+  }
+
+  p-step,
+  .p-step {
+    display: flex !important;
+    flex: 1 1 0% !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    min-width: 0 !important;
+    gap: 0.5rem !important;
+    padding: 0 !important;
+  }
+
+  p-step:last-of-type,
+  .p-step:last-of-type {
+    flex: 0 0 auto !important;
+  }
+
+  p-stepper-separator,
+  .p-stepper-separator {
+    display: block !important;
+    flex: 1 1 0% !important;
+    min-width: 1.5rem !important;
+    height: 2px !important;
+    background-color: var(--p-slate-200, #e2e8f0) !important;
+    margin: 0 0.5rem !important;
+    transform: translateY(-0.35rem) !important;
+  }
+
+  .app-dark p-stepper-separator,
+  .app-dark .p-stepper-separator {
+    background-color: var(--p-slate-700, #334155) !important;
+  }
+
+  p-step > button,
+  .p-step > button,
+  .step-button {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+  }
+
+  p-step-panels,
+  .p-steppanels,
+  .p-step-panels,
+  .p-stepper-panels,
+  p-step-panel,
+  .p-steppanel,
+  .p-step-panel,
+  .p-stepper-panel {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    background: transparent !important;
+    color: inherit !important;
+  }
+
+  /* PrimeNG Accordion Adapters */
+  p-accordion,
+  .p-accordion {
+    display: block;
+    width: 100%;
+    --p-accordion-header-background: var(--ces-surface-subtle);
+    --p-accordion-header-hover-background: var(--ces-surface-muted);
+    --p-accordion-header-active-background: var(--ces-surface-subtle);
+    --p-accordion-header-active-hover-background: var(--ces-surface-muted);
+    --p-accordion-header-color: var(--ces-foreground);
+    --p-accordion-header-active-color: var(--ces-foreground);
+    --p-accordion-header-border-color: var(--ces-border);
+    --p-accordion-content-background: var(--ces-surface);
+    --p-accordion-content-color: var(--ces-foreground);
+    --p-accordion-content-border-color: var(--ces-border);
+    --p-accordion-panel-border-color: var(--ces-border);
+  }
+
+  .p-accordionpanel,
+  p-accordionpanel {
+    background: var(--ces-surface) !important;
+    border-color: var(--ces-border) !important;
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-accordionheader,
+  p-accordion-header,
+  .p-accordionheader button,
+  p-accordion-header button {
+    background: var(--ces-surface-subtle) !important;
+    color: var(--ces-foreground) !important;
+    border-color: var(--ces-border) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .p-accordion-toggle-icon,
+  .p-accordionheader-toggle-icon,
+  p-accordion-header svg {
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+  }
+
+  .p-accordionheader:hover,
+  .p-accordionheader button:hover,
+  p-accordion-header button:hover {
+    background: var(--ces-surface-muted) !important;
+  }
+
+  .p-accordioncontent,
+  p-accordion-content,
+  .p-accordioncontent-content {
+    background: var(--ces-surface) !important;
+    color: var(--ces-foreground) !important;
+    border-color: var(--ces-border) !important;
+  }
+}
+
+@media (pointer: coarse) {
+  @layer ces.components {
+    .ces-icon-button .p-button,
+    .ces-icon-button.p-button,
+    button.ces-icon-button {
+      min-width: var(--ces-touch-target);
+      min-height: var(--ces-touch-target);
+    }
+  }
+}
+
+@media print {
+  @layer ces.components {
+    .ces-callout {
+      break-inside: avoid;
+      box-shadow: none;
+    }
+  }
+}

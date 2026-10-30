@@ -1,0 +1,191 @@
+.message-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.restart-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #f5d78e;
+  border-radius: 0.8rem;
+  background: #fffbeb;
+  color: #7c5b0a;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.restart-error i {
+  margin-top: 0.08rem;
+  flex: 0 0 auto;
+}
+
+.assistant-evidence {
+  overflow: hidden;
+  border-top: 1px solid #e8edf3;
+}
+
+.assistant-evidence summary {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0 0.05rem;
+  color: #64748b;
+  font-size: 0.67rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.assistant-evidence summary::-webkit-details-marker { display: none; }
+.assistant-evidence summary span { display: flex; align-items: center; gap: 0.4rem; }
+.assistant-evidence summary:hover { color: var(--p-primary-700); }
+.assistant-evidence .evidence-chevron { font-size: 0.56rem; transition: transform 160ms ease; }
+.assistant-evidence[open] .evidence-chevron { transform: rotate(180deg); }
+.assistant-evidence[open] .evidence-content { animation: evidence-in 160ms ease-out both; }
+
+.evidence-content {
+  margin-top: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 0.8rem;
+  background: #f8fafc;
+}
+
+.evidence-summary,
+.evidence-numbers dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 0.8rem;
+  margin: 0;
+}
+
+.evidence-summary dt,
+.evidence-numbers dt {
+  color: #94a3b8;
+  font-size: 0.58rem;
+  font-weight: 600;
+}
+
+.evidence-summary dd,
+.evidence-numbers dd {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+  color: #475569;
+  font-size: 0.64rem;
+  font-weight: 650;
+}
+
+.evidence-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  padding: 0.5rem;
+  border-radius: 0.55rem;
+  background: #fff7db;
+  color: #85620b;
+  font-size: 0.61rem;
+  line-height: 1.4;
+}
+
+.evidence-numbers {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.evidence-numbers > strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #64748b;
+  font-size: 0.62rem;
+}
+
+.evidence-numbers dl {
+  margin-top: 0.35rem;
+  padding: 0.5rem;
+  border-radius: 0.55rem;
+  background: white;
+}
+
+.message-actions {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #e8edf3;
+}
+
+.message-actions > span {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #64748b;
+  font-size: 0.64rem;
+}
+
+:host ::ng-deep .assistant-action-button {
+  padding: 0.42rem 0.7rem;
+  border-radius: 0.65rem;
+  font-size: 0.65rem;
+}
+
+:host ::ng-deep .assistant-retry-button {
+  margin-top: 0.35rem;
+  padding: 0.25rem 0;
+  font-size: 0.67rem;
+}
+
+.error-title {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.75rem;
+}
+
+.message-time {
+  display: flex;
+  min-height: 0.7rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: 0.28rem;
+  color: #94a3b8;
+  font-size: 0.56rem;
+}
+
+.message-time--user { color: color-mix(in srgb, white 70%, var(--p-primary-200)); }
+.message-time i { font-size: 0.52rem; }
+
+@media (max-width: 768px) {
+  .restart-error { padding: 0.7rem; font-size: 13px; }
+
+  .assistant-evidence summary {
+    min-height: 2.75rem;
+    box-sizing: border-box;
+    padding: 0.65rem 0 0.1rem;
+    font-size: 12px;
+  }
+
+  .evidence-content { padding: 0.7rem; }
+  .evidence-summary,
+  .evidence-numbers dl { grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); }
+  .evidence-summary dt,
+  .evidence-numbers dt { font-size: 10px; }
+  .evidence-summary dd,
+  .evidence-numbers dd { font-size: 12px; }
+  .evidence-note { font-size: 11px; }
+  .evidence-numbers > strong { font-size: 11px; }
+  .message-actions > span { font-size: 12px; }
+
+  :host ::ng-deep .assistant-action-button {
+    width: 100%;
+    min-height: 2.75rem;
+    justify-content: center;
+    font-size: 12px;
+  }
+
+  :host ::ng-deep .assistant-retry-button { min-height: 2.75rem; font-size: 12px; }
+  .error-title { font-size: 13px; }
+  .message-time { margin-top: 0.35rem; font-size: 10px; }
+}

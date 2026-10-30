@@ -1,0 +1,62 @@
+{
+  "eventos": [
+    {
+      "id": "17171717-1717-1717-1717-171717171717",
+      "escopo": "SOLICITACAO",
+      "idSolicitacao": "77777777-7777-7777-7777-777777777771",
+      "sequencia": 8,
+      "tipo": "ESTORNO_CONFIRMADO",
+      "tipoTecnico": "ADICAO_COMUM",
+      "tipoObra": "CORRETIVA",
+      "ocorrencia": "OC 1042",
+      "autor": {"id": "13131313-1313-1313-1313-131313131313", "nome": "Almoxarife"},
+      "origem": "UI",
+      "justificativa": "Correcao de apontamento",
+      "versao": 7,
+      "ocorridoEm": "2026-09-01T11:00:00-03:00",
+      "payload": {
+        "comando": "ESTORNAR",
+        "alteracoes": [
+          {"caminho": "itens[99999999-9999-9999-9999-999999999991].quantidadeEntregaLiquida", "valorAnterior": "1.500", "valorNovo": "1.000"}
+        ],
+        "snapshots": {
+          "idOperacao": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+          "idOperacaoOriginal": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+        }
+      }
+    },
+    {
+      "id": "17171717-1717-1717-1717-171717171716",
+      "escopo": "SOLICITACAO",
+      "idSolicitacao": "77777777-7777-7777-7777-777777777771",
+      "sequencia": 7,
+      "tipo": "ENTREGA_CONFIRMADA",
+      "tipoTecnico": "ADICAO_COMUM",
+      "tipoObra": "CORRETIVA",
+      "ocorrencia": "OC 1042",
+      "autor": {"id": "13131313-1313-1313-1313-131313131313", "nome": "Almoxarife"},
+      "origem": "UI",
+      "justificativa": null,
+      "versao": 6,
+      "ocorridoEm": "2026-09-01T10:15:00-03:00",
+      "payload": {
+        "comando": "ENTREGAR",
+        "alteracoes": [
+          {"caminho": "itens[99999999-9999-9999-9999-999999999991].quantidadeEntregaLiquida", "valorAnterior": "0.000", "valorNovo": "1.500"},
+          {"caminho": "itens[99999999-9999-9999-9999-999999999991].quantidadePendente", "valorAnterior": "2.000", "valorNovo": "0.500"}
+        ],
+        "snapshots": {"idOperacao": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"}
+      }
+    }
+  ],
+  "page": {"size": 20, "number": 0, "totalElements": 8, "totalPages": 1},
+  "integridade": [
+    {
+      "escopo": "SOLICITACAO",
+      "idCadeia": "77777777-7777-7777-7777-777777777771",
+      "status": "INTEGRO",
+      "sequenciaInicial": 1,
+      "sequenciaFinal": 8
+    }
+  ]
+}

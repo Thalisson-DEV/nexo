@@ -1,0 +1,141 @@
+@let p = previa();
+@if (p) {
+  <section class="cartao" [class.cartao--decidido]="!pendente()" [attr.aria-busy]="ocupado() !== null"
+    [attr.aria-label]="p.titulo + ', ' + selo().texto">
+    <header class="cartao__cabecalho">
+      <span class="cartao__icone" aria-hidden="true"><i [class]="icone()"></i></span>
+      <div class="cartao__titulos">
+        <h3 class="cartao__titulo">{{ p.titulo }}</h3>
+        <p class="cartao__subtitulo">{{ subtitulo() }}</p>
+      </div>
+      <ces-status class="cartao__selo" [tone]="selo().tom" [icon]="selo().icone">{{ selo().texto }}</ces-status>
+    </header>
+
+    @if (pendente()) {
+      <div class="cartao__corpo" [class.cartao__corpo--revisando]="ocupado() === 'revisando'">
+        @if (lote()) {
+          <ol class="lote" aria-label="Registros do cadastro">
+            @for (registro of p.registros; track registro.indice; let i = $index) {
+              <li class="lote__registro" [class.lote__registro--aberto]="aberto() === i">
+                <div class="lote__linha">
+                  <button type="button" class="lote__alternar" [attr.aria-expanded]="aberto() === i"
+                    [attr.aria-controls]="'reg-' + p.chave + '-' + i" (click)="alternar(i)">
+                    <span class="lote__numero" aria-hidden="true">{{ i + 1 }}</span>
+                    <span class="lote__nome">{{ registro.titulo }}</span>
+                    <span class="lote__estado" [class.lote__estado--pronto]="registro.pronto">
+                      <i class="pi" [class.pi-check]="registro.pronto" [class.pi-pencil]="!registro.pronto" aria-hidden="true"></i>
+                      {{ rotuloRegistro(registro) }}
+                    </span>
+                    <i class="pi lote__seta" [class.pi-chevron-down]="aberto() !== i" [class.pi-chevron-up]="aberto() === i" aria-hidden="true"></i>
+                  </button>
+                  <ces-icon-button icon="pi pi-trash" size="icon-sm" [label]="'Tirar ' + registro.titulo + ' do cadastro'"
+                    [disabled]="ocupado() !== null" (pressed)="removerRegistro(i)"></ces-icon-button>
+                </div>
+                @if (aberto() === i) {
+                  <div class="campos" [id]="'reg-' + p.chave + '-' + i">
+                    @for (aviso of registro.avisos ?? []; track $index) {
+                      <p class="campos__aviso">{{ aviso }}</p>
+                    }
+                    @for (campo of registro.campos; track campo.caminho) {
+                      <app-copiloto-campo-cadastro [campo]="campo" [desabilitado]="ocupado() === 'confirmando'"
+                        (ajustar)="ajustar(i, $event)" />
+                    }
+                  </div>
+                }
+              </li>
+            }
+          </ol>
+        } @else if (p.registros[0]; as registro) {
+          <div class="campos">
+            @for (aviso of registro.avisos ?? []; track $index) {
+              <p class="campos__aviso">{{ aviso }}</p>
+            }
+            @for (campo of registro.campos; track campo.caminho) {
+              <app-copiloto-campo-cadastro [campo]="campo" [desabilitado]="ocupado() === 'confirmando'"
+                (ajustar)="ajustar(0, $event)" />
+            }
+          </div>
+        } @else {
+          <p class="cartao__vazio">Todos os registros foram retirados. Cancele ou peça de novo ao Copiloto.</p>
+        }
+      </div>
+
+      @if (erro()) {
+        <ces-callout tone="danger" icon="pi-exclamation-triangle" [dense]="true" title="Não foi possível concluir">{{ erro() }}</ces-callout>
+      }
+      @if (aviso()) {
+        <ces-callout tone="warning" icon="pi-pencil" [dense]="true">{{ aviso() }}</ces-callout>
+      }
+
+      <footer class="cartao__rodape">
+        <p class="cartao__resumo" aria-live="polite">
+          @if (ocupado() === 'revisando') {
+            <i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Conferindo os dados...
+          } @else {
+            {{ resumoPendencias() }}
+          }
+        </p>
+        <div class="cartao__botoes">
+          <ces-button variant="ghost" size="sm" label="Cancelar" [disabled]="ocupado() !== null"
+            [loading]="ocupado() === 'cancelando'" (pressed)="cancelar()"></ces-button>
+          <ces-button variant="primary" size="sm" icon="pi pi-check" [label]="rotuloConfirmar()"
+            [disabled]="!p.pronta || !p.registros.length || (ocupado() !== null && ocupado() !== 'confirmando')"
+            [loading]="ocupado() === 'confirmando'" (pressed)="confirmar()"></ces-button>
+        </div>
+      </footer>
+    } @else {
+      <div class="desfecho">
+        @switch (status()) {
+          @case ('REJEITADA') {
+            <p class="desfecho__texto">Cancelado. Nada foi gravado.</p>
+          }
+          @case ('EXPIRADA') {
+            <p class="desfecho__texto">Substituído por um cartão mais recente ou expirado sem confirmação. Nada foi gravado.</p>
+          }
+          @default {
+            @if (gravados().length) {
+              <ul class="desfecho__lista" aria-label="Registros gravados">
+                @for (registro of gravados(); track registro.indice) {
+                  <li class="desfecho__item">
+                    <i class="pi pi-check-circle desfecho__ok" aria-hidden="true"></i>
+                    <span class="desfecho__nome">{{ registro.rotulo || registro.titulo }}</span>
+                    @if (registro.link; as link) {
+                      <ces-button variant="link" size="sm" icon="pi pi-arrow-up-right" iconPosition="right" [label]="link.rotulo"
+                        [ariaLabel]="link.rotulo + ': ' + (registro.rotulo || registro.titulo)" (pressed)="abrir(link)"></ces-button>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+            @if (falhas().length) {
+              <ul class="desfecho__lista" aria-label="Registros não gravados">
+                @for (registro of falhas(); track registro.indice) {
+                  <li class="desfecho__item desfecho__item--falha">
+                    <i class="pi pi-times-circle desfecho__falha" aria-hidden="true"></i>
+                    <span class="desfecho__nome">{{ registro.titulo }}</span>
+                    <span class="desfecho__motivo">{{ registro.mensagem }}</span>
+                  </li>
+                }
+              </ul>
+            }
+            @if (senhas().length) {
+              <div class="senhas">
+                <p class="senhas__titulo"><i class="pi pi-lock" aria-hidden="true"></i> Senha provisória</p>
+                <p class="senhas__ajuda">Anote ou copie agora: ela não aparece de novo. A pessoa troca no primeiro acesso.</p>
+                @for (senha of senhas(); track $index; let i = $index) {
+                  <div class="senhas__linha">
+                    <span class="senhas__dono">{{ senha.registro }}</span>
+                    <code class="senhas__valor">{{ senhaVisivel()[i] ? senha.valor : '••••••••••' }}</code>
+                    <ces-icon-button [icon]="senhaVisivel()[i] ? 'pi pi-eye-slash' : 'pi pi-eye'" size="icon-sm"
+                      [label]="senhaVisivel()[i] ? 'Ocultar senha' : 'Mostrar senha'" (pressed)="alternarSenha(i)"></ces-icon-button>
+                    <ces-icon-button icon="pi pi-copy" size="icon-sm" label="Copiar senha" (pressed)="copiarSenha(senha.valor)"></ces-icon-button>
+                  </div>
+                }
+              </div>
+            }
+          }
+        }
+      </div>
+    }
+  </section>
+}

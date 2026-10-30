@@ -1,0 +1,314 @@
+:host {
+  display: block;
+}
+
+/* ==========================================================================
+   BARRA DE FILTROS - LAYOUT E RESPONSIVIDADE
+   ========================================================================== */
+.dash-field--sla {
+  grid-column: span 3;
+}
+
+.dash-filterbar__actions {
+  grid-column: 4 / -1 !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: flex-end !important;
+  gap: 0.75rem !important;
+}
+
+.dash-filterbar__count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+  margin-right: 0.5rem;
+  align-self: center;
+}
+
+:host-context(.app-dark) .dash-filterbar__count,
+:host-context(.dark) .dash-filterbar__count {
+  color: #94a3b8;
+}
+
+@media (max-width: 1200px) {
+  .dash-field--sla {
+    grid-column: span 3;
+  }
+  .dash-filterbar__actions {
+    grid-column: span 9 !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .dash-field--sla {
+    grid-column: span 6;
+  }
+  .dash-filterbar__actions {
+    grid-column: span 6 !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .dash-field--sla {
+    grid-column: span 12;
+  }
+  .dash-filterbar__actions {
+    grid-column: span 12 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .dash-filterbar__count {
+    align-self: flex-start;
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* ==========================================================================
+   VOLUME POR PRIORIDADE E TEMPO EM ABERTO (AGING CARDS)
+   ========================================================================== */
+.dash-aging-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.dash-severity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.dash-aging-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fbfdff;
+  overflow: hidden;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.dash-aging-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+}
+
+.dash-aging-card.is-vazio {
+  opacity: 0.6;
+  background: #f8fafc;
+}
+
+.dash-aging-card.is-alerta {
+  border-color: #f87171;
+  background: #fffafa;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+
+.dash-aging-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dash-aging-card__range {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.dash-aging-card__stage {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-aging-card__stage[data-tone='success'] { color: #15803d; }
+.dash-aging-card__stage[data-tone='info'] { color: #2563eb; }
+.dash-aging-card__stage[data-tone='warning'] { color: #b45309; }
+.dash-aging-card__stage[data-tone='orange'] { color: #c2410c; }
+.dash-aging-card__stage[data-tone='danger'] { color: #b91c1c; }
+
+.dash-aging-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 99px;
+  flex: none;
+}
+
+.dash-aging-dot[data-tone='success'] { background: #22c55e; }
+.dash-aging-dot[data-tone='info'] { background: #3b82f6; }
+.dash-aging-dot[data-tone='warning'] { background: #f59e0b; }
+.dash-aging-dot[data-tone='orange'] { background: #f97316; }
+.dash-aging-dot[data-tone='danger'] { background: #ef4444; }
+
+.dash-aging-card__body {
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  flex: 1;
+}
+
+.dash-aging-card__total-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.dash-aging-card__total {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-aging-card__unit {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.dash-aging-bar {
+  display: flex;
+  height: 0.45rem;
+  width: 100%;
+  border-radius: 99px;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+
+.dash-aging-bar__seg {
+  height: 100%;
+  transition: width 200ms ease;
+}
+
+.dash-aging-bar__seg--critical { background: #dc2626; }
+.dash-aging-bar__seg--high { background: #ea580c; }
+.dash-aging-bar__seg--medium { background: #f59e0b; }
+.dash-aging-bar__seg--low { background: #3b82f6; }
+
+.dash-aging-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.dash-badge--orange {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.dash-aging-card__empty {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  padding: 0.4rem 0;
+}
+
+.dash-share-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.dash-share-pill[data-tone='danger'] { background: #fef2f2; color: #b91c1c; }
+.dash-share-pill[data-tone='orange'] { background: #fff7ed; color: #c2410c; }
+.dash-share-pill[data-tone='warning'] { background: #fffbeb; color: #b45309; }
+.dash-share-pill[data-tone='info'] { background: #eff6ff; color: #1d4ed8; }
+.dash-share-pill[data-tone='success'] { background: #f0fdf4; color: #15803d; }
+
+.dash-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  margin-top: auto;
+  border-top: 1px solid #f1f5f9;
+  font-size: 0.72rem;
+}
+
+/* Dark Mode Overrides */
+:host-context(.app-dark), :host-context(.dark) {
+  .dash-cell-name { color: #e2e8f0; }
+  .dash-pct-pill { background: var(--ces-surface-muted, #334155); color: #cbd5e1; }
+  .dash-badge { background: var(--ces-surface-muted, #334155); color: #cbd5e1; }
+  .dash-badge--success { background: rgba(34,197,94,.12); color: #4ade80; }
+  .dash-badge--warning { background: rgba(245,158,11,.12); color: #fbbf24; }
+  .dash-badge--orange { background: rgba(249,115,22,.15); color: #fb923c; }
+  .dash-badge--danger { background: rgba(239,68,68,.12); color: #f87171; }
+
+  .dash-aging-card {
+    background: var(--ces-surface, #1e293b);
+    border-color: var(--ces-border, #334155);
+  }
+  .dash-aging-card:hover {
+    border-color: color-mix(in srgb, var(--ces-brand, #3b82f6) 40%, transparent);
+  }
+  .dash-aging-card.is-vazio {
+    background: rgba(15, 23, 42, 0.6);
+    opacity: 0.5;
+  }
+  .dash-aging-card.is-alerta {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.5);
+  }
+  .dash-aging-card__header {
+    background: var(--ces-surface-subtle, #0f172a);
+    border-color: var(--ces-border, #334155);
+  }
+  .dash-aging-card__range { color: #f8fafc; }
+  .dash-aging-card__stage[data-tone='success'] { color: #4ade80; }
+  .dash-aging-card__stage[data-tone='info'] { color: #60a5fa; }
+  .dash-aging-card__stage[data-tone='warning'] { color: #fbbf24; }
+  .dash-aging-card__stage[data-tone='orange'] { color: #fb923c; }
+  .dash-aging-card__stage[data-tone='danger'] { color: #f87171; }
+  .dash-aging-card__total { color: #fff; }
+  .dash-aging-card__unit { color: #94a3b8; }
+  .dash-aging-bar { background: #334155; }
+  .dash-share-pill {
+    background: var(--ces-surface-muted, #334155);
+    color: #cbd5e1;
+  }
+  .dash-share-pill[data-tone='danger'] { background: rgba(239,68,68,.15); color: #f87171; }
+  .dash-share-pill[data-tone='orange'] { background: rgba(249,115,22,.15); color: #fb923c; }
+  .dash-share-pill[data-tone='warning'] { background: rgba(245,158,11,.15); color: #fbbf24; }
+  .dash-share-pill[data-tone='info'] { background: rgba(59,130,246,.15); color: #60a5fa; }
+  .dash-share-pill[data-tone='success'] { background: rgba(34,197,94,.15); color: #4ade80; }
+  .dash-card-footer { border-color: rgba(51, 65, 85, 0.6); }
+}
+
+@media (max-width: 1200px) {
+  .dash-aging-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .dash-severity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .dash-aging-grid {
+    grid-template-columns: 1fr;
+  }
+  .dash-severity-grid {
+    grid-template-columns: 1fr;
+  }
+}

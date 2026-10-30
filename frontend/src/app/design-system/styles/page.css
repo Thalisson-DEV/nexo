@@ -1,0 +1,331 @@
+/*
+ * Utilitários de página do padrão de listagem (docs/design-system/components/list-page.md).
+ * Promovidos de features/frota/shared/frota-page.css. Só tokens --ces-*.
+ */
+@layer ces.components {
+  /* Página: cabeçalho → filtros → tabela, em coluna. */
+  .ces-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+    padding-bottom: 2rem;
+  }
+
+  /* Campos do painel de filtros: grade fluida; __wide ocupa duas colunas quando há espaço. */
+  .ces-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+    gap: 0.75rem;
+    grid-column: 1 / -1;
+  }
+
+  .ces-filter-grid__wide {
+    grid-column: span 2;
+  }
+
+  /* Indicadores. Como <a> ou <button>, o indicador é um atalho para o recorte correspondente. */
+  .ces-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: 0.75rem;
+  }
+
+  .ces-kpi {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--ces-border);
+    border-radius: var(--ces-radius-lg);
+    background: var(--ces-surface);
+    box-shadow: var(--ces-shadow-sm);
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    text-decoration: none;
+  }
+
+  a.ces-kpi,
+  button.ces-kpi {
+    cursor: pointer;
+    transition:
+      border-color 120ms ease,
+      background-color 120ms ease;
+  }
+
+  a.ces-kpi:hover,
+  button.ces-kpi:hover {
+    border-color: color-mix(in srgb, var(--ces-brand) 45%, var(--ces-border));
+    background: var(--ces-surface-subtle);
+  }
+
+  a.ces-kpi:focus-visible,
+  button.ces-kpi:focus-visible {
+    outline: 2px solid var(--ces-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .ces-kpi__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--ces-radius-sm);
+    background: var(--ces-surface-muted);
+    color: var(--ces-foreground-muted);
+  }
+
+  .ces-kpi[data-tone='danger'] .ces-kpi__icon {
+    background: var(--ces-danger-soft);
+    color: var(--ces-danger-text);
+  }
+
+  .ces-kpi[data-tone='warning'] .ces-kpi__icon {
+    background: var(--ces-warning-soft);
+    color: var(--ces-warning-text);
+  }
+
+  .ces-kpi[data-tone='success'] .ces-kpi__icon {
+    background: var(--ces-success-soft);
+    color: var(--ces-success-text);
+  }
+
+  .ces-kpi[data-tone='info'] .ces-kpi__icon {
+    background: var(--ces-brand-soft);
+    color: var(--ces-brand);
+  }
+
+  .ces-kpi__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+
+  .ces-kpi__label {
+    font-size: var(--ces-font-caption);
+    font-weight: 600;
+    color: var(--ces-foreground-muted);
+  }
+
+  .ces-kpi__value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--ces-foreground);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .ces-kpi__detail {
+    font-size: var(--ces-font-caption);
+    color: var(--ces-foreground-subtle);
+  }
+
+  .ces-kpi__go {
+    align-self: center;
+    color: var(--ces-foreground-subtle);
+    font-size: 0.75rem;
+  }
+
+  /* Células de tabela. */
+  .ces-cell-strong {
+    display: block;
+    font-weight: 600;
+    color: var(--ces-foreground);
+  }
+
+  a.ces-cell-strong {
+    color: var(--ces-brand);
+    text-decoration: none;
+  }
+
+  a.ces-cell-strong:hover {
+    text-decoration: underline;
+  }
+
+  a.ces-cell-strong:focus-visible {
+    outline: 2px solid var(--ces-focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--ces-radius-sm);
+  }
+
+  .ces-cell-muted {
+    display: block;
+    font-size: var(--ces-font-caption);
+    color: var(--ces-foreground-muted);
+  }
+
+  .ces-cell-num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .ces-cell-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* Ações secundárias da linha (até três ícones; mais que isso, ces-row-actions). */
+  .ces-table-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 0.125rem;
+  }
+
+  /* Ficha: lista de termos e valores. */
+  .ces-sheet-section + .ces-sheet-section {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--ces-border);
+  }
+
+  .ces-sheet-section h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.75rem;
+    font-size: var(--ces-font-control);
+    font-weight: 700;
+    color: var(--ces-foreground);
+  }
+
+  .ces-sheet-section h2 .pi {
+    color: var(--ces-brand);
+  }
+
+  .ces-sheet {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+    gap: 0.875rem 1.5rem;
+    margin: 0;
+  }
+
+  .ces-sheet dt {
+    font-size: var(--ces-font-caption);
+    font-weight: 600;
+    color: var(--ces-foreground-muted);
+  }
+
+  .ces-sheet dd {
+    margin: 0.125rem 0 0;
+    color: var(--ces-foreground);
+    overflow-wrap: anywhere;
+  }
+
+  .ces-sheet__wide {
+    grid-column: 1 / -1;
+  }
+
+  /* Formulários em drawer. */
+  .ces-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: 0.75rem;
+    /* Dentro de outro grid (ex.: ces-form-section) o mínimo intrínseco do auto-fit estouraria o drawer. */
+    min-width: 0;
+  }
+
+  .ces-form-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .ces-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .ces-actions-row--separated {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--ces-border);
+  }
+
+  .ces-section-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  /*
+   * Filtros rápidos acima da tabela: equivalem a um valor do painel. O estado selecionado usa
+   * aria-pressed, ícone de check e borda — não só cor.
+   */
+  .ces-quick-filters {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .ces-quick-filter {
+    white-space: nowrap;
+  }
+
+  .ces-quick-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: var(--ces-control-height-sm);
+    padding: 0 0.75rem;
+    border: 1px solid var(--ces-border);
+    border-radius: 999px;
+    background: var(--ces-surface);
+    color: var(--ces-foreground-muted);
+    font: inherit;
+    font-size: var(--ces-font-control);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .ces-quick-filter:hover {
+    background: var(--ces-surface-muted);
+    color: var(--ces-foreground);
+  }
+
+  .ces-quick-filter:focus-visible {
+    outline: 2px solid var(--ces-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .ces-quick-filter[aria-pressed='true'] {
+    border-color: var(--ces-brand);
+    background: var(--ces-brand-soft);
+    color: var(--ces-foreground);
+  }
+
+  .ces-quick-filter .pi {
+    font-size: 0.75rem;
+  }
+
+  /* Estrela de favoritos ativa no ces-page-header (a estrela preenchida também indica o estado). */
+  .ces-page-favorite--active,
+  .ces-page-favorite--active .p-button-icon {
+    color: var(--ces-warning-text);
+  }
+
+  @media (max-width: 40rem) {
+    .ces-filter-grid__wide {
+      grid-column: auto;
+    }
+
+    /* Mobile: ações do cabeçalho de página ocupam a largura disponível. */
+    .ces-page-header__actions .p-button {
+      width: 100%;
+    }
+  }
+}

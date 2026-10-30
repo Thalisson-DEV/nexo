@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: ces-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:6-alpine
+    container_name: ces-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Sandbox Python do Copiloto (ferramenta executar_python): servico code-interpreter do Onyx.
+  # Cada execucao roda num container efemero da imagem python-executor-sci, sem rede, com CPU,
+  # memoria e tempo limitados; o servico nao acessa banco, segredos nem arquivos do Nexo.
+  # Uso: docker compose --profile ia up -d code-interpreter
+  #      CODE_INTERPRETER_BASE_URL=http://localhost:8010 no backend.
+  code-interpreter:
+    image: onyxdotapp/code-interpreter:0.4.7
+    container_name: ces-code-interpreter
+    profiles: ["ia"]
+    user: root
+    ports:
+      - "8010:8000"
+    environment:
+      PYTHON_EXECUTOR_DOCKER_IMAGE: onyxdotapp/python-executor-sci:latest
+      PYTHON_EXECUTOR_DOCKER_NETWORK: none
+      MAX_EXEC_TIMEOUT_MS: "60000"
+      CPU_TIME_LIMIT_SEC: "30"
+      MEMORY_LIMIT_MB: "1024"
+      MAX_OUTPUT_BYTES: "1000000"
+      MAX_FILE_SIZE_MB: "100"
+      FILE_TTL_SEC: "3600"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  postgres_data:
+  redis_data:

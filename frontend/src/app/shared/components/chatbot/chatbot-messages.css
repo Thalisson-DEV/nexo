@@ -1,0 +1,127 @@
+.assistant-message {
+  display: flex;
+  width: 100%;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.assistant-message--user {
+  justify-content: flex-end;
+}
+
+:host ::ng-deep .message-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  background: var(--p-primary-100);
+  color: var(--p-primary-700);
+  font-size: 0.68rem;
+}
+
+.message-bubble {
+  max-width: 88%;
+  padding: 0.72rem 0.85rem;
+  border-radius: 1.15rem;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.045);
+}
+
+.message-bubble--assistant {
+  border: 1px solid #e1e8f0;
+  border-bottom-left-radius: 0.35rem;
+  background: white;
+  color: #334155;
+}
+
+.message-bubble--user {
+  border-bottom-right-radius: 0.35rem;
+  background: var(--p-primary-600);
+  color: white;
+}
+
+.message-bubble--warning {
+  border: 1px solid #f5d78e;
+  border-bottom-left-radius: 0.35rem;
+  background: #fffbeb;
+  color: #664d13;
+}
+
+.message-bubble--quiet {
+  border: 1px solid #dfe7f0;
+  border-bottom-left-radius: 0.35rem;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.message-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.79rem;
+  line-height: 1.58;
+}
+
+.processing-message {
+  display: flex;
+  align-items: center;
+  padding: 0.18rem 0.08rem;
+}
+
+.thinking-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  min-height: 0.75rem;
+}
+
+@keyframes thinking {
+  0%, 60%, 100% { opacity: 0.28; transform: translateY(0) scale(0.88); }
+  30% { opacity: 1; transform: translateY(-0.18rem) scale(1); }
+}
+
+.thinking-dots > span {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: var(--p-primary-400);
+  animation: thinking 1.05s ease-in-out infinite;
+}
+
+.thinking-dots > span:nth-child(2) { animation-delay: 140ms; }
+.thinking-dots > span:nth-child(3) { animation-delay: 280ms; }
+
+.typing-bubble {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.78rem 1rem;
+  border: 1px solid #e1e8f0;
+  border-radius: 1.15rem 1.15rem 1.15rem 0.35rem;
+  background: white;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.045);
+}
+
+@media (max-width: 768px) {
+  .assistant-message { align-items: flex-end; gap: 0.45rem; }
+
+  :host ::ng-deep .message-avatar {
+    width: 2.35rem;
+    height: 2.35rem;
+    font-size: 11px;
+  }
+
+  .message-bubble {
+    box-sizing: border-box;
+    padding: 0.75rem 0.8rem;
+    border-radius: 1rem;
+  }
+
+  .assistant-message:not(.assistant-message--user) .message-bubble {
+    width: calc(100% - 2.8rem);
+    max-width: calc(100% - 2.8rem);
+  }
+
+  .assistant-message--user .message-bubble { max-width: 88%; }
+  .message-text { font-size: 14px; line-height: 1.55; }
+  .processing-message { min-height: 1.75rem; font-size: 13px; }
+  .typing-bubble { min-height: 2.75rem; box-sizing: border-box; padding: 0.7rem 0.9rem; }
+}

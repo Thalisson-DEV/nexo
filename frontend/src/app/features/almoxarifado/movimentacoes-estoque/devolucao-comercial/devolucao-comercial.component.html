@@ -1,0 +1,840 @@
+<app-saldo-estoque-dialog #saldoDialog></app-saldo-estoque-dialog>
+
+<!-- Diálogo de edição das séries de um item já incluído -->
+<p-dialog
+  header="Séries do item"
+  [(visible)]="serialDialogVisible"
+  [modal]="true"
+  [style]="{ width: '95vw', maxWidth: '560px' }"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="custom-dialog"
+  appendTo="body"
+>
+  @if (selectedItemForSerials(); as item) {
+    <div class="flex flex-col gap-4 py-1">
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800"
+      >
+        <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">
+          {{ item.codigo }} — {{ item.descricao }}
+        </span>
+        <span
+          class="inline-block px-2 py-0.5 rounded text-[10px] font-bold"
+          [ngClass]="getCondicaoBadgeClass(item.condicao)"
+        >
+          {{ item.condicao }}
+        </span>
+      </div>
+
+      <app-devolucao-series-picker
+        [series]="seriesDialogDisponiveis()"
+        [loading]="loadingSerialsDialog()"
+        [condicao]="item.condicao"
+        [(selecionadas)]="seriesDialogSelecionadas"
+      ></app-devolucao-series-picker>
+
+      @if (seriesDialogSelecionadas().length === 0) {
+        <span class="text-[11px] text-slate-500 dark:text-slate-400">
+          Para tirar o material da devolução, use o botão de remover na linha.
+        </span>
+      }
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <ces-button
+          label="Cancelar"
+          variant="ghost"
+          size="sm"
+          (pressed)="serialDialogVisible = false"
+        ></ces-button>
+        <ces-button
+          label="Salvar séries"
+          icon="pi pi-check"
+          size="sm"
+          [disabled]="seriesDialogSelecionadas().length === 0 || loadingSerialsDialog()"
+          (pressed)="saveSerials()"
+        ></ces-button>
+      </div>
+    </div>
+  }
+</p-dialog>
+
+<!-- Estrutura Principal -->
+<div class="flex flex-col gap-4 pb-28">
+  <!-- Barra Superior: Breadcrumb e Voltar -->
+  <div class="flex justify-between items-center">
+    <p-breadcrumb [model]="breadcrumb" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button
+      icon="pi pi-arrow-left"
+      label="Voltar"
+      [text]="true"
+      severity="secondary"
+      (onClick)="cancel()"
+      styleClass="!text-slate-400 !text-[10px] !font-medium"
+    />
+  </div>
+
+  <!-- Card do Formulário -->
+  <div
+    class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden max-w-4xl w-full mx-auto"
+  >
+    <!-- Header da Operação (Padrão Unificado Nexo / Idêntico ao Técnico) -->
+    <div
+      class="px-5 md:px-8 py-6 border-b border-slate-100 dark:border-slate-800"
+    >
+      <div class="flex items-center gap-2 mb-3">
+        <i class="pi pi-undo text-primary-700 dark:text-primary-400 text-xs"></i>
+        <span
+          class="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-widest"
+        >
+          Nova Devolução Comercial
+        </span>
+      </div>
+      <h1 class="text-base font-medium text-slate-800 dark:text-white">
+        Devolução de materiais de equipe comercial para almoxarifado
+      </h1>
+      <p class="text-[11px] text-slate-400 mt-1">
+        Selecione a equipe de origem e o almoxarifado físico destino, componha os materiais a devolver e revise antes de confirmar.
+      </p>
+    </div>
+
+    <!-- Conteúdo do Stepper -->
+    <div class="px-5 md:px-8 py-6">
+      <p-stepper [value]="activeStep()">
+        <p-step-list>
+          <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" (click)="goToStep(1)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-users text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                >
+                  Equipe e Destino
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+
+          <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" [disabled]="!isHeaderValid()" (click)="goToStep(2)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-box text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                >
+                  Materiais
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+
+          <p-step [value]="3" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" [disabled]="items().length === 0" (click)="goToStep(3)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-check text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                >
+                  Revisão
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+        </p-step-list>
+
+        <p-step-panels>
+          <!-- ETAPA 1: ORIGEM (EQUIPE) E DESTINO (ALMOXARIFADO) -->
+          <p-step-panel [value]="1">
+            <ng-template #content>
+              <div [formGroup]="headerForm" class="flex flex-col gap-6">
+                <div class="section-marker">
+                  <span>1. Equipe e Almoxarifado</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- Equipe Comercial (Origem) -->
+                  <div class="field md:col-span-2">
+                    <label>Equipe Comercial (Origem do Material) *</label>
+                    <div class="flex items-center gap-2">
+                      <p-select
+                        formControlName="idEquipe"
+                        [options]="equipeOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Selecione a equipe comercial que está devolvendo..."
+                        [filter]="true"
+                        [showClear]="true"
+                        filterBy="label"
+                        class="custom-select flex-1"
+                        size="small"
+                        appendTo="body"
+                        (onChange)="onEquipeChange()"
+                      ></p-select>
+                      @if (estoqueCampoEquipe()) {
+                        <button
+                          type="button"
+                          pTooltip="Ver Saldo em Campo da Equipe"
+                          (click)="abrirSaldo(estoqueCampoEquipe()?.id)"
+                          class="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-slate-700 transition-colors shrink-0"
+                        >
+                          <i class="pi pi-box"></i>
+                        </button>
+                      }
+                    </div>
+                    @if ((selectedEquipeId() || headerForm.get('idEquipe')?.value) && estoqueCampoEquipe()) {
+                      <div class="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 mt-0.5">
+                        <i class="pi pi-check-circle text-xs"></i>
+                        <span>Estoque de Campo vinculado: <b>{{ estoqueCampoEquipe()?.nomeIdentificador }}</b></span>
+                      </div>
+                    } @else if ((selectedEquipeId() || headerForm.get('idEquipe')?.value) && !estoqueCampoEquipe()) {
+                      <div class="text-[11px] text-rose-500 flex items-center gap-1.5 mt-0.5">
+                        <i class="pi pi-exclamation-triangle text-xs"></i>
+                        <span>Esta equipe não possui estoque de campo ativo provisionado.</span>
+                      </div>
+                    }
+                    @if (fieldError('idEquipe')) {
+                      <span class="text-[10px] text-rose-500 font-semibold">{{ fieldError('idEquipe') }}</span>
+                    }
+                  </div>
+
+                  <!-- Almoxarifado Físico de Destino -->
+                  <div class="field md:col-span-2">
+                    <label>Almoxarifado Físico de Destino *</label>
+                    <div class="flex items-center gap-2">
+                      <p-select
+                        formControlName="idEstoqueDestino"
+                        [options]="physicalStockOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Selecione o almoxarifado físico que receberá os materiais..."
+                        [filter]="true"
+                        [showClear]="true"
+                        filterBy="label"
+                        class="custom-select flex-1"
+                        size="small"
+                        appendTo="body"
+                      ></p-select>
+                      @if (selectedEstoqueDestinoId() || headerForm.get('idEstoqueDestino')?.value) {
+                        <button
+                          type="button"
+                          pTooltip="Ver Saldo do Almoxarifado Destino"
+                          (click)="abrirSaldo(selectedEstoqueDestinoId() || headerForm.get('idEstoqueDestino')?.value)"
+                          class="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-slate-700 transition-colors shrink-0"
+                        >
+                          <i class="pi pi-box"></i>
+                        </button>
+                      }
+                    </div>
+                    @if (fieldError('idEstoqueDestino')) {
+                      <span class="text-[10px] text-rose-500 font-semibold">{{ fieldError('idEstoqueDestino') }}</span>
+                    }
+                  </div>
+
+                  <!-- Data da Devolução -->
+                  <div class="field">
+                    <label>Data da Devolução *</label>
+                    <p-datepicker
+                      dateMask
+                      formControlName="data"
+                      dateFormat="dd/mm/yy"
+                      [showIcon]="true"
+                      iconDisplay="input"
+                      [showOnFocus]="true"
+                      placeholder="dd/mm/aaaa"
+                      class="custom-datepicker w-full"
+                      size="small"
+                      appendTo="body"
+                    ></p-datepicker>
+                  </div>
+
+                  <!-- Justificativa -->
+                  <div class="field md:col-span-2">
+                    <label>Observação / Justificativa Operacional</label>
+                    <textarea
+                      pInputTextarea
+                      formControlName="justificativa"
+                      rows="2"
+                      class="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
+                      placeholder="Descreva o motivo da devolução comercial (ex: sobra de material em campo, desmobilização, material com defeito ou avariado)..."
+                    ></textarea>
+                  </div>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <ces-button
+                    label="Avançar para Materiais"
+                    icon="pi pi-arrow-right"
+                    iconPosition="right"
+                    [disabled]="!isHeaderValid()"
+                    (pressed)="advanceToStep2()"
+                  ></ces-button>
+                </div>
+              </div>
+            </ng-template>
+          </p-step-panel>
+
+          <!-- ETAPA 2: MATERIAIS & SÉRIES -->
+          <p-step-panel [value]="2">
+            <ng-template #content>
+              <div class="flex flex-col gap-6">
+                <!-- Resumo Rápido da Origem/Destino (Padrão Neutro Nexo) -->
+                <div
+                  class="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 text-xs"
+                >
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-700 dark:text-slate-300">Origem:</span>
+                    <span class="text-primary-700 dark:text-primary-400 font-semibold">
+                      {{ nomeEquipeOrigem() }} ({{ estoqueCampoEquipe()?.nomeIdentificador }})
+                    </span>
+                  </div>
+                  <i class="pi pi-arrow-right text-slate-400 hidden md:block"></i>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-700 dark:text-slate-300">Destino:</span>
+                    <span class="text-primary-700 dark:text-primary-400 font-semibold">
+                      {{ nomeEstoqueDestino() }}
+                    </span>
+                  </div>
+                  <ces-status tone="brand" class="ces-status--devolucao">Devolução Comercial</ces-status>
+                </div>
+
+                <!-- Condição: filtra os saldos da equipe. A condição do item vem do saldo escolhido. -->
+                <div class="flex flex-col gap-2">
+                  <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                    O que a equipe está devolvendo? *
+                  </span>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Condição do material devolvido">
+                    <button
+                      type="button"
+                      role="radio"
+                      class="choice-card"
+                      [attr.aria-checked]="condicaoFiltro() === 'NOVO'"
+                      [class.choice-card--active]="condicaoFiltro() === 'NOVO'"
+                      (click)="selecionarCondicao('NOVO')"
+                    >
+                      <span class="choice-card__icon"><i class="pi pi-check-circle text-xs"></i></span>
+                      <span class="min-w-0">
+                        <span class="choice-card__title">Material novo</span>
+                        <span class="choice-card__desc">
+                          {{ contagemPorCondicao().NOVO }} material(is) em saldo como novo
+                        </span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="radio"
+                      class="choice-card"
+                      [attr.aria-checked]="condicaoFiltro() === 'SUCATA'"
+                      [class.choice-card--active]="condicaoFiltro() === 'SUCATA'"
+                      (click)="selecionarCondicao('SUCATA')"
+                    >
+                      <span class="choice-card__icon"><i class="pi pi-exclamation-triangle text-xs"></i></span>
+                      <span class="min-w-0">
+                        <span class="choice-card__title">Sucata</span>
+                        <span class="choice-card__desc">
+                          {{ contagemPorCondicao().SUCATA }} material(is) em saldo como sucata
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Formulário de Inclusão de Material -->
+                <div
+                  class="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col gap-3.5"
+                >
+                  <span class="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                    Incluir {{ condicaoFiltro() === 'SUCATA' ? 'sucata' : 'material novo' }}
+                  </span>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                    <!-- Material (saldos do estoque de campo na condição escolhida) -->
+                    <div
+                      class="field min-w-0"
+                      [ngClass]="selectedMaterial()?.material?.detalhaSerie ? 'sm:col-span-12' : 'sm:col-span-9'"
+                    >
+                      <label for="materialDevolucaoInput">Material em saldo da equipe *</label>
+                      <p-select
+                        inputId="materialDevolucaoInput"
+                        [ngModel]="idSaldoSelecionado()"
+                        (ngModelChange)="onMaterialChange($event)"
+                        [options]="materialOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [placeholder]="materialPlaceholder()"
+                        [disabled]="materialOptions().length === 0"
+                        [filter]="true"
+                        filterBy="label"
+                        [showClear]="true"
+                        class="custom-select w-full"
+                        styleClass="w-full"
+                        size="small"
+                        appendTo="body"
+                      ></p-select>
+                    </div>
+
+                    @if (!selectedMaterial()?.material?.detalhaSerie) {
+                      <!-- Quantidade -->
+                      <div class="field sm:col-span-3 min-w-0">
+                        <label for="quantidadeDevolucaoInput">Quantidade *</label>
+                        <p-inputnumber
+                          inputId="quantidadeDevolucaoInput"
+                          [ngModel]="quantidade()"
+                          (ngModelChange)="quantidade.set($event)"
+                          [min]="0.001"
+                          [max]="selectedSaldoDisponivel() || null"
+                          [minFractionDigits]="0"
+                          [maxFractionDigits]="3"
+                          [disabled]="!selectedMaterial()"
+                          placeholder="0"
+                          class="w-full"
+                          styleClass="w-full"
+                          [fluid]="true"
+                          size="small"
+                          (keydown.enter)="addItem()"
+                        ></p-inputnumber>
+                      </div>
+                    }
+                  </div>
+
+                  @if (selectedMaterial(); as saldo) {
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>
+                        Saldo da equipe como {{ condicaoFiltro() === 'SUCATA' ? 'sucata' : 'novo' }}:
+                        <b>{{ selectedSaldoDisponivel() | number:'1.0-3' }} {{ saldo.material.unidadeMedida }}</b>
+                      </span>
+                      @if (saldo.material.detalhaSerie) {
+                        <span class="text-primary-600 dark:text-primary-400 font-semibold flex items-center gap-1">
+                          <i class="pi pi-barcode text-xs"></i>
+                          Marque as séries devolvidas
+                        </span>
+                      }
+                    </div>
+
+                    @if (saldo.material.detalhaSerie) {
+                      <app-devolucao-series-picker
+                        [series]="seriesDisponiveis()"
+                        [loading]="loadingSerials()"
+                        [condicao]="condicaoFiltro()"
+                        [(selecionadas)]="seriesSelecionadas"
+                      ></app-devolucao-series-picker>
+                    }
+
+                    <!-- Destino do material no almoxarifado -->
+                    <div class="flex flex-col gap-2">
+                      <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                        No almoxarifado destino *
+                      </span>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Destino do material no almoxarifado">
+                        <button
+                          type="button"
+                          role="radio"
+                          class="choice-card"
+                          [attr.aria-checked]="guardarNoEstoque()"
+                          [class.choice-card--active]="guardarNoEstoque()"
+                          (click)="guardarNoEstoque.set(true)"
+                        >
+                          <span class="choice-card__icon"><i class="pi pi-inbox text-xs"></i></span>
+                          <span class="min-w-0">
+                            <span class="choice-card__title">Guardar no estoque</span>
+                            <span class="choice-card__desc">Entra no saldo de {{ nomeEstoqueDestino() }}.</span>
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          class="choice-card"
+                          [attr.aria-checked]="!guardarNoEstoque()"
+                          [class.choice-card--active]="!guardarNoEstoque()"
+                          (click)="guardarNoEstoque.set(false)"
+                        >
+                          <span class="choice-card__icon"><i class="pi pi-trash text-xs"></i></span>
+                          <span class="min-w-0">
+                            <span class="choice-card__title">Não guardar · dar baixa</span>
+                            <span class="choice-card__desc">Recebe a devolução e já registra a baixa avulsa.</span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  }
+
+                  <div class="flex justify-end">
+                    <ces-button
+                      [label]="incluirLabel()"
+                      icon="pi pi-plus"
+                      size="sm"
+                      [disabled]="!podeIncluir()"
+                      (pressed)="addItem()"
+                    ></ces-button>
+                  </div>
+                </div>
+
+                <!-- Tabela de Itens Adicionados -->
+                <div class="flex flex-col gap-2">
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                      Materiais Selecionados ({{ items().length }})
+                    </span>
+                    @if (hasMissingSerials()) {
+                      <span class="text-[11px] text-rose-500 font-semibold flex items-center gap-1">
+                        <i class="pi pi-exclamation-circle"></i>
+                        Há itens com números de série pendentes de seleção!
+                      </span>
+                    }
+                  </div>
+
+                  <p-table
+                    [value]="items()"
+                    styleClass="p-datatable-sm"
+                    responsiveLayout="scroll"
+                  >
+                    <ng-template #header>
+                      <tr>
+                        <th class="!text-[10px] !uppercase">Código</th>
+                        <th class="!text-[10px] !uppercase">Descrição</th>
+                        <th class="!text-[10px] !uppercase text-center">Condição</th>
+                        <th class="!text-[10px] !uppercase text-right">Qtd.</th>
+                        <th class="!text-[10px] !uppercase">Séries</th>
+                        <th class="!text-[10px] !uppercase">No destino</th>
+                        <th class="!text-[10px] !uppercase text-center w-28">Ações</th>
+                      </tr>
+                    </ng-template>
+
+                    <ng-template #body let-item let-i="rowIndex">
+                      <tr>
+                        <td class="font-mono text-xs font-semibold">{{ item.codigo }}</td>
+                        <td class="text-xs">{{ item.descricao }}</td>
+                        <td class="text-center">
+                          <span
+                            class="inline-block px-2 py-0.5 rounded text-[10px] font-bold"
+                            [ngClass]="getCondicaoBadgeClass(item.condicao)"
+                          >
+                            {{ item.condicao }}
+                          </span>
+                        </td>
+                        <td class="text-right text-xs font-semibold">
+                          @if (editingIndex() === i) {
+                            <div class="flex items-center justify-end gap-1">
+                              <p-inputnumber
+                                [(ngModel)]="item.temporaryQuantidade"
+                                [min]="0.001"
+                                [minFractionDigits]="0"
+                                [maxFractionDigits]="3"
+                                styleClass="!w-24"
+                                inputStyleClass="!w-24 !text-right !text-xs !py-1 !px-2"
+                                size="small"
+                                (keydown.enter)="saveEdit(i)"
+                                (keydown.escape)="cancelEdit()"
+                              ></p-inputnumber>
+                              <span class="text-[10px] text-slate-400 font-medium ml-1">{{ item.unidadeMedida }}</span>
+                            </div>
+                          } @else {
+                            <span>{{ item.quantidade | number:'1.0-3' }} {{ item.unidadeMedida }}</span>
+                          }
+                        </td>
+                        <td class="text-xs">
+                          @if (item.detalhaSerie) {
+                            @if (item.numSeries?.length === Math.floor(item.quantidade)) {
+                              <span class="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px] flex items-center gap-1">
+                                <i class="pi pi-check text-xs"></i>
+                                {{ item.numSeries?.length }} série(s) selecionada(s)
+                              </span>
+                            } @else {
+                              <span class="text-rose-500 font-semibold text-[11px] flex items-center gap-1">
+                                <i class="pi pi-exclamation-triangle text-xs"></i>
+                                Pendente ({{ item.numSeries?.length || 0 }}/{{ Math.floor(item.quantidade) }})
+                              </span>
+                            }
+                          } @else {
+                            <span class="text-slate-400 text-[11px]">—</span>
+                          }
+                        </td>
+                        <td class="text-xs">
+                          <button
+                            type="button"
+                            class="destino-toggle"
+                            [class.destino-toggle--baixa]="!item.guardarNoEstoque"
+                            [pTooltip]="item.guardarNoEstoque ? 'Trocar para dar baixa' : 'Trocar para guardar no estoque'"
+                            [attr.aria-label]="(item.guardarNoEstoque ? 'Guardar no estoque' : 'Dar baixa') + '. Clique para trocar.'"
+                            (click)="alternarDestino(i)"
+                          >
+                            <i class="pi text-[10px]" [ngClass]="item.guardarNoEstoque ? 'pi-inbox' : 'pi-trash'"></i>
+                            {{ item.guardarNoEstoque ? 'Guardar' : 'Dar baixa' }}
+                            <i class="pi pi-sort-alt text-[10px] opacity-60"></i>
+                          </button>
+                        </td>
+                        <td class="text-center">
+                          <div class="flex items-center justify-center gap-1">
+                            @if (editingIndex() === i) {
+                              <button
+                                type="button"
+                                pTooltip="Salvar Quantidade (Enter)"
+                                (click)="saveEdit(i)"
+                                class="w-7 h-7 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 transition-colors"
+                              >
+                                <i class="pi pi-check text-xs font-bold"></i>
+                              </button>
+                              <button
+                                type="button"
+                                pTooltip="Cancelar (Esc)"
+                                (click)="cancelEdit()"
+                                class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                              >
+                                <i class="pi pi-times text-xs"></i>
+                              </button>
+                            } @else {
+                              @if (item.detalhaSerie) {
+                                <button
+                                  type="button"
+                                  pTooltip="Editar séries"
+                                  (click)="openSerialManager(i)"
+                                  class="w-7 h-7 rounded-lg flex items-center justify-center text-primary-600 hover:bg-primary-50 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <i class="pi pi-barcode text-xs"></i>
+                                </button>
+                              } @else {
+                                <button
+                                  type="button"
+                                  pTooltip="Editar Quantidade"
+                                  (click)="startEdit(i)"
+                                  class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <i class="pi pi-pencil text-xs"></i>
+                                </button>
+                              }
+                              <button
+                                type="button"
+                                pTooltip="Remover Item"
+                                (click)="removeItem(i)"
+                                class="w-7 h-7 rounded-lg flex items-center justify-center text-rose-500 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors"
+                              >
+                                <i class="pi pi-trash text-xs"></i>
+                              </button>
+                            }
+                          </div>
+                        </td>
+                      </tr>
+                    </ng-template>
+
+                    <ng-template #emptymessage>
+                      <tr>
+                        <td colspan="7" class="text-center py-6 text-xs text-slate-400">
+                          Nenhum material adicionado até o momento. Utilize o formulário acima para incluir itens.
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+                </div>
+
+                <!-- Navegação da Etapa 2 -->
+                <div class="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <ces-button
+                    label="Voltar"
+                    icon="pi pi-arrow-left"
+                    variant="secondary"
+                    size="sm"
+                    (pressed)="goToStep(1)"
+                  ></ces-button>
+
+                  <ces-button
+                    label="Avançar para Revisão"
+                    icon="pi pi-arrow-right"
+                    iconPosition="right"
+                    [disabled]="items().length === 0 || hasMissingSerials() || editingIndex() !== null"
+                    (pressed)="goToStep(3)"
+                  ></ces-button>
+                </div>
+              </div>
+            </ng-template>
+          </p-step-panel>
+
+          <!-- ETAPA 3: REVISÃO & EFETIVAÇÃO -->
+          <p-step-panel [value]="3">
+            <ng-template #content>
+              <div class="flex flex-col gap-6">
+                <div class="section-marker">
+                  <span>3. Revisão da Devolução Comercial</span>
+                </div>
+
+                <!-- Cards de Resumo -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col gap-1">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Origem (Campo)</span>
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200">{{ nomeEquipeOrigem() }}</span>
+                    <span class="text-[10px] text-slate-500">{{ estoqueCampoEquipe()?.nomeIdentificador }}</span>
+                  </div>
+
+                  <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col gap-1">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Destino (Físico)</span>
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200">{{ nomeEstoqueDestino() }}</span>
+                    <span class="text-[10px] text-slate-500">Almoxarifado</span>
+                  </div>
+
+                  <div class="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col gap-1">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Totais</span>
+                    <div class="flex items-center gap-2">
+                      <ces-status tone="brand" class="ces-status--devolucao">Devolução</ces-status>
+                      <span class="text-xs font-bold text-slate-700 dark:text-slate-200">
+                        {{ items().length }} item(ns)
+                      </span>
+                    </div>
+                    <span class="text-[10px] text-slate-500">
+                      Total: {{ totalUnidades() | number:'1.0-3' }} unidades
+                    </span>
+                  </div>
+                </div>
+
+                @if (itensBaixados() > 0) {
+                  <div
+                    class="flex items-start gap-2 p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-800 dark:text-amber-300"
+                  >
+                    <i class="pi pi-info-circle mt-0.5"></i>
+                    <span>
+                      {{ itensBaixados() }} item(ns) não ficarão em {{ nomeEstoqueDestino() }}: a devolução é
+                      registrada e a baixa avulsa é feita na mesma operação.
+                    </span>
+                  </div>
+                }
+
+                @if (headerForm.get('justificativa')?.value) {
+                  <div class="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Observações</span>
+                    <p class="text-slate-600 dark:text-slate-300 italic">{{ headerForm.get('justificativa')?.value }}</p>
+                  </div>
+                }
+
+                <!-- Tabela de Itens para Revisão -->
+                <div class="flex flex-col gap-2">
+                  <span class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    Itens a Transferir para o Almoxarifado
+                  </span>
+                  <p-table [value]="items()" styleClass="p-datatable-sm" responsiveLayout="scroll">
+                    <ng-template #header>
+                      <tr>
+                        <th class="!text-[10px] !uppercase">Código</th>
+                        <th class="!text-[10px] !uppercase">Descrição</th>
+                        <th class="!text-[10px] !uppercase text-center">Condição</th>
+                        <th class="!text-[10px] !uppercase text-right">Qtd.</th>
+                        <th class="!text-[10px] !uppercase">Séries Vinculadas</th>
+                        <th class="!text-[10px] !uppercase">No destino</th>
+                      </tr>
+                    </ng-template>
+
+                    <ng-template #body let-item>
+                      <tr>
+                        <td class="font-mono text-xs font-semibold">{{ item.codigo }}</td>
+                        <td class="text-xs">{{ item.descricao }}</td>
+                        <td class="text-center">
+                          <span
+                            class="inline-block px-2 py-0.5 rounded text-[10px] font-bold"
+                            [ngClass]="getCondicaoBadgeClass(item.condicao)"
+                          >
+                            {{ item.condicao }}
+                          </span>
+                        </td>
+                        <td class="text-right text-xs font-semibold">
+                          {{ item.quantidade | number:'1.0-3' }} {{ item.unidadeMedida }}
+                        </td>
+                        <td class="text-xs">
+                          @if (item.detalhaSerie && item.numSeries?.length) {
+                            <div class="flex flex-wrap gap-1">
+                              @for (sn of item.numSeries; track sn) {
+                                <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px] border border-slate-200 dark:border-slate-700">
+                                  {{ sn }}
+                                </span>
+                              }
+                            </div>
+                          } @else {
+                            <span class="text-slate-400 text-[11px]">—</span>
+                          }
+                        </td>
+                        <td class="text-xs">
+                          @if (item.guardarNoEstoque) {
+                            <ces-status tone="neutral" icon="pi pi-inbox">Guardar</ces-status>
+                          } @else {
+                            <ces-status tone="warning" icon="pi pi-trash">Dar baixa</ces-status>
+                          }
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+                </div>
+
+                <!-- Ações da Etapa 3 -->
+                <div class="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <ces-button
+                    label="Voltar para Materiais"
+                    icon="pi pi-arrow-left"
+                    variant="secondary"
+                    size="sm"
+                    (pressed)="goToStep(2)"
+                  ></ces-button>
+
+                  <ces-button
+                    label="Confirmar Devolução Comercial"
+                    icon="pi pi-check"
+                    [disabled]="items().length === 0 || hasMissingSerials() || loading()"
+                    [loading]="loading()"
+                    (pressed)="confirmDevolucao()"
+                  ></ces-button>
+                </div>
+              </div>
+            </ng-template>
+          </p-step-panel>
+        </p-step-panels>
+      </p-stepper>
+    </div>
+  </div>
+</div>
+
+<!-- Diálogo de Ajuda -->
+<app-help-dialog #helpDialog title="Guia: Devolução Comercial">
+  <div class="help-section">
+    <h4 class="help-section-title"><i class="pi pi-undo"></i> Devolução Comercial</h4>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-info-circle"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Processo de Devolução</span>
+        <span class="help-text-desc">
+          Esta rotina transfere materiais disponíveis no estoque de campo da equipe comercial de volta para o almoxarifado físico da empresa, com registro no histórico de movimentações.
+        </span>
+      </div>
+    </div>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-barcode"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Materiais com Número de Série</span>
+        <span class="help-text-desc">
+          Para itens controlados por número de série, marque as séries físicas devolvidas. Só aparecem as séries da equipe na condição escolhida (novo ou sucata).
+        </span>
+      </div>
+    </div>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-trash"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Guardar ou dar baixa</span>
+        <span class="help-text-desc">
+          Cada item diz se o almoxarifado destino guarda o material. Quando não guarda, a devolução é registrada e a baixa avulsa é feita no destino na mesma operação, sem acumular sucata no saldo.
+        </span>
+      </div>
+    </div>
+  </div>
+</app-help-dialog>

@@ -1,0 +1,20 @@
+@layer ces.legacy {
+  /*
+   * Compatibilidade temporária. Novas telas devem usar componentes e classes ces-*.
+   * O inventário em tools/design-system acompanha os consumidores antes da remoção.
+   */
+  .filter-label {
+    color: var(--ces-foreground-subtle);
+    font-size: var(--ces-font-caption);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: capitalize;
+  }
+
+  .custom-input,
+  .custom-select,
+  .custom-dialog,
+  .custom-table {
+    --ces-legacy-compatible: 1;
+  }
+}

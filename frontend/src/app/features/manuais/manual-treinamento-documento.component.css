@@ -1,0 +1,544 @@
+/*
+ * Documento imprimível do manual de treinamento.
+ *
+ * Medidas em mm/pt e cores literais monocromáticas: o alvo é papel A4, não a viewport.
+ * O componente é ocultado na tela pela própria feature (`hidden print:block`), por isso
+ * todo o estilo aqui é escrito para o meio impresso.
+ *
+ * Peso máximo 600 (semibold): a hierarquia vem de corpo, cor e régua. Ícones são
+ * decorativos e sempre acompanhados do rótulo textual.
+ */
+
+:host {
+  color: #111827;
+  background: #ffffff;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.documento {
+  width: 100%;
+  max-width: 100%;
+  font-size: 9.5pt;
+  font-weight: 400;
+  line-height: 1.55;
+  overflow-wrap: break-word;
+}
+
+.documento :is(h1, h2, h3, p, dl, dd, dt, ul, ol, table) {
+  margin: 0;
+}
+
+.documento :is(h1, h2, h3) {
+  font-weight: 600;
+}
+
+.documento i[class^='pi'],
+.documento i[class*=' pi-'] {
+  color: #4b5563;
+  font-size: 9pt;
+  line-height: 1;
+  vertical-align: -0.5pt;
+}
+
+/* --------------------------------------------------------------------------
+   Capa
+-------------------------------------------------------------------------- */
+
+.documento__capa {
+  padding-bottom: 6mm;
+  border-bottom: 0.5mm solid #111827;
+}
+
+.documento__instituicao {
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+  padding-bottom: 2.5mm;
+  border-bottom: 0.2mm solid #9ca3af;
+  color: #374151;
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.documento__titulo {
+  margin-top: 6mm;
+  font-size: 21pt;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.documento__subtitulo {
+  margin-top: 2.5mm;
+  max-width: 140mm;
+  color: #374151;
+  font-size: 10.5pt;
+  line-height: 1.6;
+}
+
+.documento__metadados {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4mm 8mm;
+  margin-top: 7mm;
+}
+
+.documento__metadados dt {
+  display: flex;
+  align-items: center;
+  gap: 1.5mm;
+  color: #4b5563;
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.documento__metadados dd {
+  margin-top: 1mm;
+  font-size: 9.5pt;
+  font-weight: 500;
+}
+
+.documento__vazio {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  margin-top: 8mm;
+  padding: 4mm;
+  border: 0.2mm solid #9ca3af;
+  background: #f3f4f6;
+}
+
+/* --------------------------------------------------------------------------
+   Sumário
+-------------------------------------------------------------------------- */
+
+.sumario {
+  margin-top: 9mm;
+}
+
+.sumario__titulo {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  font-size: 13pt;
+  letter-spacing: -0.01em;
+}
+
+.sumario__tabela {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  margin-top: 3.5mm;
+}
+
+.sumario__col-ordem {
+  width: 10mm;
+}
+
+.sumario__col-codigo {
+  width: 22mm;
+}
+
+.sumario__col-escopo {
+  width: 34mm;
+}
+
+.sumario__tabela :is(th, td) {
+  padding: 2.2mm 2mm;
+  border-bottom: 0.2mm solid #d1d5db;
+  font-size: 9.5pt;
+  font-weight: 400;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+.sumario__tabela thead th {
+  border-bottom: 0.4mm solid #111827;
+  color: #374151;
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.sumario__tabela tbody th {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sumario__ordem {
+  color: #4b5563;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.sumario__icone {
+  margin-right: 1.5mm;
+}
+
+/* --------------------------------------------------------------------------
+   Módulo
+-------------------------------------------------------------------------- */
+
+.modulo {
+  padding-top: 5mm;
+}
+
+.modulo__cabecalho {
+  padding-bottom: 3.5mm;
+  border-bottom: 0.4mm solid #111827;
+}
+
+.modulo__etiqueta {
+  color: #4b5563;
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.modulo__titulo {
+  display: flex;
+  align-items: center;
+  gap: 2.5mm;
+  margin-top: 2mm;
+  font-size: 15pt;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.modulo__marca,
+.secao__marca,
+.item__marca {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border: 0.2mm solid #d1d5db;
+  border-radius: 1mm;
+  background: #f9fafb;
+}
+
+.modulo__marca {
+  width: 8mm;
+  height: 8mm;
+}
+
+.modulo__subtitulo {
+  margin-top: 2mm;
+  color: #374151;
+  font-size: 9.5pt;
+  line-height: 1.6;
+}
+
+.modulo__medidas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm 5mm;
+  margin-top: 2.5mm;
+  color: #6b7280;
+  font-size: 7.5pt;
+}
+
+.modulo__medidas > span:not(:last-child)::after {
+  margin-left: 5mm;
+  content: '·';
+}
+
+.modulo__rodape {
+  margin-top: 6mm;
+  padding-top: 2mm;
+  border-top: 0.2mm solid #d1d5db;
+  color: #6b7280;
+  font-size: 7.5pt;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+   Blocos de destaque
+-------------------------------------------------------------------------- */
+
+.bloco {
+  margin-top: 5mm;
+  padding: 3.5mm 4mm;
+  border: 0.2mm solid #9ca3af;
+  border-left: 1mm solid #374151;
+  background: #f9fafb;
+}
+
+.bloco--aviso {
+  border-left-color: #111827;
+  background: #f3f4f6;
+}
+
+.bloco--video {
+  background: #ffffff;
+}
+
+.bloco__rotulo {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  font-size: 9pt;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.bloco__texto {
+  margin-top: 2mm;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+.bloco__endereco {
+  margin-top: 2.5mm;
+  padding: 2mm 2.5mm;
+  border: 0.2mm solid #d1d5db;
+  background: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8.5pt;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------------------
+   Seções e itens
+-------------------------------------------------------------------------- */
+
+.secao {
+  margin-top: 8mm;
+}
+
+.secao__titulo {
+  display: flex;
+  align-items: center;
+  gap: 2.5mm;
+  padding-bottom: 2mm;
+  border-bottom: 0.35mm solid #6b7280;
+  font-size: 12.5pt;
+  letter-spacing: -0.015em;
+}
+
+.secao__numero {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 7mm;
+  height: 7mm;
+  padding-inline: 1mm;
+  border: 0.2mm solid #6b7280;
+  border-radius: 1mm;
+  background: #f3f4f6;
+  font-size: 10pt;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.secao__marca {
+  width: 7mm;
+  height: 7mm;
+}
+
+.secao__subtitulo {
+  margin-top: 2.5mm;
+  color: #4b5563;
+  font-size: 9pt;
+}
+
+.secao__texto {
+  margin-top: 2.5mm;
+  line-height: 1.6;
+}
+
+.itens {
+  margin-top: 3.5mm;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 7mm minmax(0, 1fr);
+  gap: 3mm;
+  padding: 3mm 0;
+  border-top: 0.2mm dotted #d1d5db;
+}
+
+.item:first-child {
+  border-top: 0;
+  padding-top: 1mm;
+}
+
+.item__marca {
+  width: 7mm;
+  height: 7mm;
+}
+
+.item__corpo {
+  min-width: 0;
+}
+
+.item__rotulo {
+  font-size: 10pt;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.item__marcador {
+  margin-left: 2mm;
+  color: #4b5563;
+  font-size: 8pt;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.item__descricao {
+  margin-top: 1.5mm;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+.item__subitens {
+  margin-top: 1.5mm;
+  padding-left: 5mm;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+.item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5mm 6mm;
+  margin-top: 2mm;
+  color: #374151;
+  font-size: 8.5pt;
+}
+
+.item__meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.5mm;
+}
+
+/* --------------------------------------------------------------------------
+   Encerramento: caminhos de suporte
+-------------------------------------------------------------------------- */
+
+.suporte {
+  margin-top: 9mm;
+  padding-top: 4mm;
+  border-top: 0.5mm solid #111827;
+}
+
+.suporte__titulo {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  font-size: 12.5pt;
+  letter-spacing: -0.015em;
+}
+
+.suporte__caminhos {
+  margin-top: 4mm;
+  padding: 0;
+  list-style: none;
+}
+
+.suporte__caminho {
+  padding: 3.5mm 4mm;
+  border: 0.2mm solid #d1d5db;
+  border-left: 1mm solid #9ca3af;
+  background: #ffffff;
+}
+
+.suporte__caminho + .suporte__caminho {
+  margin-top: 3mm;
+}
+
+.suporte__caminho--principal {
+  border-color: #6b7280;
+  border-left-color: #111827;
+  background: #f3f4f6;
+}
+
+.suporte__rotulo {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  font-size: 9.5pt;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.suporte__texto {
+  margin-top: 2mm;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+.suporte__texto strong {
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Paginação
+-------------------------------------------------------------------------- */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm;
+  }
+
+  .documento__capa,
+  .sumario,
+  .modulo__cabecalho,
+  .bloco,
+  .item,
+  .suporte,
+  .suporte__caminho,
+  .documento__metadados > div {
+    break-inside: avoid;
+  }
+
+  /* Capa e sumário formam a abertura do documento; os módulos começam em página nova. */
+  .sumario {
+    break-after: page;
+  }
+
+  .modulo {
+    break-before: page;
+    padding-top: 0;
+  }
+
+  .modulo:first-of-type {
+    break-before: auto;
+  }
+
+  :is(h1, h2, h3) {
+    break-after: avoid;
+  }
+
+  .secao__titulo,
+  .bloco__rotulo,
+  .item__rotulo {
+    break-after: avoid;
+  }
+
+  .sumario__tabela thead {
+    display: table-header-group;
+  }
+
+  .sumario__tabela tr {
+    break-inside: avoid;
+  }
+}

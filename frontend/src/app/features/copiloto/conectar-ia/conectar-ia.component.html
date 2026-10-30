@@ -1,0 +1,203 @@
+<div class="ces-page">
+  <ces-page-header
+    title="Conectar sua IA"
+    icon="pi pi-link"
+    [breadcrumb]="[{ label: 'Copiloto' }, { label: 'Conectar sua IA' }]"
+    description="Use o Nexo dentro do Claude, do ChatGPT ou de outro assistente: pergunte sobre os dados da empresa sem sair da conversa."
+  >
+    <ces-button actions variant="outline" icon="pi pi-key" label="Gerar chave de acesso" (pressed)="abrirChave()"></ces-button>
+    <ces-button actions icon="pi pi-plus" label="Conectar uma IA" (pressed)="abrirGuia()"></ces-button>
+  </ces-page-header>
+
+  @if (admin()) {
+    <ces-tabs [tabs]="abas()" [value]="aba()" (valueChange)="trocarAba($any($event))" ariaLabel="Conexões">
+      <ng-template cesTabPanel="minhas">
+        <ng-container *ngTemplateOutlet="tabelaMinhas"></ng-container>
+      </ng-template>
+      <ng-template cesTabPanel="empresa">
+        <ces-data-table
+          title="Conexões da empresa"
+          description="Todas as IAs conectadas ao Nexo, de todas as pessoas. Desconecte o que não deveria estar ligado."
+          storageKey="conexoes-ia-empresa"
+          searchPlaceholder="Buscar"
+          rowActionLabel="Ver conexão"
+          [columns]="colunasTodas"
+          [rows]="todasFiltradas()"
+          [rowKey]="chave"
+          [rowLabel]="rotulo"
+          [state]="estadoTodas()"
+          [filtered]="!!pessoa()"
+          [stateTitle]="erroTodas() ? 'Não foi possível carregar as conexões' : 'Nenhuma IA conectada na empresa'"
+          [stateDescription]="erroTodas() ?? 'Quando alguém conectar o Claude, o ChatGPT ou outro assistente, a conexão aparece aqui.'"
+          [emptyActionLabel]="erroTodas() ? 'Tentar de novo' : undefined"
+          emptyActionIcon="pi pi-refresh"
+          noResultsTitle="Nenhuma conexão dessa pessoa."
+          (emptyAction)="carregarTodas()"
+          (clearFilters)="pessoa.set(null)"
+          (rowActivate)="abrir($event)"
+        >
+          <div table-filters class="ces-quick-filters conexoes-filtros">
+            <ces-select label="Pessoa" [labelVisible]="false" placeholder="Todas as pessoas" [filter]="true" [clearable]="true"
+              [options]="opcoesPessoa()" [(value)]="pessoa"></ces-select>
+            @if (desconectadasTodas()) {
+              <button type="button" class="ces-quick-filter" [attr.aria-pressed]="verDesconectadas()" (click)="verDesconectadas.set(!verDesconectadas())">
+          <i class="pi pi-history" aria-hidden="true"></i>Desconectadas ({{ desconectadasTodas() }})
+        </button>
+            }
+          </div>
+          <ng-template cesCell="usuarioLogin" let-row><span class="ces-cell-strong">{{ row.usuarioLogin }}</span></ng-template>
+          <ng-template cesCell="nome" let-row>
+            <ng-container *ngTemplateOutlet="celulaAplicativo; context: { $implicit: row }"></ng-container>
+          </ng-template>
+          <ng-template cesCell="permiteEscrita" let-row>
+            <ng-container *ngTemplateOutlet="celulaPermissao; context: { $implicit: row }"></ng-container>
+          </ng-template>
+          <ng-template cesCell="situacao" let-row>
+            <ces-status [tone]="sit(row).tom" [icon]="sit(row).icone">{{ sit(row).rotulo }}</ces-status>
+          </ng-template>
+          <ng-template cesRowActions let-row>
+            @if (row.situacao !== 'DESCONECTADA') {
+            <span class="ces-table-actions">
+              <ces-icon-button icon="pi pi-power-off" size="icon-sm" tooltip="Desconectar"
+                [label]="'Desconectar ' + row.nome + ' de ' + row.usuarioLogin" (pressed)="desconectar(row)"></ces-icon-button>
+            </span>
+            }
+          </ng-template>
+        </ces-data-table>
+      </ng-template>
+    </ces-tabs>
+  } @else {
+    <ng-container *ngTemplateOutlet="tabelaMinhas"></ng-container>
+  }
+</div>
+
+<ng-template #tabelaMinhas>
+  <ces-data-table
+    title="Suas conexões"
+    description="Assistentes que podem usar o Nexo com o seu login. Clique numa linha para ver os detalhes."
+    storageKey="conexoes-ia-minhas"
+    searchPlaceholder="Buscar aplicativo"
+    rowActionLabel="Ver conexão"
+    [columns]="colunasMinhas"
+    [rows]="minhasVisiveis()"
+    [rowKey]="chave"
+    [rowLabel]="rotulo"
+    [state]="estadoMinhas()"
+    [stateTitle]="erroMinhas() ? 'Não foi possível carregar as suas conexões' : 'Você ainda não conectou nenhuma IA'"
+    [stateDescription]="erroMinhas() ?? 'Conecte o Claude, o ChatGPT ou outro assistente e pergunte sobre estoque, solicitações e obras direto na conversa. Leva uns dois minutos.'"
+    [emptyActionLabel]="erroMinhas() ? 'Tentar de novo' : 'Ver o passo a passo'"
+    [emptyActionIcon]="erroMinhas() ? 'pi pi-refresh' : 'pi pi-list-check'"
+    (emptyAction)="erroMinhas() ? carregarMinhas() : abrirGuia()"
+    (rowActivate)="abrir($event)"
+  >
+    @if (desconectadasMinhas()) {
+      <div table-filters class="ces-quick-filters conexoes-filtros">
+        <button type="button" class="ces-quick-filter" [attr.aria-pressed]="verDesconectadas()" (click)="verDesconectadas.set(!verDesconectadas())">
+          <i class="pi pi-history" aria-hidden="true"></i>Desconectadas ({{ desconectadasMinhas() }})
+        </button>
+      </div>
+    }
+    <ng-template cesCell="nome" let-row>
+      <ng-container *ngTemplateOutlet="celulaAplicativo; context: { $implicit: row }"></ng-container>
+    </ng-template>
+    <ng-template cesCell="permiteEscrita" let-row>
+      <ng-container *ngTemplateOutlet="celulaPermissao; context: { $implicit: row }"></ng-container>
+    </ng-template>
+    <ng-template cesCell="situacao" let-row>
+      <ces-status [tone]="sit(row).tom" [icon]="sit(row).icone">{{ sit(row).rotulo }}</ces-status>
+    </ng-template>
+    <ng-template cesRowActions let-row>
+      @if (row.situacao !== 'DESCONECTADA') {
+        <span class="ces-table-actions">
+          <ces-icon-button icon="pi pi-power-off" size="icon-sm" tooltip="Desconectar" [label]="'Desconectar ' + row.nome"
+            (pressed)="desconectar(row)"></ces-icon-button>
+        </span>
+      }
+    </ng-template>
+  </ces-data-table>
+</ng-template>
+
+<ng-template #celulaAplicativo let-row>
+  <span class="conexao-app">
+    <span class="conexao-app__icone" aria-hidden="true"><i [class]="icone(row)"></i></span>
+    <span class="conexao-app__texto">
+      <span class="ces-cell-strong">{{ row.nome }}</span>
+      <span class="ces-cell-muted">{{ como(row) }}</span>
+    </span>
+  </span>
+</ng-template>
+
+<ng-template #celulaPermissao let-row>
+  <span class="conexao-permissao">
+    <i [class]="row.permiteEscrita ? 'pi pi-pencil' : 'pi pi-eye'" aria-hidden="true"></i>{{ permissao(row) }}
+  </span>
+</ng-template>
+
+<ces-drawer [(visible)]="detalheAberto" [title]="selecionada()?.nome ?? 'Conexão'" eyebrow="Conexão" size="md"
+  [description]="selecionada() ? como(selecionada()!) : undefined">
+  @if (selecionada(); as c) {
+    <section class="ces-sheet-section" aria-labelledby="conexao-acesso">
+      <h2 id="conexao-acesso"><i class="pi pi-shield" aria-hidden="true"></i>Acesso</h2>
+      <dl class="ces-sheet">
+        @if (c.usuarioLogin) {
+          <div><dt>Pessoa</dt><dd>{{ c.usuarioLogin }}</dd></div>
+        }
+        <div>
+          <dt>Situação</dt>
+          <dd><ces-status [tone]="sit(c).tom" [icon]="sit(c).icone">{{ sit(c).rotulo }}</ces-status></dd>
+        </div>
+        <div><dt>O que pode fazer</dt><dd>{{ permissao(c) }}</dd></div>
+        <div><dt>Como conectou</dt><dd>{{ como(c) }}</dd></div>
+        @if (c.prefixoChave) {
+          <div><dt>A chave começa com</dt><dd>{{ c.prefixoChave }}</dd></div>
+        }
+        @if (c.desconectadaEm) {
+          <div><dt>Desconectada em</dt><dd>{{ dataHora(c.desconectadaEm) }}</dd></div>
+        }
+        @if (c.expiraEm) {
+          <div><dt>Vale até</dt><dd>{{ dataHora(c.expiraEm) }}</dd></div>
+        }
+      </dl>
+    </section>
+    <section class="ces-sheet-section" aria-labelledby="conexao-uso">
+      <h2 id="conexao-uso"><i class="pi pi-history" aria-hidden="true"></i>Uso</h2>
+      <dl class="ces-sheet">
+        <div><dt>Conectou</dt><dd>{{ relativo(c.criadaEm) }} <span class="ces-cell-muted">{{ dataHora(c.criadaEm) }}</span></dd></div>
+        <div>
+          <dt>Último uso</dt>
+          <dd>{{ relativo(c.ultimoUsoEm) }} @if (c.ultimoUsoEm) { <span class="ces-cell-muted">{{ dataHora(c.ultimoUsoEm) }}</span> }</dd>
+        </div>
+        <div>
+          <dt>Pedidos feitos ao Nexo</dt>
+          <dd>{{ c.totalChamadas ? c.totalChamadas.toLocaleString('pt-BR') : 'Nenhum ainda' }}</dd>
+        </div>
+        @if (c.aplicativo && c.aplicativo !== c.nome) {
+          <div><dt>Programa usado</dt><dd>{{ c.aplicativo }}</dd></div>
+        }
+      </dl>
+    </section>
+    @if (c.situacao === 'VENCIDA') {
+      <ces-callout tone="warning" icon="pi pi-exclamation-triangle" [dense]="true" class="conexao-aviso">
+        A chave venceu e o assistente não consegue mais usar o Nexo. Gere uma chave nova e troque no assistente.
+      </ces-callout>
+    } @else if (!c.permiteEscrita && podeEscrever() && !c.usuarioLogin) {
+      <ces-callout tone="info" icon="pi pi-info-circle" [dense]="true" class="conexao-aviso">
+        Esta conexão só consulta. Para também cadastrar, {{ c.tipo === 'CHAVE' ? 'gere uma chave nova com a opção Consultar e cadastrar' : 'desconecte e conecte de novo ligando a opção de cadastrar' }}.
+      </ces-callout>
+    }
+  }
+  <div drawer-footer class="ces-actions-row">
+    <ces-button variant="ghost" label="Fechar" (pressed)="detalheAberto.set(false)"></ces-button>
+    @if (selecionada(); as c) {
+      @if (c.situacao !== 'DESCONECTADA') {
+      <ces-button variant="destructive" icon="pi pi-power-off" label="Desconectar" [loading]="desconectando()" (pressed)="desconectar(c)"></ces-button>
+      }
+    }
+  </div>
+</ces-drawer>
+
+<app-guia-conectar [(visivel)]="guiaAberto" [endereco]="endereco()" [erroEndereco]="erroInfo()" [podeEscrever]="podeEscrever()"
+  (gerarChave)="abrirChave()"></app-guia-conectar>
+
+<app-chave-acesso-drawer [(visivel)]="chaveAberta" [endereco]="endereco()" [podeEscrever]="podeEscrever()"
+  (criou)="recarregarTudo()"></app-chave-acesso-drawer>

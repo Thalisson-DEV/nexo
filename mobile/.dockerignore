@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.gitignore
+.angular
+*.log
+.vscode
+.idea
+.DS_Store
+coverage
+.editorconfig
+README.md

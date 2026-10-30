@@ -1,0 +1,1202 @@
+/* You can add global styles to this file, and also import other style files */
+
+@import "tailwindcss";
+@custom-variant dark (&:where(.app-dark, .app-dark *));
+@import "tailwindcss-primeui";
+@import "primeicons/primeicons.css";
+@import "leaflet/dist/leaflet.css";
+@import './app/design-system/styles/index.css';
+@import './app/shared/styles/dashboard-shell.css';
+
+@custom-variant dark (&:where(.app-dark, .app-dark *, .dark, .dark *));
+@custom-variant app-dark (&:where(.app-dark, .app-dark *));
+
+:root {
+  font-size: 13px;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--ces-foreground);
+  background-color: var(--ces-canvas);
+}
+
+/* Ajuste de densidade global para componentes PrimeNG */
+.p-component {
+  font-size: 0.9rem !important;
+}
+
+.p-button {
+  padding: 0.5rem 1rem !important;
+}
+
+.p-inputtext:not(.p-iconfield *):not([class*='!pl-']):not([class*='!pr-']) {
+  padding-block: 0.5rem !important;
+  padding-inline: 0.75rem !important;
+}
+
+/* PrimeNG IconField Global - Alinhamento e centralização perfeitos dos ícones */
+p-iconfield,
+.p-iconfield {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+p-iconfield > .p-inputicon,
+.p-iconfield > .p-inputicon,
+.p-iconfield .p-inputicon {
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
+p-iconfield[iconPosition="left"] > .p-inputicon,
+.p-iconfield-left > .p-inputicon,
+.p-iconfield > .p-inputicon:first-child,
+.p-iconfield:has(> .p-inputicon:first-child) > .p-inputicon:first-child {
+  left: 0 !important;
+  right: auto !important;
+  inset-inline-start: 0 !important;
+  inset-inline-end: auto !important;
+  width: 2.75rem !important;
+}
+
+p-iconfield[iconPosition="right"] > .p-inputicon,
+.p-iconfield-right > .p-inputicon,
+.p-iconfield > .p-inputicon:last-child {
+  right: 0 !important;
+  left: auto !important;
+  inset-inline-end: 0 !important;
+  inset-inline-start: auto !important;
+  width: 2.75rem !important;
+}
+
+p-iconfield[iconPosition="left"] input,
+p-iconfield[iconPosition="left"] .p-inputtext,
+.p-iconfield-left input,
+.p-iconfield-left .p-inputtext,
+.p-iconfield:has(> .p-inputicon:first-child) input,
+.p-iconfield:has(> .p-inputicon:first-child) .p-inputtext,
+.p-iconfield:has(> .p-inputicon:first-child) .p-password input {
+  padding-left: 2.75rem !important;
+  padding-inline-start: 2.75rem !important;
+}
+
+p-iconfield[iconPosition="right"] input,
+p-iconfield[iconPosition="right"] .p-inputtext,
+.p-iconfield-right input,
+.p-iconfield-right .p-inputtext,
+.p-iconfield:has(> .p-inputicon:last-child) input,
+.p-iconfield:has(> .p-inputicon:last-child) .p-inputtext,
+.p-iconfield:has(> .p-inputicon:last-child) .p-password input {
+  padding-right: 2.75rem !important;
+  padding-inline-end: 2.75rem !important;
+}
+
+/* Scrollbar Global Styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent; /* slate-300 */
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+
+/* Dark mode scrollbars */
+.app-dark * {
+  scrollbar-color: #475569 transparent; /* slate-600 */
+}
+
+.app-dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.app-dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b; /* slate-500 */
+}
+
+/* Specific styling for PrimeNG tables scrollbars */
+.p-datatable-scrollable-body::-webkit-scrollbar,
+.p-datatable-scrollable-header::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Help Dialog Injected Content Styles */
+.help-section {
+  @apply flex flex-col gap-3;
+}
+.help-section-title {
+  @apply text-xs font-bold text-blue-700 uppercase tracking-wider flex items-center gap-2 pb-2 border-b border-slate-100;
+}
+.help-item {
+  @apply flex items-start gap-3;
+}
+.help-icon {
+  @apply w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 shrink-0 mt-0.5;
+}
+.help-text {
+  @apply flex flex-col gap-1;
+}
+.help-text-title {
+  @apply text-xs font-bold text-slate-700;
+}
+.help-text-desc {
+  @apply text-[11px] text-slate-500 leading-relaxed;
+}
+
+/* ==========================================================================
+   FLEET TELEMETRY - VEHICLE MARKERS (GLOBAL STYLES)
+   ========================================================================== */
+
+/* Leaflet container for the divIcon */
+.custom-vehicle-icon {
+  background: transparent !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* The circular pin itself */
+.marker-pin {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 3px solid white !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.4) !important;
+  transition: transform 0.2s ease-in-out, background-color 0.3s ease !important;
+  box-sizing: border-box !important;
+}
+
+/* The car icon inside the pin */
+.marker-pin i {
+  font-size: 16px !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Pulsing effect for moving vehicles */
+.marker-pin.moving {
+  animation: marker-pulse-border 2s infinite !important;
+}
+
+@keyframes marker-pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7), 0 3px 8px rgba(0,0,0,0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(34, 197, 94, 0), 0 3px 8px rgba(0,0,0,0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0), 0 3px 8px rgba(0,0,0,0.4);
+  }
+}
+
+/* Tooltip for vehicles */
+.custom-vehicle-tooltip {
+  background: white !important;
+  border: 2px solid #334155 !important; /* Slate-700 for better contrast */
+  border-radius: 6px !important;
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  color: #0f172a !important; /* Slate-900 */
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  opacity: 1 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* Tooltip arrow styling */
+.custom-vehicle-tooltip::before {
+  border-top-color: #334155 !important;
+  bottom: -11px !important; /* Adjust arrow position */
+  margin-left: -10px !important;
+  border-width: 10px 10px 0 !important;
+}
+
+/* ==========================================================================
+   CUSTOM DIALOG - TRATAMENTO DE DESVIO (GLOBAL STYLES)
+   ========================================================================== */
+.custom-dialog.p-dialog,
+.custom-dialog .p-dialog {
+  overflow: hidden !important;
+}
+
+.custom-dialog .p-dialog-header {
+  border-bottom: 1.5px solid transparent !important;
+}
+
+/* Aberto (Vermelho notável com borda cobrindo as partes superiores e inferiores) */
+.dialog-tratamento-aberto.p-dialog,
+.dialog-tratamento-aberto .p-dialog {
+  border-color: #fca5a5 !important;
+}
+.dialog-tratamento-aberto .p-dialog-header {
+  background-color: #fee2e2 !important;
+  border-top: 1.5px solid #fca5a5 !important;
+  border-bottom: 1.5px solid #fca5a5 !important;
+  border-color: #fca5a5 !important;
+}
+
+/* Em Tratamento (Âmbar notável com borda cobrindo as partes superiores e inferiores) */
+.dialog-tratamento-em_tratamento.p-dialog,
+.dialog-tratamento-em_tratamento .p-dialog {
+  border-color: #fcd34d !important;
+}
+.dialog-tratamento-em_tratamento .p-dialog-header {
+  background-color: #fef3c7 !important;
+  border-top: 1.5px solid #fcd34d !important;
+  border-bottom: 1.5px solid #fcd34d !important;
+  border-color: #fcd34d !important;
+}
+
+/* Resolvido (Verde notável com borda cobrindo as partes superiores e inferiores) */
+.dialog-tratamento-resolvido.p-dialog,
+.dialog-tratamento-resolvido .p-dialog {
+  border-color: #6ee7b7 !important;
+}
+.dialog-tratamento-resolvido .p-dialog-header {
+  background-color: #d1fae5 !important;
+  border-top: 1.5px solid #6ee7b7 !important;
+  border-bottom: 1.5px solid #6ee7b7 !important;
+  border-color: #6ee7b7 !important;
+}
+
+/* ==========================================================================
+   MODAL DE CADASTRO/EDIÇÃO DE USUÁRIOS (IAM) - TEMA ESCURO COM FONTES var(--p-primary-700)
+   ========================================================================== */
+.app-dark .usuario-form-dialog,
+.app-dark .usuario-form-dialog.p-dialog,
+.app-dark .usuario-form-dialog .p-dialog,
+.dark .usuario-form-dialog,
+.dark .usuario-form-dialog.p-dialog,
+.dark .usuario-form-dialog .p-dialog {
+  color: var(--p-primary-700);
+}
+
+.app-dark .usuario-form-dialog .p-dialog-header .p-dialog-title,
+.dark .usuario-form-dialog .p-dialog-header .p-dialog-title {
+  color: var(--p-primary-700) !important;
+}
+
+.app-dark .usuario-form-dialog .filter-label,
+.app-dark .usuario-form-dialog label.filter-label,
+.app-dark .usuario-form-dialog label,
+.app-dark .usuario-form-dialog .form-label,
+.app-dark .usuario-form-dialog .p-field label,
+.app-dark .usuario-form-dialog .field label,
+.dark .usuario-form-dialog .filter-label,
+.dark .usuario-form-dialog label.filter-label,
+.dark .usuario-form-dialog label,
+.dark .usuario-form-dialog .form-label,
+.dark .usuario-form-dialog .p-field label,
+.dark .usuario-form-dialog .field label {
+  color: var(--p-primary-700) !important;
+}
+
+.app-dark .usuario-form-dialog .text-primary-600,
+.app-dark .usuario-form-dialog .\!text-primary-600,
+.app-dark .usuario-form-dialog .text-primary-700,
+.app-dark .usuario-form-dialog .\!text-primary-700,
+.app-dark .usuario-form-dialog .text-primary-800,
+.app-dark .usuario-form-dialog .text-blue-600,
+.app-dark .usuario-form-dialog .text-blue-700,
+.app-dark .usuario-form-dialog .text-blue-800,
+.dark .usuario-form-dialog .text-primary-600,
+.dark .usuario-form-dialog .\!text-primary-600,
+.dark .usuario-form-dialog .text-primary-700,
+.dark .usuario-form-dialog .\!text-primary-700,
+.dark .usuario-form-dialog .text-primary-800,
+.dark .usuario-form-dialog .text-blue-600,
+.dark .usuario-form-dialog .text-blue-700,
+.dark .usuario-form-dialog .text-blue-800 {
+  color: var(--p-primary-700) !important;
+}
+
+.app-dark .usuario-form-dialog .bg-primary-600,
+.dark .usuario-form-dialog .bg-primary-600 {
+  background-color: var(--p-primary-700) !important;
+  border-color: var(--p-primary-700) !important;
+  color: #ffffff !important;
+}
+
+.app-dark .usuario-form-dialog .border-primary-600,
+.dark .usuario-form-dialog .border-primary-600 {
+  border-color: var(--p-primary-700) !important;
+}
+
+.app-dark .usuario-form-dialog .bg-primary-50,
+.dark .usuario-form-dialog .bg-primary-50 {
+  background-color: color-mix(in srgb, var(--p-primary-700) 10%, transparent) !important;
+  border-color: color-mix(in srgb, var(--p-primary-700) 30%, transparent) !important;
+}
+
+.app-dark .usuario-form-dialog .bg-slate-50,
+.dark .usuario-form-dialog .bg-slate-50 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: #334155 !important;
+}
+
+.app-dark .usuario-form-dialog .text-slate-500,
+.app-dark .usuario-form-dialog .text-slate-600,
+.dark .usuario-form-dialog .text-slate-500,
+.dark .usuario-form-dialog .text-slate-600 {
+  color: var(--p-surface-400) !important;
+}
+
+.app-dark .usuario-form-dialog .p-button.p-button-text,
+.app-dark .usuario-form-dialog .p-button.p-button-text .p-button-label,
+.app-dark .usuario-form-dialog .p-button.p-button-text .p-button-icon,
+.dark .usuario-form-dialog .p-button.p-button-text,
+.dark .usuario-form-dialog .p-button.p-button-text .p-button-label,
+.dark .usuario-form-dialog .p-button.p-button-text .p-button-icon {
+  color: var(--p-primary-700) !important;
+}
+
+.app-dark .usuario-form-dialog .p-button:not(.p-button-text):not(.p-button-secondary):not(.p-button-danger):not(.p-button-outlined),
+.dark .usuario-form-dialog .p-button:not(.p-button-text):not(.p-button-secondary):not(.p-button-danger):not(.p-button-outlined) {
+  background-color: var(--p-primary-700) !important;
+  border-color: var(--p-primary-700) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.app-dark .usuario-form-dialog .p-button:not(.p-button-text):not(.p-button-secondary):not(.p-button-danger):not(.p-button-outlined):hover,
+.dark .usuario-form-dialog .p-button:not(.p-button-text):not(.p-button-secondary):not(.p-button-danger):not(.p-button-outlined):hover {
+  background-color: #38bdf8 !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+
+/* Garante fontes brancas em todos os botões no tema escuro */
+.app-dark .p-button:not(.p-button-text):not(.p-button-link),
+.dark .p-button:not(.p-button-text):not(.p-button-link),
+.app-dark .p-button:not(.p-button-text):not(.p-button-link) .p-button-label,
+.dark .p-button:not(.p-button-text):not(.p-button-link) .p-button-label,
+.app-dark .p-button:not(.p-button-text):not(.p-button-link) .p-button-icon,
+.dark .p-button:not(.p-button-text):not(.p-button-link) .p-button-icon,
+.app-dark .ces-button .p-button:not(.p-button-text):not(.p-button-link),
+.dark .ces-button .p-button:not(.p-button-text):not(.p-button-link),
+.app-dark .ces-button .p-button:not(.p-button-text):not(.p-button-link) *,
+.dark .ces-button .p-button:not(.p-button-text):not(.p-button-link) * {
+  color: #ffffff !important;
+}
+
+/* ==========================================================================
+   UNIVERSAL DARK MODE UTILITY ADAPTATION
+   Transforms legacy Tailwind utility classes seamlessly in dark mode
+   ========================================================================== */
+.app-dark .bg-white,
+.dark .bg-white,
+.app-dark .\!bg-white,
+.dark .\!bg-white {
+  background-color: var(--ces-surface) !important;
+}
+
+.app-dark .p-button.\!bg-white,
+.dark .p-button.\!bg-white,
+.app-dark .p-button.bg-white,
+.dark .p-button.bg-white,
+.app-dark button.\!bg-white,
+.dark button.\!bg-white,
+.app-dark button.bg-white,
+.dark button.bg-white {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+.app-dark .p-button.\!bg-white:hover,
+.dark .p-button.\!bg-white:hover,
+.app-dark .p-button.bg-white:hover,
+.dark .p-button.bg-white:hover,
+.app-dark button.\!bg-white:hover,
+.dark button.\!bg-white:hover,
+.app-dark button.bg-white:hover,
+.dark button.bg-white:hover {
+  background-color: #334155 !important;
+  border-color: var(--p-primary-500) !important;
+  color: #ffffff !important;
+}
+
+.app-dark .p-button.\!bg-white .p-button-label,
+.dark .p-button.\!bg-white .p-button-label,
+.app-dark .p-button.\!bg-white .p-button-icon,
+.dark .p-button.\!bg-white .p-button-icon,
+.app-dark .p-button.bg-white .p-button-label,
+.dark .p-button.bg-white .p-button-label,
+.app-dark .p-button.bg-white .p-button-icon,
+.dark .p-button.bg-white .p-button-icon {
+  color: #ffffff !important;
+}
+
+.app-dark .bg-slate-50,
+.dark .bg-slate-50,
+.app-dark .\!bg-slate-50,
+.dark .\!bg-slate-50,
+.app-dark .bg-slate-50\/50,
+.dark .bg-slate-50\/50,
+.app-dark .bg-slate-50\/60,
+.dark .bg-slate-50\/60,
+.app-dark .bg-slate-50\/80,
+.dark .bg-slate-50\/80 {
+  background-color: var(--ces-surface-subtle) !important;
+}
+
+.app-dark .bg-slate-100,
+.dark .bg-slate-100,
+.app-dark .\!bg-slate-100,
+.dark .\!bg-slate-100 {
+  background-color: var(--ces-surface-muted) !important;
+}
+
+.app-dark .border-slate-100,
+.app-dark .border-slate-200,
+.app-dark .border-slate-300,
+.app-dark .\!border-slate-100,
+.app-dark .\!border-slate-200,
+.app-dark .\!border-slate-300,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .\!border-slate-100,
+.dark .\!border-slate-200,
+.dark .\!border-slate-300 {
+  border-color: var(--ces-border) !important;
+}
+
+/* ==========================================================================
+   TIPOGRAFIA DO TEMA ESCURO: FONTES PRETAS / ESCURAS -> BRANCO PURO (#FFFFFF)
+   ========================================================================== */
+.app-dark .text-black,
+.dark .text-black,
+.app-dark .\!text-black,
+.dark .\!text-black,
+.app-dark .text-slate-950,
+.dark .text-slate-950,
+.app-dark .\!text-slate-950,
+.dark .\!text-slate-950,
+.app-dark .text-slate-900,
+.dark .text-slate-900,
+.app-dark .\!text-slate-900,
+.dark .\!text-slate-900,
+.app-dark .text-slate-800,
+.dark .text-slate-800,
+.app-dark .\!text-slate-800,
+.dark .\!text-slate-800,
+.app-dark .text-slate-700,
+.dark .text-slate-700,
+.app-dark .\!text-slate-700,
+.dark .\!text-slate-700,
+.app-dark .text-gray-950,
+.dark .text-gray-950,
+.app-dark .\!text-gray-950,
+.dark .\!text-gray-950,
+.app-dark .text-gray-900,
+.dark .text-gray-900,
+.app-dark .\!text-gray-900,
+.dark .\!text-gray-900,
+.app-dark .text-gray-800,
+.dark .text-gray-800,
+.app-dark .\!text-gray-800,
+.dark .\!text-gray-800,
+.app-dark .text-gray-700,
+.dark .text-gray-700,
+.app-dark .\!text-gray-700,
+.dark .\!text-gray-700,
+.app-dark .text-zinc-950,
+.dark .text-zinc-950,
+.app-dark .\!text-zinc-950,
+.dark .\!text-zinc-950,
+.app-dark .text-zinc-900,
+.dark .text-zinc-900,
+.app-dark .\!text-zinc-900,
+.dark .\!text-zinc-900,
+.app-dark .text-zinc-800,
+.dark .text-zinc-800,
+.app-dark .\!text-zinc-800,
+.dark .\!text-zinc-800,
+.app-dark .text-zinc-700,
+.dark .text-zinc-700,
+.app-dark .\!text-zinc-700,
+.dark .\!text-zinc-700,
+.app-dark .text-neutral-950,
+.dark .text-neutral-950,
+.app-dark .\!text-neutral-950,
+.dark .\!text-neutral-950,
+.app-dark .text-neutral-900,
+.dark .text-neutral-900,
+.app-dark .\!text-neutral-900,
+.dark .\!text-neutral-900,
+.app-dark .text-neutral-800,
+.dark .text-neutral-800,
+.app-dark .\!text-neutral-800,
+.dark .\!text-neutral-800,
+.app-dark .text-neutral-700,
+.dark .text-neutral-700,
+.app-dark .\!text-neutral-700,
+.dark .\!text-neutral-700 {
+  color: #ffffff !important;
+}
+
+.app-dark .text-slate-600,
+.dark .text-slate-600,
+.app-dark .text-slate-500,
+.dark .text-slate-500,
+.app-dark .\!text-slate-600,
+.dark .\!text-slate-600,
+.app-dark .\!text-slate-500,
+.dark .\!text-slate-500,
+.app-dark .text-gray-600,
+.dark .text-gray-600,
+.app-dark .text-gray-500,
+.dark .text-gray-500,
+.app-dark .\!text-gray-600,
+.dark .\!text-gray-600,
+.app-dark .\!text-gray-500,
+.dark .\!text-gray-500 {
+  color: var(--ces-foreground-muted) !important;
+}
+
+.app-dark .text-slate-400,
+.dark .text-slate-400,
+.app-dark .text-slate-300,
+.dark .text-slate-300,
+.app-dark .\!text-slate-400,
+.dark .\!text-slate-400,
+.app-dark .\!text-slate-300,
+.dark .\!text-slate-300,
+.app-dark .text-gray-400,
+.dark .text-gray-400,
+.app-dark .text-gray-300,
+.dark .text-gray-300,
+.app-dark .\!text-gray-400,
+.dark .\!text-gray-400,
+.app-dark .\!text-gray-300,
+.dark .\!text-gray-300,
+.app-dark .text-zinc-400,
+.dark .text-zinc-400,
+.app-dark .text-zinc-300,
+.dark .text-zinc-300,
+.app-dark .\!text-zinc-400,
+.dark .\!text-zinc-400,
+.app-dark .\!text-zinc-300,
+.dark .\!text-zinc-300,
+.app-dark .text-neutral-400,
+.dark .text-neutral-400,
+.app-dark .text-neutral-300,
+.dark .text-neutral-300,
+.app-dark .\!text-neutral-400,
+.dark .\!text-neutral-400,
+.app-dark .\!text-neutral-300,
+.dark .\!text-neutral-300 {
+  color: var(--ces-foreground-subtle) !important;
+}
+
+.app-dark .bg-gray-50,
+.app-dark .bg-zinc-50,
+.app-dark .bg-neutral-50,
+.app-dark .\!bg-gray-50,
+.app-dark .\!bg-zinc-50 {
+  background-color: var(--ces-surface-subtle) !important;
+}
+
+.app-dark .bg-gray-100,
+.app-dark .bg-zinc-100,
+.app-dark .bg-neutral-100,
+.app-dark .\!bg-gray-100,
+.app-dark .\!bg-zinc-100 {
+  background-color: var(--ces-surface-muted) !important;
+}
+
+.app-dark .border-gray-100,
+.app-dark .border-gray-200,
+.app-dark .border-gray-300,
+.app-dark .border-zinc-100,
+.app-dark .border-zinc-200,
+.app-dark .border-zinc-300,
+.app-dark .\!border-gray-100,
+.app-dark .\!border-gray-200,
+.app-dark .\!border-gray-300 {
+  border-color: var(--ces-border) !important;
+}
+
+.app-dark .hover\:bg-slate-50:hover,
+.app-dark .hover\:bg-slate-100:hover,
+.app-dark .hover\:bg-white:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover,
+.dark .hover\:bg-white:hover {
+  background-color: var(--ces-surface-muted) !important;
+}
+
+.app-dark .hover\:bg-primary-50:hover,
+.app-dark .hover\:bg-primary-50\/30:hover,
+.app-dark .hover\:bg-primary-50\/50:hover {
+  background-color: var(--ces-brand-soft) !important;
+}
+
+/* Universal Import Modals, Headers & Gradients Dark Adaptation */
+.app-dark [class*="bg-gradient-"],
+.app-dark .bg-gradient-to-br,
+.app-dark .bg-gradient-to-r,
+.app-dark .bg-gradient-to-b,
+.app-dark .bg-gradient-to-t,
+.app-dark .bg-gradient-to-tr,
+.app-dark .bg-gradient-to-tl,
+.app-dark .bg-gradient-to-bl {
+  background-image: none !important;
+  background-color: var(--ces-surface-subtle) !important;
+}
+
+.app-dark .from-slate-50,
+.app-dark .from-slate-100,
+.app-dark .from-white,
+.app-dark .to-slate-50,
+.app-dark .to-slate-100,
+.app-dark .to-white {
+  background-color: var(--ces-surface-subtle) !important;
+}
+
+.app-dark .bg-slate-50\/30,
+.app-dark .bg-slate-50\/50,
+.app-dark .bg-slate-100\/50 {
+  background-color: var(--ces-surface-subtle) !important;
+}
+
+.app-dark .bg-red-50,
+.app-dark .bg-red-50\/10,
+.app-dark .bg-red-50\/20,
+.app-dark .bg-red-50\/30,
+.app-dark .bg-red-50\/50 {
+  background-color: color-mix(in srgb, #dc2626 15%, var(--ces-surface)) !important;
+}
+
+.app-dark .bg-amber-50,
+.app-dark .bg-amber-50\/10,
+.app-dark .bg-amber-50\/20,
+.app-dark .bg-amber-50\/30,
+.app-dark .bg-amber-50\/50,
+.app-dark .bg-yellow-50 {
+  background-color: color-mix(in srgb, #d97706 15%, var(--ces-surface)) !important;
+}
+
+.app-dark .bg-primary-50,
+.app-dark .bg-primary-50\/10,
+.app-dark .bg-primary-50\/20,
+.app-dark .bg-primary-50\/30,
+.app-dark .bg-primary-50\/50,
+.app-dark .bg-blue-50,
+.app-dark .bg-blue-50\/50 {
+  background-color: color-mix(in srgb, var(--ces-brand) 18%, var(--ces-surface)) !important;
+}
+
+.app-dark .bg-emerald-50,
+.app-dark .bg-green-50,
+.app-dark .bg-green-50\/50 {
+  background-color: color-mix(in srgb, #059669 18%, var(--ces-surface)) !important;
+}
+
+.app-dark .border-primary-100,
+.app-dark .border-primary-200,
+.app-dark .border-primary-300,
+.app-dark .border-blue-100,
+.app-dark .border-blue-200 {
+  border-color: color-mix(in srgb, var(--ces-brand) 35%, var(--ces-border)) !important;
+}
+
+.app-dark .border-green-100,
+.app-dark .border-green-200,
+.app-dark .border-emerald-100,
+.app-dark .border-emerald-200 {
+  border-color: color-mix(in srgb, #059669 35%, var(--ces-border)) !important;
+}
+
+.app-dark .text-primary-700,
+.app-dark .text-primary-600,
+.app-dark .text-blue-700,
+.app-dark .text-blue-600,
+.app-dark .text-blue-500,
+.app-dark .\!text-primary-600,
+.app-dark .\!text-primary-700 {
+  color: var(--ces-brand, var(--p-primary-400)) !important;
+}
+
+.app-dark .border-primary-700,
+.dark .border-primary-700 {
+  border-color: var(--p-primary-500) !important;
+}
+
+.app-dark .bg-primary-700,
+.dark .bg-primary-700 {
+  background-color: var(--p-primary-500) !important;
+}
+
+.app-dark .text-red-600,
+.app-dark .text-red-700,
+.app-dark .text-red-800,
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-red-800 {
+  color: #f87171 !important;
+}
+
+.app-dark .text-amber-600,
+.app-dark .text-amber-700,
+.app-dark .text-amber-800,
+.app-dark .text-orange-600,
+.dark .text-amber-600,
+.dark .text-amber-700,
+.dark .text-amber-800,
+.dark .text-orange-600 {
+  color: #fbbf24 !important;
+}
+
+.app-dark .text-green-700,
+.app-dark .text-green-600,
+.app-dark .text-emerald-700,
+.app-dark .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+/* Help Dialog Dark Adaptation */
+.app-dark .help-icon {
+  background-color: var(--ces-surface-subtle) !important;
+  border-color: var(--ces-border) !important;
+  color: var(--ces-foreground-muted) !important;
+}
+
+.app-dark .help-section-title {
+  border-color: var(--ces-border) !important;
+  color: var(--ces-brand) !important;
+}
+
+.app-dark .help-text-title {
+  color: var(--ces-foreground) !important;
+}
+
+.app-dark .help-text-desc {
+  color: var(--ces-foreground-muted) !important;
+}
+
+/* ==========================================================================
+   DIALOGS & OVERLAYS UNIVERSAL ADAPTATION
+   Garante contraste perfeito e legibilidade em caixas de diálogo no tema claro e escuro.
+   ========================================================================== */
+.p-dialog,
+.custom-dialog,
+.ces-dialog,
+.p-confirmdialog,
+.p-confirm-dialog {
+  background-color: var(--ces-surface) !important;
+  color: var(--ces-foreground) !important;
+}
+
+.p-dialog .p-dialog-header,
+.p-dialog-header {
+  background-color: var(--ces-surface) !important;
+  color: var(--ces-foreground) !important;
+  border-bottom: 1px solid var(--ces-border) !important;
+  padding: 1.25rem 1.5rem !important;
+}
+
+.p-dialog .p-dialog-title,
+.p-dialog-title {
+  color: var(--ces-foreground) !important;
+  font-weight: 700 !important;
+}
+
+.p-dialog .p-dialog-content,
+.p-dialog-content {
+  background-color: var(--ces-surface) !important;
+  color: var(--ces-foreground) !important;
+  padding: 1.25rem 1.5rem !important;
+}
+
+.p-dialog .p-dialog-footer,
+.p-dialog-footer {
+  background-color: var(--ces-surface) !important;
+  color: var(--ces-foreground) !important;
+  border-top: 1px solid var(--ces-border) !important;
+  padding: 1.25rem 1.5rem !important;
+}
+
+.ces-dialog-shell .p-dialog-footer:not(:has([dialog-footer])),
+.ces-dialog-shell .p-dialog-footer:has(.ces-dialog-shell__footer:empty),
+.ces-dialog .p-dialog-footer:has(.ces-dialog-shell__footer:empty),
+.p-dialog-footer:empty {
+  display: none !important;
+}
+
+.p-confirmdialog-message,
+.p-confirm-dialog-message,
+.p-dialog-message {
+  color: var(--ces-foreground-muted, #475569) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.6 !important;
+  word-break: break-word !important;
+}
+
+/* Modo Escuro específico para diálogos */
+.app-dark .p-dialog,
+.app-dark .custom-dialog,
+.app-dark .ces-dialog,
+.app-dark .p-confirmdialog,
+.app-dark .p-confirm-dialog {
+  background-color: var(--ces-surface) !important;
+  color: var(--ces-foreground) !important;
+  border-color: var(--ces-border) !important;
+}
+
+.app-dark .p-dialog .p-dialog-header,
+.app-dark .p-dialog-header {
+  background-color: var(--ces-surface) !important;
+  color: var(--ces-foreground) !important;
+  border-color: var(--ces-border) !important;
+}
+
+.app-dark .p-dialog .p-dialog-title,
+.app-dark .p-dialog-title {
+  color: var(--ces-foreground) !important;
+}
+
+.app-dark .p-dialog .p-dialog-content,
+.app-dark .p-dialog-content {
+  background-color: var(--ces-surface) !important;
+  color: var(--ces-foreground) !important;
+}
+
+.app-dark .p-dialog .p-dialog-footer,
+.app-dark .p-dialog-footer {
+  background-color: var(--ces-surface) !important;
+  color: var(--ces-foreground) !important;
+  border-color: var(--ces-border) !important;
+}
+
+.app-dark .p-dialog h1,
+.app-dark .p-dialog h2,
+.app-dark .p-dialog h3,
+.app-dark .p-dialog h4,
+.app-dark .p-dialog h5,
+.app-dark .p-dialog h6 {
+  color: var(--ces-foreground) !important;
+}
+
+.app-dark .p-dialog label,
+.app-dark .p-dialog .filter-label,
+.app-dark .p-dialog .form-label,
+.app-dark .p-dialog label.filter-label {
+  color: var(--ces-foreground-muted) !important;
+}
+
+.app-dark .p-dialog input:not(.p-button):not([type='checkbox']):not([type='radio']),
+.app-dark .p-dialog textarea,
+.app-dark .p-dialog .p-inputtext,
+.app-dark .p-dialog .custom-input {
+  background-color: var(--ces-surface-subtle) !important;
+  border-color: var(--ces-border) !important;
+  color: var(--ces-foreground) !important;
+}
+
+.app-dark .p-dialog input::placeholder,
+.app-dark .p-dialog textarea::placeholder {
+  color: var(--ces-foreground-subtle) !important;
+}
+
+.app-dark .p-dialog .p-select,
+.app-dark .p-dialog .p-multiselect,
+.app-dark .p-dialog .p-datepicker {
+  background-color: var(--ces-surface-subtle) !important;
+  border-color: var(--ces-border) !important;
+  color: var(--ces-foreground) !important;
+}
+
+.app-dark .p-dialog .p-select-label,
+.app-dark .p-dialog .p-multiselect-label {
+  color: var(--ces-foreground) !important;
+}
+
+.app-dark .p-dialog .minimalist-table .p-datatable-thead > tr > th,
+.app-dark .p-dialog .p-datatable-thead > tr > th {
+  background-color: var(--ces-surface-subtle) !important;
+  color: var(--ces-foreground-subtle) !important;
+  border-color: var(--ces-border) !important;
+}
+
+.app-dark .p-dialog .minimalist-table .p-datatable-tbody > tr,
+.app-dark .p-dialog .p-datatable-tbody > tr {
+  background-color: transparent !important;
+  color: var(--ces-foreground) !important;
+  border-color: var(--ces-border) !important;
+}
+
+.app-dark .p-dialog .minimalist-table .p-datatable-tbody > tr:hover,
+.app-dark .p-dialog .p-datatable-tbody > tr:hover {
+  background-color: var(--ces-surface-muted) !important;
+}
+
+.app-dark .p-dialog .minimalist-table .p-datatable-tbody > tr > td,
+.app-dark .p-dialog .p-datatable-tbody > tr > td {
+  color: var(--ces-foreground) !important;
+  border-color: var(--ces-border) !important;
+}
+
+.app-dark .p-confirmdialog-message,
+.app-dark .p-confirm-dialog-message,
+.app-dark .p-dialog-message {
+  color: var(--ces-foreground) !important;
+}
+
+/* Dark Mode Subtle Shadows - Eliminates heavy black halos */
+.app-dark .shadow-xs,
+.app-dark .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.15) !important;
+}
+
+.app-dark .shadow,
+.app-dark .shadow-md {
+  box-shadow: 0 4px 12px 0 rgb(0 0 0 / 0.22) !important;
+}
+
+.app-dark .shadow-lg,
+.app-dark .shadow-xl,
+.app-dark .shadow-2xl {
+  box-shadow: 0 8px 24px 0 rgb(0 0 0 / 0.32) !important;
+}
+
+/* High Contrast Global Form Labels */
+.app-dark .filter-label,
+.app-dark label.filter-label,
+.app-dark .field label,
+.app-dark .dash-field label,
+.app-dark label.form-label {
+  color: var(--ces-foreground-muted) !important;
+}
+
+/* Stepper panels transparent in dark mode */
+.app-dark p-step-panels,
+.app-dark .p-steppanels,
+.app-dark .p-step-panels,
+.app-dark .p-stepper-panels,
+.app-dark p-step-panel,
+.app-dark .p-steppanel,
+.app-dark .p-step-panel,
+.app-dark .p-stepper-panel {
+  background: transparent !important;
+  color: var(--ces-foreground) !important;
+}
+
+/* Universal Logo Dark Mode Replacement (Crisp White Arcs + Brand Red) */
+.app-dark img[src*="logo_vertical.svg"],
+.app-dark img[src*="logo.svg"] {
+  content: url('/logo_vertical_dark.svg') !important;
+}
+
+/* Form Controls Zero Shadow */
+.p-inputtext,
+input.p-inputtext,
+.p-select,
+.p-multiselect,
+.p-datepicker,
+.p-datepicker-input,
+.custom-input,
+.custom-select,
+.custom-date {
+  box-shadow: none !important;
+}
+
+@media print {
+  app-header,
+  app-sidebar,
+  app-mural-host,
+  app-atualizacao-disponivel,
+  p-toast,
+  p-confirmdialog {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
+/* O selo textual identifica a entrada do assistente no menu lateral. */
+.ces-sidebar-destaque { border: 1px solid color-mix(in srgb, var(--ces-brand) 28%, transparent); }
+.ces-sidebar-badge {
+  margin-inline-start: auto;
+  padding: 0.0625rem 0.4rem;
+  border-radius: 999px;
+  background: var(--ces-brand-soft);
+  color: var(--ces-brand);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+/* Notificações e Comunicados - Form Shells & Cards Dark Mode */
+.app-dark .form-shell,
+.dark .form-shell {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+.app-dark .form-shell__header,
+.dark .form-shell__header {
+  border-bottom-color: #1e293b !important;
+}
+
+.app-dark .choice-card,
+.dark .choice-card {
+  border-color: #334155 !important;
+  background: #0f172a !important;
+}
+
+.app-dark .choice-card:hover,
+.dark .choice-card:hover {
+  border-color: var(--p-primary-700) !important;
+  background: color-mix(in srgb, var(--p-primary-700) 8%, transparent) !important;
+}
+
+.app-dark .choice-card--active,
+.dark .choice-card--active {
+  border-color: var(--p-primary-700) !important;
+  background: color-mix(in srgb, var(--p-primary-700) 12%, transparent) !important;
+  box-shadow: 0 0 0 1px var(--p-primary-700) inset !important;
+}
+
+.app-dark .choice-card__title,
+.dark .choice-card__title {
+  color: #ffffff !important;
+}
+
+.app-dark .choice-card__desc,
+.dark .choice-card__desc {
+  color: #94a3b8 !important;
+}
+
+.app-dark .choice-card__icon,
+.dark .choice-card__icon {
+  border-color: #334155 !important;
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+.app-dark .choice-card--active .choice-card__icon,
+.dark .choice-card--active .choice-card__icon {
+  border-color: var(--p-primary-700) !important;
+  background: #0f172a !important;
+  color: var(--p-primary-700) !important;
+}
+
+.app-dark .repeat-row,
+.dark .repeat-row {
+  border-color: #334155 !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+.app-dark .repeat-empty,
+.dark .repeat-empty {
+  border-color: #334155 !important;
+  color: #64748b !important;
+  background: #0f172a !important;
+}
+
+.app-dark .review-card,
+.dark .review-card {
+  border-color: #334155 !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+.app-dark .review-card > span,
+.dark .review-card > span {
+  color: var(--p-primary-700) !important;
+}
+
+.app-dark .review-card p,
+.dark .review-card p {
+  color: #ffffff !important;
+}
+.app-dark .p-inputnumber-button,
+.dark .p-inputnumber-button {
+  background: var(--p-primary-700) !important;
+  color: #ffffff !important;
+  border-color: var(--p-primary-700) !important;
+}
+
+/* ==========================================================================
+   TABLE FOOTER DARK MODE ADAPTATION
+   ========================================================================== */
+.app-dark .p-datatable-tfoot,
+.dark .p-datatable-tfoot,
+.app-dark .p-datatable-tfoot > tr,
+.dark .p-datatable-tfoot > tr,
+.app-dark .p-datatable-tfoot > tr > td,
+.dark .p-datatable-tfoot > tr > td,
+.app-dark tfoot,
+.dark tfoot,
+.app-dark tfoot > tr,
+.dark tfoot > tr,
+.app-dark tfoot > tr > td,
+.dark tfoot > tr > td {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: var(--ces-border) !important;
+}
+
+
+/*
+ * Rotas `fullBleed` (dashboards com Copiloto contextual): o <main> do shell não rola; quem rola é a área
+ * do dashboard. Para isso a altura precisa chegar até ela — o componente roteado vira bloco com a altura
+ * do <main>, sem depender de cada dashboard declarar `:host { height: 100% }`.
+ */
+main.ces-main--full-bleed > :not(router-outlet) {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}

@@ -1,0 +1,292 @@
+// Design system do Nexo Campo — base de plataforma e primitivas globais.
+// Componentes com comportamento ficam em src/app/ui; aqui só o que é CSS puro.
+//
+// É um mixin incluído DEPOIS do Tailwind em styles.scss: o reset do Tailwind
+// (`button, [type='button'] { background-color: transparent }`) tem a mesma
+// especificidade das classes daqui e, vindo depois, apagava o fundo dos botões.
+@mixin estilos {
+
+// ---------- plataforma (cada linha remove um "isto é um site") ----------
+html {
+  -webkit-tap-highlight-color: transparent; // sem flash cinza no toque
+  -webkit-text-size-adjust: 100%;           // sem inflar fonte no paisagem
+  overscroll-behavior: none;                // o app controla a rolagem; nada de puxar-para-atualizar da página
+  background: var(--ces-fundo);
+}
+
+body {
+  margin: 0;
+  background: var(--ces-fundo);
+  color: var(--ces-texto);
+  font: var(--ces-t-corpo);
+  -webkit-font-smoothing: antialiased;
+}
+
+// iOS amplia a página em campo com fonte < 16 px (e não volta). Corrige a causa, sem bloquear zoom.
+input, textarea, select { font-size: max(16px, 1em); }
+
+button, a, [role='button'], [role='tab'], .ces-tocavel {
+  touch-action: manipulation; // sem atraso de 300 ms
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ces-destaque);
+  outline-offset: 2px;
+}
+
+.ces-num { font-variant-numeric: tabular-nums; }
+
+.ces-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+// ---------- botões ----------
+.ces-btn {
+  appearance: none;
+  border: 0;
+  border-radius: var(--ces-r-campo);
+  min-height: var(--ces-alvo);
+  padding: 0 var(--ces-e5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ces-e2);
+  font: 600 0.9375rem/1 var(--ces-fonte);
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 100ms var(--ces-curva), background-color 100ms, opacity 100ms;
+
+  &:active:not(:disabled) { transform: scale(.97); }
+  &:disabled { opacity: .45; cursor: default; }
+
+  &--principal { background: var(--ces-destaque); color: var(--ces-destaque-texto); }
+  &--principal:active:not(:disabled) { background: var(--ces-destaque-pressionado); }
+  &--tonal { background: var(--ces-destaque-suave); color: var(--ces-destaque); }
+  &--neutro { background: var(--ces-superficie-2); color: var(--ces-texto); }
+  &--texto { background: transparent; color: var(--ces-destaque); padding: 0 var(--ces-e3); }
+  &--perigo { background: var(--ces-erro-suave); color: var(--ces-erro); }
+  &--bloco { width: 100%; min-height: var(--ces-alvo-principal); font-size: 1rem; }
+  &--compacto { min-height: 40px; padding: 0 var(--ces-e3); font-size: .875rem; }
+}
+
+.ces-btn-icone {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ces-texto);
+  width: var(--ces-alvo);
+  height: var(--ces-alvo);
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background-color 100ms;
+  &:active { background: var(--ces-superficie-2); }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ces-btn--principal:hover:not(:disabled) { background: var(--ces-destaque-pressionado); }
+  .ces-btn--neutro:hover:not(:disabled), .ces-btn-icone:hover { background: var(--ces-linha); }
+}
+
+// ---------- campos ----------
+.ces-campo {
+  display: grid;
+  gap: var(--ces-e2);
+
+  > label, .ces-campo__rotulo { font: 500 0.8125rem/1.3 var(--ces-fonte); color: var(--ces-texto-2); }
+  .ces-campo__ajuda { font: var(--ces-t-apoio); color: var(--ces-texto-2); }
+  .ces-campo__erro { font: var(--ces-t-apoio); color: var(--ces-erro); display: flex; gap: var(--ces-e1); align-items: center; }
+}
+
+.ces-input {
+  appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--ces-alvo-principal);
+  padding: 0 var(--ces-e4);
+  border-radius: var(--ces-r-campo);
+  border: 1.5px solid var(--ces-linha-forte);
+  background: var(--ces-superficie);
+  color: var(--ces-texto);
+  font: var(--ces-t-corpo);
+  font-size: 1rem;
+  transition: border-color 100ms;
+
+  &::placeholder { color: var(--ces-texto-3); }
+  &:focus { outline: none; border-color: var(--ces-destaque); box-shadow: 0 0 0 3px var(--ces-destaque-suave); }
+  &[aria-invalid='true'] { border-color: var(--ces-erro); }
+  &--grande { font: var(--ces-t-campo); letter-spacing: .02em; font-variant-numeric: tabular-nums; min-height: 60px; }
+}
+
+// ---------- listas agrupadas ----------
+.ces-secao {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--ces-e5) var(--ces-e5) var(--ces-e2);
+  font: var(--ces-t-secao);
+  color: var(--ces-texto-2);
+  margin: 0;
+}
+
+.ces-grupo {
+  // Nunca encolher dentro de colunas flex: o overflow:hidden cortaria as linhas.
+  flex-shrink: 0;
+  background: var(--ces-superficie);
+  margin: 0 var(--ces-e3);
+  border-radius: var(--ces-r-grupo);
+  overflow: hidden;
+  list-style: none;
+  padding: 0;
+}
+
+// Linha de lista: a unidade básica de quase toda tela.
+.ces-linha {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ces-e3);
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 60px;
+  padding: var(--ces-e3) var(--ces-e4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  text-decoration: none;
+
+  &--acao { cursor: pointer; transition: background-color 100ms; }
+  &--acao:active { background: var(--ces-superficie-2); }
+
+  .ces-linha__texto { flex: 1; min-width: 0; display: grid; gap: 1px; }
+  .ces-linha__titulo { font: var(--ces-t-corpo-forte); overflow-wrap: anywhere; }
+  .ces-linha__apoio { font: var(--ces-t-apoio); color: var(--ces-texto-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  // Texto descritivo de até duas linhas (nomes de serviço costumam ser longos).
+  .ces-linha__resumo { font: var(--ces-t-apoio); color: var(--ces-texto); overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+}
+
+// Separador fino entre linhas vizinhas (irmãs diretas ou dentro de <li>), recuado como no Android.
+.ces-linha + .ces-linha::before,
+li + li > .ces-linha::before {
+  content: ''; position: absolute; top: 0; left: var(--ces-e4); right: 0; height: 1px; background: var(--ces-linha);
+}
+
+// Ícone em quadro arredondado à esquerda de uma linha.
+.ces-selo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--ces-superficie-2);
+  color: var(--ces-texto-2);
+
+  &--destaque { background: var(--ces-destaque-suave); color: var(--ces-destaque); }
+  &--ok { background: var(--ces-ok-suave); color: var(--ces-ok); }
+  &--atencao { background: var(--ces-atencao-suave); color: var(--ces-atencao); }
+  &--erro { background: var(--ces-erro-suave); color: var(--ces-erro); }
+}
+
+// ---------- listas ----------
+.ces-esqueletos { display: grid; gap: var(--ces-e2); padding: var(--ces-e4); }
+// Listas longas: o navegador pula o trabalho das linhas fora da tela.
+.ces-linha-lista { content-visibility: auto; contain-intrinsic-size: auto 72px; }
+.ces-respiro { height: 96px; }
+button.ces-linha { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; }
+button.ces-linha:disabled { cursor: default; opacity: .55; }
+// Botão de ação principal flutuante (canto inferior direito, acima das abas).
+.ces-fab {
+  // Fixo acima da barra de abas: com lista curta não pode ficar no meio da tela.
+  position: fixed; right: var(--ces-e4); bottom: calc(var(--ces-barra-abas) + var(--ces-safe-base) + var(--ces-e4)); z-index: 6;
+  display: inline-flex; align-items: center; gap: var(--ces-e2); min-height: 56px; padding: 0 var(--ces-e5) 0 var(--ces-e4);
+  border-radius: 16px; background: var(--ces-destaque); color: var(--ces-destaque-texto); font: 600 1rem/1 var(--ces-fonte);
+  text-decoration: none; box-shadow: var(--ces-sombra-flutuante); border: 0; cursor: pointer;
+  &:active { transform: scale(.97); }
+}
+// Faixa de estado no topo de um detalhe (enviado, na fila, com problema…).
+.ces-faixa-estado {
+  display: flex; align-items: center; gap: var(--ces-e3); margin: var(--ces-e2) var(--ces-e3) 0; padding: var(--ces-e3) var(--ces-e4);
+  border-radius: var(--ces-r-grupo); background: var(--ces-superficie);
+  p { margin: 0; flex: 1; font: var(--ces-t-apoio); font-size: .875rem; color: var(--ces-texto-2); }
+  &--atencao { background: var(--ces-atencao-suave); p { color: var(--ces-texto); } }
+  &--erro { background: var(--ces-erro-suave); p { color: var(--ces-texto); } }
+}
+// Pares rótulo/valor de um detalhe.
+.ces-dados {
+  margin: var(--ces-e2) var(--ces-e3) 0; padding: var(--ces-e1) var(--ces-e4); background: var(--ces-superficie); border-radius: var(--ces-r-grupo);
+  > div { padding: var(--ces-e3) 0; border-bottom: 1px solid var(--ces-linha); }
+  > div:last-child { border-bottom: 0; }
+  dt { font: var(--ces-t-apoio); color: var(--ces-texto-2); }
+  dd { margin: 2px 0 0; font: var(--ces-t-corpo-forte); overflow-wrap: anywhere; }
+}
+// Rodapé fixo de ações de uma tela de detalhe/fluxo.
+.ces-rodape-acoes {
+  // Fixo no pé da tela (telas de detalhe não têm abas); o conteúdo reserva espaço com .ces-respiro.
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; gap: var(--ces-e3);
+  padding: var(--ces-e3) var(--ces-e4) calc(var(--ces-e3) + var(--ces-safe-base)); background: var(--ces-fundo); border-top: 1px solid var(--ces-linha);
+  .ces-btn { flex: 1; min-height: var(--ces-alvo-principal); font-size: 1rem; }
+}
+.ces-folha-rodape { display: flex; gap: var(--ces-e3); padding: var(--ces-e3) var(--ces-e4) 0; .ces-btn { flex: 1; min-height: var(--ces-alvo-principal); } }
+// Etiqueta de situação (aprovado, pendente, aberto…) usada em listas de dados do servidor.
+.ces-etiqueta {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--ces-r-pilula); flex: none;
+  font: 600 .75rem/1.3 var(--ces-fonte); background: var(--ces-superficie-2); color: var(--ces-texto-2); white-space: nowrap;
+  &--ok { background: var(--ces-ok-suave); color: var(--ces-ok); }
+  &--atencao { background: var(--ces-atencao-suave); color: var(--ces-atencao); }
+  &--erro { background: var(--ces-erro-suave); color: var(--ces-erro); }
+  &--destaque { background: var(--ces-destaque-suave); color: var(--ces-destaque); }
+}
+
+// ---------- números e tipos de item (para quem não é do escritório) ----------
+// Quantidade em destaque, à direita da linha: o número é a informação principal.
+.ces-qtd {
+  font: 700 1.375rem/1 var(--ces-fonte);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: none;
+  small { font: 600 .875rem/1 var(--ces-fonte); color: var(--ces-texto-2); margin-left: 2px; }
+}
+
+// Título de seção com marca colorida e contagem: serviço (azul), aplicado (verde), retirado (âmbar).
+.ces-secao--marcada {
+  display: flex; align-items: center; gap: var(--ces-e2);
+  .ces-contagem { margin-left: auto; font-weight: 700; color: var(--ces-texto); font-variant-numeric: tabular-nums; }
+}
+.ces-marca {
+  width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; flex: none;
+  background: var(--ces-superficie-2); color: var(--ces-texto-2);
+  &--servico { background: var(--ces-destaque-suave); color: var(--ces-destaque); }
+  &--aplicado { background: var(--ces-ok-suave); color: var(--ces-ok); }
+  &--retirado { background: var(--ces-atencao-suave); color: var(--ces-atencao); }
+}
+// Condição do material: novo (verde) ou sucata (âmbar), escrito por extenso.
+.ces-cond { font-weight: 600; color: var(--ces-ok); &--sucata { color: var(--ces-atencao); } }
+.ces-ajuda-secao { margin: -4px var(--ces-e5) var(--ces-e2); font: var(--ces-t-apoio); color: var(--ces-texto-2); }
+
+// ---------- esqueleto de carregamento ----------
+.ces-esqueleto {
+  background: linear-gradient(90deg, var(--ces-superficie-2) 0%, var(--ces-linha) 50%, var(--ces-superficie-2) 100%);
+  background-size: 200% 100%;
+  animation: ces-brilho 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes ces-brilho {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ces-esqueleto { animation: none; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+}

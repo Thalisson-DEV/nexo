@@ -1,0 +1,66 @@
+<div class="flex flex-col h-screen overflow-hidden bg-[var(--ces-canvas)] text-[var(--ces-foreground)] font-sans print:h-auto print:overflow-visible" [class.!bg-white]="hideLayout()" [class.dark:!bg-[var(--ces-canvas)]]="hideLayout()">
+  <p-toast class="print:hidden"></p-toast>
+  @if (auth.isAuthenticated()) {
+    <p-confirmDialog
+      class="print:hidden"
+      header="Confirmação"
+      styleClass="ces-dialog ces-confirm-dialog"
+    ></p-confirmDialog>
+  }
+  @if (auth.isAuthenticated() && !hideLayout()) {
+    <app-header
+      class="print:hidden"
+      [isMobile]="isMobile()"
+      [menuItems]="menuItems()"
+      (toggleMenu)="toggleMenu()"
+      (logout)="logout()"
+    ></app-header>
+
+    <app-mural-host class="print:hidden"></app-mural-host>
+    <app-sessao-reautenticacao></app-sessao-reautenticacao>
+
+    <div class="flex flex-grow min-h-0 relative print:block">
+      @if (menuVisible() && isMobile()) {
+        <div
+          class="fixed inset-0 bg-slate-900/50 backdrop-blur-[2px] z-40 lg:hidden animate-in fade-in duration-300 print:hidden"
+          (click)="toggleMenu()"
+        ></div>
+      }
+
+      <app-sidebar
+        class="print:hidden"
+        [isMobile]="isMobile()"
+        [menuVisible]="menuVisible()"
+        [menuItems]="menuItems()"
+        (toggleMenu)="toggleMenu()"
+        (expandAndFocus)="expandAndFocus($event)"
+      ></app-sidebar>
+
+      <div class="flex-grow flex flex-col min-w-0 overflow-hidden relative print:overflow-visible">
+        <main appScrollMemory="main" class="flex-grow overflow-y-auto bg-[var(--ces-canvas)] p-4 lg:p-6 custom-scrollbar print:overflow-visible print:h-auto print:p-0" [class.ces-main--full-bleed]="layoutFullBleed()" [class.!p-0]="layoutFullBleed()" [class.!overflow-hidden]="layoutFullBleed()">
+          <router-outlet></router-outlet>
+        </main>
+      </div>
+    </div>
+  } @else {
+    <main appScrollMemory="tela-cheia" class="w-full h-full overflow-y-auto bg-white dark:bg-[var(--ces-canvas)] print:h-auto print:overflow-visible relative">
+      @if (activeDataSource(); as ds) {
+        <ces-report-navigator
+          [dataSource]="ds"
+          [currentId]="currentRouteId()"
+          [opened]="reportNavigatorOpen()"
+          (openedChange)="reportNavigatorOpen.set($event)"
+        ></ces-report-navigator>
+        <div class="report-content-container md:pl-14 print:pl-0">
+          <router-outlet></router-outlet>
+        </div>
+      } @else {
+        <router-outlet></router-outlet>
+      }
+    </main>
+  }
+  
+  <!-- Fora de qualquer @if: a aba com build antigo quebra igual em tela logada, na de
+       login e nos relatórios em tela cheia. Quem decide se aparece é o serviço. -->
+  <app-atualizacao-disponivel class="print:hidden"></app-atualizacao-disponivel>
+</div>

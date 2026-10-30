@@ -1,0 +1,650 @@
+<div class="flex flex-col gap-4 pb-28">
+  <div class="flex justify-between items-center">
+    <p-breadcrumb [model]="breadcrumb" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button icon="pi pi-arrow-left" label="Voltar para a lista" [text]="true" severity="secondary"
+      (onClick)="sair()" styleClass="!text-slate-400 !text-[10px] !font-medium" />
+  </div>
+
+  @if (carregando()) {
+    <div class="bg-white rounded-2xl border border-slate-100 min-h-96 flex flex-col items-center justify-center gap-3">
+      <p-progress-spinner strokeWidth="3" [style]="{ width: '36px', height: '36px' }" />
+      <span class="text-[11px] text-slate-400">Carregando a regra...</span>
+    </div>
+  } @else {
+    <div class="form-shell max-w-4xl w-full mx-auto">
+      <div class="form-shell__header">
+        <div class="flex items-center gap-2 mb-3">
+          <i class="pi pi-bolt text-primary-700 text-xs"></i>
+          <span class="text-[10px] font-medium text-gray-500 uppercase tracking-widest">
+            {{ edicao() ? 'Editar regra' : 'Nova regra' }}
+          </span>
+        </div>
+        <h1 class="text-base font-medium text-slate-800">Quando avisar quem, e com que texto</h1>
+        <p class="text-[11px] text-slate-400 mt-1">
+          Escolha o evento que o sistema observa, escreva a mensagem, defina quem recebe e ajuste a
+          frequência antes de gravar.
+        </p>
+      </div>
+
+      <div class="form-shell__body">
+        <p-stepper [(value)]="activeStep">
+          <p-step-list>
+            <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(1)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-flag text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Gatilho</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(2)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-comment text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Mensagem</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="3" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(3)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-users text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Quem recebe</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="4" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(4)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-clock text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Disparo</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="5" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(5)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-eye text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Revisão</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="6" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" [disabled]="true">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"><i class="pi pi-check text-[10px]"></i></span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Concluído</span>
+                </button>
+              </ng-template>
+            </p-step>
+          </p-step-list>
+
+          <p-step-panels>
+            <!-- 1. GATILHO -->
+            <p-step-panel [value]="1">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-4">
+                  @if (edicao()) {
+                    <div class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <i class="pi pi-lock mt-0.5 text-xs text-amber-600"></i>
+                      <span class="text-[10px] leading-relaxed text-amber-700">
+                        O gatilho não muda depois que a regra existe. Trocá-lo invalidaria de uma vez as
+                        condições, os papéis e as variáveis usadas nos textos.
+                      </span>
+                    </div>
+                  } @else {
+                    <p class="text-[11px] text-slate-500">
+                      O gatilho é o evento que o sistema fica observando. Ele decide quais informações
+                      ficam disponíveis para o texto e para as condições.
+                    </p>
+                  }
+
+                  <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    @for (gatilho of gatilhos(); track gatilho.chave) {
+                      <button type="button" class="choice-card"
+                        [class.choice-card--active]="gatilhoAtual()?.chave === gatilho.chave"
+                        [disabled]="edicao() && gatilhoAtual()?.chave !== gatilho.chave"
+                        [class.opacity-40]="edicao() && gatilhoAtual()?.chave !== gatilho.chave"
+                        (click)="escolherGatilho(gatilho)">
+                        <span class="choice-card__icon"><i [class]="iconeGatilho(gatilho)" class="text-xs"></i></span>
+                        <span class="min-w-0">
+                          <span class="choice-card__title">{{ gatilho.nome }}</span>
+                          <span class="choice-card__desc">{{ gatilho.descricao }}</span>
+                          <span class="mt-1.5 inline-flex items-center gap-1 rounded bg-white px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-slate-500 border border-slate-200">
+                            {{ gatilho.modoRotulo }}
+                          </span>
+                        </span>
+                      </button>
+                    } @empty {
+                      <div class="repeat-empty md:col-span-2">
+                        Nenhum gatilho disponível no catálogo do servidor.
+                      </div>
+                    }
+                  </div>
+
+                  <div class="flex justify-end mt-3">
+                    <p-button label="MENSAGEM" icon="pi pi-arrow-right" iconPos="right" (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 2. MENSAGEM -->
+            <p-step-panel [value]="2">
+              <ng-template #content>
+                <form [formGroup]="form" class="mt-6 flex flex-col gap-6">
+                  <div>
+                    <div class="section-marker"><span>Identificação</span></div>
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:pl-5">
+                      <div class="field md:col-span-2">
+                        <label for="nome">Nome da regra *</label>
+                        <input id="nome" pInputText formControlName="nome" maxlength="120" class="custom-input"
+                          size="small" placeholder="Ex.: Avisar aprovadores de desconto" />
+                        <div class="field-meta">
+                          <span class="form-error">@if (form.controls.nome.touched && form.controls.nome.invalid) { Informe o nome. }</span>
+                          <span>{{ form.controls.nome.value.length }}/120</span>
+                        </div>
+                      </div>
+                      <div class="field md:col-span-2">
+                        <label for="descricao">Descrição</label>
+                        <input id="descricao" pInputText formControlName="descricao" maxlength="500"
+                          class="custom-input" size="small" placeholder="Para que serve esta regra" />
+                      </div>
+                      <div class="field">
+                        <label for="categoria">Categoria</label>
+                        <p-select inputId="categoria" formControlName="categoria" [options]="categoriaOptions"
+                          optionLabel="label" optionValue="value" placeholder="Padrão do gatilho" [showClear]="true"
+                          class="custom-select" size="small" appendTo="body" />
+                        <span class="field-help">Define em qual preferência o usuário pode desligar este aviso.</span>
+                      </div>
+                      <div class="field">
+                        <label for="prioridade">Prioridade</label>
+                        <p-select inputId="prioridade" formControlName="prioridade" [options]="prioridadeOptions"
+                          optionLabel="label" optionValue="value" placeholder="Normal" [showClear]="true"
+                          class="custom-select" size="small" appendTo="body" />
+                        <span class="field-help">Crítica ignora a preferência do usuário e sempre é entregue.</span>
+                      </div>
+
+                      <div class="md:col-span-2 flex items-start gap-3 rounded-xl bg-slate-50 p-3">
+                        <p-toggleswitch inputId="enviarEmail" formControlName="enviarEmail"
+                          ariaLabel="Também enviar por e-mail" />
+                        <label for="enviarEmail" class="flex flex-col gap-0.5">
+                          <span class="text-[11px] font-medium text-slate-700">Também enviar por e-mail</span>
+                          @if (permiteEmail()) {
+                            <span class="text-[10px] leading-relaxed text-slate-500">
+                              O sininho continua valendo. O e-mail alcança quem não vai abrir o sistema hoje —
+                              e cada pessoa ainda pode desligar a categoria nas próprias preferências.
+                            </span>
+                          } @else {
+                            <span class="text-[10px] leading-relaxed text-amber-700">
+                              Avisos de marcação existem dentro da aplicação e não são enviados por e-mail.
+                            </span>
+                          }
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Texto do aviso</span></div>
+                    <div class="flex flex-col gap-4 md:pl-5">
+                      @if (variaveis().length > 0) {
+                        <div class="hint-box">
+                          <i class="pi pi-lightbulb mt-0.5 text-xs text-primary-700"></i>
+                          <div class="flex flex-col gap-2">
+                            <p class="text-[10px] leading-relaxed text-slate-800 dark:text-primary-700">
+                              <strong>Variáveis</strong> são espaços que o sistema preenche na hora de enviar. Você
+                              escreve o nome entre chaves e ele vira o valor real do registro.
+                            </p>
+                            <p class="text-[10px] leading-relaxed text-slate-800 dark:text-primary-700">
+                              Exemplo: escrevendo
+                              <code class="hint-code">Já são {{ placeholder('total') }} descontos parados</code>,
+                              quem receber lê <em>"Já são 7 descontos parados"</em>.
+                            </p>
+                            <ul class="flex flex-col gap-1">
+                              @for (variavel of variaveis(); track variavel) {
+                                <li class="flex flex-wrap items-baseline gap-1.5 text-[10px] text-slate-800 dark:text-primary-700">
+                                  <code class="hint-code">{{ placeholder(variavel) }}</code>
+                                  @if (dica(variavel); as explicacao) {
+                                    <span class="text-slate-600 dark:text-primary-700/80">{{ explicacao }}</span>
+                                  } @else {
+                                    <span class="text-slate-600 dark:text-primary-700/80">valor de "{{ variavel }}" no registro</span>
+                                  }
+                                </li>
+                              }
+                            </ul>
+                            <p class="text-[9px] italic text-slate-500 dark:text-primary-700/70">
+                              Clique num botão "+" para inserir a variável no campo. Só estas existem neste gatilho —
+                              qualquer outra é recusada ao salvar.
+                            </p>
+                          </div>
+                        </div>
+                      }
+
+                      <div class="field">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                          <label for="tituloTemplate">Título *</label>
+                          <div class="flex flex-wrap gap-1">
+                            @for (variavel of variaveis(); track variavel) {
+                              <button type="button" class="var-chip" [pTooltip]="dica(variavel) || variavel"
+                                (click)="inserirVariavel('tituloTemplate', variavel)">
+                                + {{ variavel }}
+                              </button>
+                            }
+                          </div>
+                        </div>
+                        <input id="tituloTemplate" pInputText formControlName="tituloTemplate" maxlength="150"
+                          class="custom-input" size="small" placeholder="Ex.: Novo desconto aguardando aprovação" />
+                        <div class="field-meta">
+                          <span class="form-error">@if (form.controls.tituloTemplate.touched && form.controls.tituloTemplate.invalid) { Informe o título. }</span>
+                          <span>{{ form.controls.tituloTemplate.value.length }}/150</span>
+                        </div>
+                      </div>
+
+                      <div class="field">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                          <label for="corpoTemplate">Corpo *</label>
+                          <div class="flex flex-wrap gap-1">
+                            @for (variavel of variaveis(); track variavel) {
+                              <button type="button" class="var-chip" [pTooltip]="dica(variavel) || variavel"
+                                (click)="inserirVariavel('corpoTemplate', variavel)">
+                                + {{ variavel }}
+                              </button>
+                            }
+                          </div>
+                        </div>
+                        <textarea id="corpoTemplate" pTextarea formControlName="corpoTemplate" rows="4" maxlength="1000"
+                          class="w-full !text-[11px]" placeholder="Explique o que aconteceu e o que se espera de quem recebe."></textarea>
+                        <div class="field-meta">
+                          <span class="form-error">@if (form.controls.corpoTemplate.touched && form.controls.corpoTemplate.invalid) { Informe o corpo. }</span>
+                          <span>{{ form.controls.corpoTemplate.value.length }}/1000</span>
+                        </div>
+                      </div>
+
+                      <div class="field">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                          <label for="deeplinkTemplate">Destino ao clicar</label>
+                          <div class="flex flex-wrap gap-1">
+                            @for (variavel of variaveis(); track variavel) {
+                              <button type="button" class="var-chip" [pTooltip]="dica(variavel) || variavel"
+                                (click)="inserirVariavel('deeplinkTemplate', variavel)">
+                                + {{ variavel }}
+                              </button>
+                            }
+                          </div>
+                        </div>
+                        <p-select [ngModel]="deeplinkAtual()" [ngModelOptions]="{ standalone: true }"
+                          (ngModelChange)="aplicarDestino($event)" [options]="destinosDisponiveis()"
+                          [group]="true" optionGroupLabel="label" optionGroupChildren="items"
+                          optionLabel="label" optionValue="valor" placeholder="Escolha uma tela do sistema"
+                          [showClear]="true" class="custom-select" size="small" appendTo="body" />
+                        <input id="deeplinkTemplate" pInputText formControlName="deeplinkTemplate" maxlength="500"
+                          class="custom-input mt-1.5" size="small" placeholder="/dp/descontos/" />
+                        @if (deeplinkDesconhecido()) {
+                          <span class="mt-1 flex items-start gap-1.5 text-[10px] leading-relaxed text-amber-700">
+                            <i class="pi pi-exclamation-triangle mt-0.5 text-[10px]"></i>
+                            Este caminho não corresponde a nenhuma tela do sistema. Quem clicar no aviso vai cair
+                            na tela inicial, sem mensagem de erro. Prefira escolher no seletor acima.
+                          </span>
+                        }
+                        <span class="field-help">
+                          Escolha uma tela conhecida ou ajuste o caminho à mão. Sem destino, a notificação vira
+                          apenas um aviso não clicável.
+                        </span>
+                      </div>
+
+                      <!-- Prévia -->
+                      <div class="preview-card">
+                        <span class="preview-card__label">Prévia da notificação</span>
+                        <div class="preview-card__body">
+                          <span class="preview-card__dot"></span>
+                          <div class="min-w-0">
+                            <p class="preview-card__title">
+                              @for (parte of previaTitulo(); track $index) {
+                                @if (parte.variavel) { <mark class="preview-var">{{ parte.texto }}</mark> } @else { {{ parte.texto }} }
+                              } @empty { <span class="text-slate-300">Título do aviso</span> }
+                            </p>
+                            <p class="preview-card__text">
+                              @for (parte of previaCorpo(); track $index) {
+                                @if (parte.variavel) { <mark class="preview-var">{{ parte.texto }}</mark> } @else { {{ parte.texto }} }
+                              } @empty { <span class="text-slate-300">Corpo do aviso</span> }
+                            </p>
+                          </div>
+                        </div>
+                        <span class="preview-card__hint">
+                          Os destaques são substituídos pelos valores reais do registro no momento do envio.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between mt-2">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button label="QUEM RECEBE" icon="pi pi-arrow-right" iconPos="right" (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 3. QUEM RECEBE -->
+            <p-step-panel [value]="3">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-5">
+                  <div class="flex items-start gap-2 rounded-xl border border-primary-100 bg-primary-50/60 p-3">
+                    <i class="pi pi-lightbulb mt-0.5 text-xs text-primary-700"></i>
+                    <span class="text-[10px] leading-relaxed text-slate-700 dark:text-primary-700">
+                      Prefira <strong>"Quem tem a permissão"</strong>: quando alguém ganha ou perde a atribuição, a
+                      lista de avisados acompanha sozinha. Apontar para pessoas específicas envelhece rápido.
+                    </span>
+                  </div>
+
+                  <div class="flex flex-col gap-2">
+                    @for (linha of destinatarios(); track $index; let i = $index) {
+                      <div class="repeat-row">
+                        <div class="field min-w-[200px] flex-grow">
+                          <label>Tipo</label>
+                          <p-select [ngModel]="linha.tipo" [ngModelOptions]="{ standalone: true }"
+                            (ngModelChange)="definirTipoDestinatario(i, $event)"
+                            [options]="tipoDestinatarioOptions()" optionLabel="label" optionValue="value"
+                            class="custom-select" size="small" appendTo="body" />
+                        </div>
+
+                        <div class="field min-w-[220px] flex-grow">
+                          <label>{{ rotuloAlvo(linha.tipo) }}</label>
+                          <p-select [ngModel]="alvoDestinatario(linha)" [ngModelOptions]="{ standalone: true }"
+                            (ngModelChange)="definirAlvoDestinatario(i, $event)"
+                            [options]="opcoesAlvoPorTipo()[linha.tipo]" optionLabel="rotulo" optionValue="valor"
+                            [filter]="true" [loading]="loadingUsuarios(linha.tipo)" [virtualScroll]="true"
+                            [virtualScrollItemSize]="38" [lazy]="linha.tipo === 'USUARIO' || linha.tipo === 'PERMISSAO'" placeholder="Selecione"
+                            class="custom-select" size="small" appendTo="body"
+                            (onShow)="openUsuarios(linha.tipo)" (onFilter)="searchUsuarios(linha.tipo, $event)"
+                            (onLazyLoad)="loadMoreUsuarios(linha.tipo)" />
+                          @if (linha.tipo === 'POLITICA') {
+                            @if (politicaSelecionadaInvalida(linha)) {
+                              <small class="policy-warning" role="alert">
+                                A política atual está inativa. Reative-a ou escolha outra política ativa antes de salvar.
+                              </small>
+                            } @else {
+                              <small class="policy-hint">
+                                Somente políticas ativas deste mesmo gatilho podem ser associadas.
+                              </small>
+                            }
+                          }
+                        </div>
+
+                        <p-button icon="pi pi-trash" [text]="true" [rounded]="true" pTooltip="Remover destinatário"
+                          [disabled]="destinatarios().length === 1" (onClick)="removerDestinatario(i)"
+                          styleClass="!text-red-500 !w-8 !h-8" />
+                      </div>
+                    }
+                  </div>
+
+                  <div>
+                    <p-button label="Adicionar destinatário" icon="pi pi-plus" [text]="true"
+                      (onClick)="adicionarDestinatario()" styleClass="!text-[10px] !font-bold !text-primary-700" />
+                  </div>
+
+                  <div class="flex justify-between mt-2">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button label="DISPARO" icon="pi pi-arrow-right" iconPos="right" (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 4. DISPARO -->
+            <p-step-panel [value]="4">
+              <ng-template #content>
+                <form [formGroup]="form" class="mt-6 flex flex-col gap-6">
+                  @if (porLimiar()) {
+                    <div>
+                      <div class="section-marker"><span>A partir de quantos itens avisar</span></div>
+                      <div class="flex flex-col gap-3 md:pl-5">
+                        <p class="text-[10px] leading-relaxed text-slate-500">
+                          Este gatilho não avisa a cada acontecimento: ele olha de tempos em tempos quantos itens
+                          estão <strong>parados esperando alguém resolver</strong>. Você define a partir de que
+                          quantidade isso vira um problema que merece aviso.
+                        </p>
+
+                        <div class="flex flex-wrap items-end gap-3">
+                          <div class="field w-40">
+                            <label for="limiar">Avisar a partir de *</label>
+                            <p-inputnumber inputId="limiar" formControlName="limiar" [min]="1" [maxFractionDigits]="0"
+                              suffix=" itens" size="small" />
+                          </div>
+                          <div class="flex flex-wrap gap-1 pb-1">
+                            @for (atalho of atalhosLimiar; track atalho) {
+                              <button type="button" class="var-chip"
+                                [class.choice-card--active]="limiarAtual() === atalho"
+                                (click)="aplicarLimiar(atalho)">
+                                {{ atalho }}
+                              </button>
+                            }
+                          </div>
+                        </div>
+
+                        <div class="hint-box">
+                          <i class="pi pi-info-circle mt-0.5 text-xs text-primary-700"></i>
+                          <p class="text-[10px] leading-relaxed text-slate-800 dark:text-primary-700">
+                            Com <strong>{{ limiarAtual() }}</strong>: ninguém é avisado enquanto houver
+                            {{ limiarAtual() - 1 }} item(ns) parado(s). Quando chegar ao
+                            {{ limiarAtual() }}º, o aviso sai
+                            @if (cooldownAtual() > 0) {
+                              e não se repete pelas próximas {{ rotuloCooldown(cooldownAtual()) }}.
+                            } @else {
+                              — e, sem silêncio configurado abaixo, volta a sair a cada verificação enquanto a
+                              fila não baixar.
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  }
+
+                  <div>
+                    <div class="section-marker"><span>Silêncio entre avisos</span></div>
+                    <div class="flex flex-col gap-3 md:pl-5">
+                      <p class="text-[10px] leading-relaxed text-slate-500">
+                        @if (porLimiar()) {
+                          A fila pendente é uma só, então o silêncio vale para a regra inteira. Sem ele, cada
+                          varredura reavisa enquanto ninguém tratar a fila — valor baixo aqui vira spam.
+                        } @else {
+                          O silêncio vale por registro: evita repetir o aviso sobre o mesmo caso, sem calar os
+                          demais.
+                        }
+                      </p>
+
+                      <div class="flex flex-wrap items-end gap-3">
+                        <div class="field w-40">
+                          <label for="cooldown">Minutos</label>
+                          <p-inputnumber inputId="cooldown" formControlName="cooldownMinutos" [min]="0"
+                            [maxFractionDigits]="0" size="small" />
+                        </div>
+                        <div class="flex flex-wrap gap-1 pb-1">
+                          @for (atalho of atalhosCooldown; track atalho.valor) {
+                            <button type="button" class="var-chip"
+                              [class.choice-card--active]="form.controls.cooldownMinutos.value === atalho.valor"
+                              (click)="aplicarCooldown(atalho.valor)">
+                              {{ atalho.label }}
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Condições (opcional)</span></div>
+                    <div class="flex flex-col gap-3 md:pl-5">
+                      <p class="text-[10px] text-slate-500">
+                        Sem condições, a regra dispara em todo evento do gatilho. Com elas, só quando todas forem
+                        verdadeiras.
+                      </p>
+
+                      <div class="flex flex-col gap-2">
+                        @for (linha of condicoes(); track $index; let i = $index) {
+                          <div class="repeat-row">
+                            <div class="field min-w-[150px] flex-grow">
+                              <label>Campo</label>
+                              <p-select [ngModel]="linha.campo" [ngModelOptions]="{ standalone: true }"
+                                (ngModelChange)="alterarCondicao(i, { campo: $event })"
+                                [options]="variaveisOptions()" optionLabel="label" optionValue="value"
+                                class="custom-select" size="small" appendTo="body" />
+                            </div>
+                            <div class="field min-w-[170px] flex-grow">
+                              <label>Operador</label>
+                              <p-select [ngModel]="linha.operador" [ngModelOptions]="{ standalone: true }"
+                                (ngModelChange)="alterarCondicao(i, { operador: $event })"
+                                [options]="operadorOptions" optionLabel="label" optionValue="value"
+                                class="custom-select" size="small" appendTo="body" />
+                            </div>
+                            <div class="field min-w-[170px] flex-grow">
+                              <label>Valor</label>
+                              <input pInputText class="custom-input" size="small" [value]="linha.valor"
+                                (input)="alterarCondicao(i, { valor: $any($event.target).value })"
+                                placeholder="Vírgula separa múltiplos valores" />
+                            </div>
+                            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" pTooltip="Remover condição"
+                              (onClick)="removerCondicao(i)" styleClass="!text-red-500 !w-8 !h-8" />
+                          </div>
+                        } @empty {
+                          <div class="repeat-empty">Nenhuma condição — a regra vale para todos os casos.</div>
+                        }
+                      </div>
+
+                      <div>
+                        <p-button label="Adicionar condição" icon="pi pi-plus" [text]="true"
+                          [disabled]="variaveis().length === 0" (onClick)="adicionarCondicao()"
+                          styleClass="!text-[10px] !font-bold !text-primary-700" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between mt-2">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button label="REVISAR" icon="pi pi-arrow-right" iconPos="right" (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </form>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 5. REVISÃO -->
+            <p-step-panel [value]="5">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-6">
+                  <div>
+                    <div class="section-marker"><span>O que esta regra faz</span></div>
+                    <div class="md:pl-5">
+                      <div class="rounded-xl border border-primary-100 bg-primary-50/60 p-4">
+                        <p class="text-[12px] leading-relaxed text-slate-800 dark:text-primary-700">{{ resumoNatural() }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Aviso que será enviado</span></div>
+                    <div class="md:pl-5">
+                      <div class="preview-card">
+                        <div class="preview-card__body">
+                          <span class="preview-card__dot"></span>
+                          <div class="min-w-0">
+                            <p class="preview-card__title">
+                              @for (parte of previaTitulo(); track $index) {
+                                @if (parte.variavel) { <mark class="preview-var">{{ parte.texto }}</mark> } @else { {{ parte.texto }} }
+                              }
+                            </p>
+                            <p class="preview-card__text">
+                              @for (parte of previaCorpo(); track $index) {
+                                @if (parte.variavel) { <mark class="preview-var">{{ parte.texto }}</mark> } @else { {{ parte.texto }} }
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Configuração</span></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:pl-5">
+                      <div class="review-card"><span>Gatilho</span><p>{{ gatilhoAtual()?.nome }} · {{ gatilhoAtual()?.modoRotulo }}</p></div>
+                      <div class="review-card"><span>Categoria</span><p>{{ form.controls.categoria.value || 'Padrão do gatilho' }}</p></div>
+                      <div class="review-card"><span>Prioridade</span><p>{{ form.controls.prioridade.value || 'Normal' }}</p></div>
+                      <div class="review-card">
+                        <span>Canais</span>
+                        <p>{{ enviaEmail() ? 'Sininho e e-mail' : 'Somente sininho' }}</p>
+                      </div>
+                      <div class="review-card"><span>Silêncio</span><p>{{ rotuloCooldown(form.controls.cooldownMinutos.value) }}</p></div>
+                      @if (porLimiar()) {
+                        <div class="review-card"><span>Avisa a partir de</span><p>{{ limiarAtual() }} itens parados</p></div>
+                      }
+                      <div class="review-card">
+                        <span>Destino ao clicar</span>
+                        <p>{{ deeplinkAtual() || 'Aviso não clicável' }}</p>
+                        @if (deeplinkDesconhecido()) {
+                          <p class="!text-amber-700">Caminho sem tela correspondente — leva à tela inicial.</p>
+                        }
+                      </div>
+                      <div class="review-card md:col-span-2"><span>Quem recebe</span><p>{{ resumoDestinatarios().join(' · ') }}</p></div>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between mt-2">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button [label]="edicao() ? 'SALVAR ALTERAÇÕES' : 'CRIAR REGRA'" icon="pi pi-check"
+                      [loading]="salvando()" (onClick)="salvar()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]" />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 6. CONCLUÍDO -->
+            <p-step-panel [value]="6">
+              <ng-template #content>
+                @if (gravada(); as regra) {
+                  <div class="mt-6 flex flex-col gap-6">
+                    <div class="bg-primary-50/40 border border-primary-100 rounded-xl px-4 py-4 flex items-start gap-3">
+                      <i class="pi pi-check-circle text-primary-700 mt-0.5"></i>
+                      <div>
+                        <p class="text-[10px] font-bold text-primary-700 uppercase tracking-wider">
+                          {{ regra.ativo ? 'Regra ativa' : 'Regra desativada' }}
+                        </p>
+                        <p class="text-sm font-bold text-primary-700 mt-1">{{ regra.nome }}</p>
+                        <p class="text-[10px] text-primary-700 mt-1">
+                          @if (regra.ativo) {
+                            A partir de agora ela gera notificações conforme o gatilho "{{ regra.gatilhoNome }}".
+                          } @else {
+                            Ela está gravada, mas não gera notificações enquanto estiver desativada.
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-wrap justify-end gap-2 pt-5 border-t border-slate-100">
+                      <p-button [label]="regra.ativo ? 'DESATIVAR' : 'ATIVAR'"
+                        [icon]="regra.ativo ? 'pi pi-times-circle' : 'pi pi-check-circle'" [text]="true"
+                        (onClick)="alternarAtivacao()" styleClass="!text-slate-500 !font-bold !text-[10px]" />
+                      <p-button label="VOLTAR PARA A LISTA" icon="pi pi-arrow-right" iconPos="right" (onClick)="sair()"
+                        styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]" />
+                    </div>
+                  </div>
+                }
+              </ng-template>
+            </p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </div>
+  }
+</div>
+
+<p-confirmdialog />

@@ -1,0 +1,72 @@
+<main class="autorizar">
+  <ces-icon-button class="autorizar__tema" variant="outline" [icon]="escuro() ? 'pi pi-moon' : 'pi pi-sun'"
+    [label]="escuro() ? 'Usar tema claro' : 'Usar tema escuro'" (pressed)="alternarTema()"></ces-icon-button>
+
+  <section class="autorizar__cartao" [attr.aria-busy]="carregando()" aria-labelledby="autorizar-titulo">
+    <header class="autorizar__marca">
+      <img [src]="logo()" alt="Nexo" />
+      <span>Gestão Operacional</span>
+    </header>
+
+    @if (carregando()) {
+      <ces-async-state state="loading" title="Conferindo o pedido de conexão"></ces-async-state>
+    } @else if (erro()) {
+      <h1 id="autorizar-titulo">Não deu para conectar</h1>
+      <ces-callout tone="danger" icon="pi pi-times-circle">{{ erro() }}</ces-callout>
+      <p class="autorizar__nota">Volte ao seu assistente e tente conectar de novo. Se continuar, avise o administrador do Nexo.</p>
+      <ces-button variant="outline" icon="pi pi-home" label="Ir para o Nexo" [fluid]="true" (pressed)="irParaInicio()"></ces-button>
+    } @else if (previa(); as p) {
+      <div class="autorizar__titulo">
+        <h1 id="autorizar-titulo"><strong>{{ p.aplicativo }}</strong> quer se conectar ao Nexo</h1>
+        @if (p.site) { <p>Pedido feito por {{ p.site }}</p> }
+      </div>
+
+      <div class="autorizar__conta">
+        <span class="autorizar__avatar" aria-hidden="true">{{ inicialUsuario() }}</span>
+        <span class="autorizar__conta-texto">
+          <span>Vai usar a conta de</span>
+          <strong>{{ usuario() }}</strong>
+        </span>
+        <ces-button variant="link" size="sm" label="Trocar" ariaLabel="Entrar com outra conta" (pressed)="trocarConta()"></ces-button>
+      </div>
+
+      <div class="autorizar__copiloto">
+        <img src="icons/copiloto-1.png" alt="" width="32" height="32" />
+        <p>Ele usa o Nexo como o <strong>Copiloto</strong> usa: só com o que o seu perfil já enxerga.</p>
+      </div>
+
+      <div class="autorizar__listas">
+        <div>
+          <h2><i class="pi pi-check-circle" aria-hidden="true"></i>Vai poder</h2>
+          <ul>
+            <li>Consultar o que você já vê no Nexo, como estoque, solicitações e obras.</li>
+            @if (escrever()) { <li>Cadastrar e alterar registros que o seu perfil já pode.</li> }
+          </ul>
+        </div>
+        <div>
+          <h2><i class="pi pi-ban" aria-hidden="true"></i>Não vai poder</h2>
+          <ul>
+            <li>Ver nada além do seu perfil.</li>
+            @if (!escrever()) { <li>Cadastrar ou alterar nada.</li> }
+            <li>Continuar usando o Nexo depois que você desconectar.</li>
+          </ul>
+        </div>
+      </div>
+
+      @if (p.podeEscrever) {
+        <ces-boolean-control kind="toggle" label="Também deixar cadastrar e alterar" [(value)]="escrever"
+          [description]="escrever() ? p.aplicativo + ' vai poder consultar, cadastrar e alterar.' : 'Sem esta opção, ' + p.aplicativo + ' só consulta.'"></ces-boolean-control>
+      }
+
+      <div class="autorizar__acoes">
+        <ces-button label="Autorizar" icon="pi pi-check" [fluid]="true" [loading]="enviando()" (pressed)="decidir(true)"></ces-button>
+        <ces-button variant="ghost" label="Agora não" [fluid]="true" [disabled]="enviando()" (pressed)="decidir(false)"></ces-button>
+      </div>
+
+      <p class="autorizar__nota">
+        Depois, você volta para <strong>{{ p.destino }}</strong>. Para desconectar quando quiser, abra
+        <strong>Conectar sua IA</strong>, no menu do seu perfil.
+      </p>
+    }
+  </section>
+</main>

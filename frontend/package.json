@@ -1,0 +1,77 @@
+{
+  "name": "ces-frontend",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "pwa:start": "npm run build && npx http-server dist/ces-frontend/browser -p 8081",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "ds:inventory": "node tools/design-system/inventory-primeng.mjs",
+    "ds:coverage": "node tools/design-system/validate-primeng-coverage.mjs",
+    "ds:add": "node tools/design-system/generate/generate.mjs",
+    "ds:generator:test": "node --test tools/design-system/generate/generate.test.mjs",
+    "ds:list-pattern": "node tools/design-system/check-list-pattern.mjs",
+    "ds:check": "npm run ds:coverage && npm run ds:list-pattern",
+    "test:e2e": "playwright test",
+    "test:a11y": "playwright test --grep axe",
+    "test:visual": "playwright test --grep baseline",
+    "test:visual:update": "playwright test --grep baseline --update-snapshots",
+    "verify:design-system": "npm run ds:check && npm test -- --watch=false && npm run test:e2e && npm run build"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "packageManager": "npm@11.6.0",
+  "dependencies": {
+    "@angular/animations": "^21.2.3",
+    "@angular/common": "^21.1.0",
+    "@angular/compiler": "^21.1.0",
+    "@angular/core": "^21.1.0",
+    "@angular/forms": "^21.1.0",
+    "@angular/platform-browser": "^21.1.0",
+    "@angular/router": "^21.1.0",
+    "@angular/service-worker": "^21.1.0",
+    "@primeuix/themes": "2.0.3",
+    "@stomp/stompjs": "^7.3.0",
+    "@types/leaflet": "^1.9.21",
+    "chart.js": "^4.5.1",
+    "dexie": "^4.3.0",
+    "dompurify": "^3.4.12",
+    "leaflet": "^1.9.4",
+    "marked": "^18.0.7",
+    "primeicons": "^7.0.0",
+    "primeng": "21.1.3",
+    "rxjs": "~7.8.0",
+    "sockjs-client": "^1.6.1",
+    "tailwindcss-primeui": "^0.6.1",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.1.2",
+    "@angular/cli": "^21.1.2",
+    "@angular/compiler-cli": "^21.1.0",
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "^4.1.12",
+    "@types/dompurify": "^3.0.5",
+    "@types/marked": "^5.0.2",
+    "@types/sockjs-client": "^1.5.4",
+    "jsdom": "^27.1.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.12",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

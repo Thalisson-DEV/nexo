@@ -1,0 +1,6 @@
+@import './tokens.css';
+@import './base.css';
+@import './primeng-adapters.css';
+@import './form-kit.css';
+@import './page.css';
+@import './legacy-compat.css';

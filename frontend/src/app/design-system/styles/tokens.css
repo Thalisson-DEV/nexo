@@ -1,0 +1,168 @@
+@layer ces.tokens {
+  :root {
+    color-scheme: light;
+
+    --ces-canvas: var(--p-surface-50);
+    --ces-surface: var(--p-surface-0);
+    --ces-surface-subtle: var(--p-surface-50);
+    --ces-surface-muted: var(--p-surface-100);
+    --ces-foreground: var(--p-surface-900);
+    --ces-foreground-muted: var(--p-surface-600);
+    --ces-foreground-subtle: var(--p-surface-500);
+    --ces-border: var(--p-surface-200);
+    --ces-border-strong: var(--p-surface-300);
+    --ces-focus-ring: color-mix(in srgb, var(--p-primary-500) 42%, transparent);
+
+    --ces-brand: var(--p-primary-600);
+    --ces-brand-hover: var(--p-primary-700);
+    --ces-brand-soft: var(--p-primary-50);
+    --ces-info: #2563eb;
+    --ces-info-soft: #eff6ff;
+    --ces-success: #15803d;
+    --ces-success-hover: #166534;
+    --ces-success-soft: #f0fdf4;
+    --ces-warning: #b45309;
+    --ces-warning-hover: #92400e;
+    --ces-warning-soft: #fffbeb;
+    --ces-danger: #b91c1c;
+    --ces-danger-hover: #991b1b;
+    --ces-danger-soft: #fef2f2;
+
+    /*
+     * Variantes de FEEDBACK para texto/ícone sobre superfícies do tema.
+     * Os tokens sólidos acima (--ces-info/success/warning/danger) continuam
+     * reservados para preenchimento (fundo sólido + texto branco); usá-los como
+     * cor de tinta em superfícies escuras reprova contraste. No tema claro estas
+     * variantes são idênticas aos sólidos, no escuro clareiam para atingir AA.
+     */
+    --ces-info-text: var(--ces-info);
+    --ces-success-text: var(--ces-success);
+    --ces-warning-text: var(--ces-warning);
+    --ces-danger-text: var(--ces-danger);
+
+    /* Pódio de rankings (ces-rank-badge): borda, fundo suave e tinta com contraste AA. */
+    --ces-rank-1: #ca8a04;
+    --ces-rank-1-soft: #fef9c3;
+    --ces-rank-1-text: #854d0e;
+    --ces-rank-2: #94a3b8;
+    --ces-rank-2-soft: #f1f5f9;
+    --ces-rank-2-text: #334155;
+    --ces-rank-3: #ea580c;
+    --ces-rank-3-soft: #ffedd5;
+    --ces-rank-3-text: #9a3412;
+
+    --ces-control-height-sm: 1.875rem;
+    --ces-control-height-md: 2.25rem;
+    --ces-control-height-lg: 2.75rem;
+    --ces-touch-target: 2.75rem;
+
+    --ces-radius-sm: 0.5rem;
+    --ces-radius-md: 0.75rem;
+    --ces-radius-lg: 1rem;
+    --ces-radius-xl: 1.25rem;
+
+    --ces-shadow-sm: 0 1px 2px rgb(15 23 42 / 0.04);
+    --ces-shadow-md: 0 8px 24px rgb(15 23 42 / 0.08);
+    --ces-shadow-lg: 0 18px 44px rgb(15 23 42 / 0.14);
+
+    --ces-duration-fast: 120ms;
+    --ces-duration-normal: 180ms;
+    --ces-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+    --ces-font-caption: 0.6875rem;
+    --ces-font-control: 0.769rem;
+    --ces-font-body: 0.846rem;
+    --ces-font-title: 1rem;
+
+    /*
+     * Kit de formulário (ces-form-*): UM visual de card/cabeçalho/seção/rodapé para toda a aplicação.
+     * Só aliases dos tokens acima — tema claro/escuro e densidade vêm de graça.
+     */
+    --ces-form-card-bg: var(--ces-surface);
+    --ces-form-card-border: var(--ces-border);
+    --ces-form-card-radius: var(--ces-radius-lg);
+    --ces-form-card-shadow: var(--ces-shadow-sm);
+    --ces-form-card-padding: 1.25rem;
+    --ces-form-section-gap: 1.75rem;
+    --ces-form-field-gap: 1rem;
+    --ces-form-title-size: var(--ces-font-title);
+    --ces-form-section-title-size: 0.875rem;
+    --ces-form-label-size: var(--ces-font-control);
+    --ces-form-hint-size: var(--ces-font-caption);
+    --ces-form-footer-bg: color-mix(in srgb, var(--ces-surface) 94%, transparent);
+
+    /*
+     * Paleta categórica de séries (ces-chart). Não comunica estado: a série 1 acompanha a cor
+     * primária escolhida e as demais evitam vermelho/verde para não sugerir sucesso ou erro.
+     * A série 8 é reservada para agrupamentos como "Outros".
+     */
+    --ces-chart-1: var(--p-primary-600);
+    --ces-chart-2: #0891b2;
+    --ces-chart-3: #7c3aed;
+    --ces-chart-4: #d97706;
+    --ces-chart-5: #db2777;
+    --ces-chart-6: #0f766e;
+    --ces-chart-7: #c026d3;
+    --ces-chart-8: #64748b;
+  }
+
+  :root.app-dark,
+  :root.dark,
+  .app-dark,
+  .dark {
+    color-scheme: dark;
+    --ces-canvas: var(--p-surface-50);
+    --ces-surface: var(--p-surface-100);
+    --ces-surface-subtle: var(--p-surface-50);
+    --ces-surface-muted: var(--p-surface-200);
+    --ces-foreground: #ffffff;
+    --ces-foreground-muted: #cbd5e1;
+    --ces-foreground-subtle: #94a3b8;
+    --ces-border: var(--p-surface-300);
+    --ces-border-strong: var(--p-surface-400);
+    --ces-focus-ring: color-mix(in srgb, var(--p-primary-400) 50%, transparent);
+
+    --ces-brand: var(--p-primary-400);
+    --ces-brand-hover: var(--p-primary-300);
+    --ces-brand-soft: color-mix(in srgb, var(--p-primary-500) 20%, transparent);
+    --ces-brand-hover-bg: color-mix(in srgb, var(--p-primary-500) 14%, transparent);
+    --ces-info-soft: rgb(37 99 235 / 0.2);
+    --ces-success-soft: rgb(21 128 61 / 0.2);
+    --ces-warning-soft: rgb(180 83 9 / 0.22);
+    --ces-danger-soft: rgb(185 28 28 / 0.22);
+    --ces-info-text: #93c5fd;
+    --ces-success-text: #4ade80;
+    --ces-warning-text: #fbbf24;
+    --ces-danger-text: #fca5a5;
+    --ces-rank-1: rgb(234 179 8 / 0.55);
+    --ces-rank-1-soft: rgb(234 179 8 / 0.18);
+    --ces-rank-1-text: #fde047;
+    --ces-rank-2: rgb(148 163 184 / 0.55);
+    --ces-rank-2-soft: rgb(148 163 184 / 0.18);
+    --ces-rank-2-text: #e2e8f0;
+    --ces-rank-3: rgb(249 115 22 / 0.55);
+    --ces-rank-3-soft: rgb(249 115 22 / 0.18);
+    --ces-rank-3-text: #fdba74;
+
+    --ces-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.15);
+    --ces-shadow-md: 0 4px 12px rgb(0 0 0 / 0.22);
+    --ces-shadow-lg: 0 8px 24px rgb(0 0 0 / 0.32);
+
+    --ces-chart-1: var(--p-primary-400);
+    --ces-chart-2: #22d3ee;
+    --ces-chart-3: #a78bfa;
+    --ces-chart-4: #fbbf24;
+    --ces-chart-5: #f472b6;
+    --ces-chart-6: #2dd4bf;
+    --ces-chart-7: #e879f9;
+    --ces-chart-8: #94a3b8;
+  }
+
+  :root[data-ces-density='comfortable'] {
+    --ces-control-height-sm: 2.25rem;
+    --ces-control-height-md: 2.75rem;
+    --ces-control-height-lg: 3rem;
+    --ces-font-control: 0.846rem;
+    --ces-font-body: 0.923rem;
+  }
+}

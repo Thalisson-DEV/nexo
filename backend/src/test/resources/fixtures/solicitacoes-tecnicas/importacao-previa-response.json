@@ -1,0 +1,73 @@
+{
+  "token": "token-opaco-da-previa",
+  "hashArquivo": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "expiraEm": "2026-08-24T18:30:00-03:00",
+  "totalLinhas": 3,
+  "totalSolicitacoesPrevistas": 2,
+  "totalConfirmaveis": 2,
+  "totalErros": 0,
+  "totalAvisos": 1,
+  "solicitacoesPrevistas": [
+    {
+      "chave": "SOL-001",
+      "idObra": "11111111-1111-1111-1111-111111111111",
+      "numeroObra": "2026-0042",
+      "tipoObra": "CORRETIVA",
+      "ocorrencia": "OC 1042",
+      "idAlmoxarifadoAtendimento": "22222222-2222-2222-2222-222222222222",
+      "almoxarifadoAtendimento": "ALMOX CENTRAL",
+      "idEquipe": "33333333-3333-3333-3333-333333333333",
+      "codigoEquipe": "EQ-042",
+      "dataPrevista": "2026-09-01",
+      "observacao": "Importacao do planejamento semanal",
+      "subgrupos": [
+        {
+          "tipo": "221",
+          "itens": [
+            {
+              "idMaterial": "44444444-4444-4444-4444-444444444444",
+              "codigoMaterial": "MAT-COMUM-001",
+              "descricaoMaterial": "Cabo protegido",
+              "quantidade": 3.500,
+              "detalhaSerie": false,
+              "linhasOrigem": [2, 3]
+            }
+          ],
+          "reserva": {
+            "numero": "99999999999999999999",
+            "dataCriacao": "2026-08-23",
+            "idAgenteResponsavel": "88888888-8888-8888-8888-888888888888",
+            "agenteResponsavel": "Agente de campo"
+          },
+          "linhasOrigem": [2, 3]
+        },
+        {
+          "tipo": "922",
+          "itens": [
+            {
+              "idMaterial": "55555555-5555-5555-5555-555555555555",
+              "codigoMaterial": "MAT-CONCRETO-001",
+              "descricaoMaterial": "Poste de concreto",
+              "quantidade": 1.000,
+              "detalhaSerie": false,
+              "linhasOrigem": [4]
+            }
+          ],
+          "reserva": null,
+          "linhasOrigem": [4]
+        }
+      ],
+      "mensagens": [
+        {
+          "linha": 3,
+          "campo": "Codigo Material",
+          "codigo": "MATERIAL_REPETIDO_CONSOLIDADO",
+          "severidade": "AVISO",
+          "valorOriginal": "MAT-COMUM-001",
+          "mensagem": "Linhas repetidas foram consolidadas no mesmo item."
+        }
+      ],
+      "resultado": null
+    }
+  ]
+}

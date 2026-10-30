@@ -1,0 +1,50 @@
+# Configurações para testes
+ces:
+  auditoria-solicitacao:
+    versao-ativa: v1
+    chaves:
+      v1: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+  cors:
+    allowed-origins: http://localhost:4200
+  security:
+    jwt:
+      secret: 7a5e92f1b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0
+      expiration: 1440
+    crypto:
+      secret-key: nexo-test-master-key-256-bit-key
+  storage:
+    type: local
+    path: ./target/uploads/test
+
+spring:
+  config:
+    import: "classpath:navigation-actions.yaml"
+  ai:
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  flyway:
+    enabled: false
+  
+  threads:
+    virtual:
+      enabled: false
+
+logging:
+  level:
+    root: ERROR
+    com.nexo.app: WARN

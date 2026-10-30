@@ -1,0 +1,14 @@
+{
+  "assinaturaAlmox": "assinatura-comercial-almox",
+  "assinaturaEquipe": "assinatura-comercial-equipe",
+  "itens": [
+    {
+      "idItemSolicitacao": "99999999-9999-9999-9999-999999999991",
+      "quantidade": 1.500,
+      "novaQuantidadeSolicitada": 2.500,
+      "numSerie": null
+    }
+  ],
+  "itensAdicionados": [],
+  "itensRemovidos": []
+}

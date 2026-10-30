@@ -1,0 +1,33 @@
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Dependências
+node_modules/
+
+# Build artifacts
+target/
+dist/
+.angular/
+
+# Go build / toolchain cache
+.tmp/
+
+# Logs
+*.log
+
+# Railway
+.railway/
+
+# IDE / editor
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+
+# OS files
+.DS_Store
+Thumbs.db

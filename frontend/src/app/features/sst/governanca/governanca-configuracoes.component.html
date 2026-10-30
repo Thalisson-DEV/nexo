@@ -1,0 +1,303 @@
+<p-toast />
+
+<main class="config-page">
+  <div class="topbar">
+    <p-breadcrumb
+      [model]="[
+        { label: 'Segurança' },
+        { label: 'Configurações de CIPA e Brigada' },
+        { label: cadastro() ? tituloCadastro() : secaoAtual()?.titulo || 'Configurações' }
+      ]"
+      styleClass="!bg-transparent !border-0 !p-0"
+    />
+    <p-button
+      icon="pi pi-arrow-left"
+      label="Voltar"
+      [text]="true"
+      severity="secondary"
+      (onClick)="voltar()"
+      styleClass="!text-slate-400 !text-[10px] !font-medium"
+    />
+  </div>
+
+  <app-governanca-contexto
+    [tipo]="tipoModelo()"
+    secao="configuracoes"
+    (tipoChange)="trocarTipoModelo($event)"
+  />
+
+  @if (carregando()) {
+    <div class="loading-state">
+      <i class="pi pi-spin pi-spinner"></i>
+      <strong>Preparando as configurações</strong>
+      <span>Carregando somente os dados do grupo selecionado.</span>
+    </div>
+  } @else if (cadastro()) {
+    <section class="form-shell">
+      <header class="form-header">
+        <div>
+          <span class="eyebrow">{{ tipoModelo() === 'CIPA' ? 'Configuração da CIPA' : 'Configuração da Brigada' }}</span>
+          <h1>{{ tituloCadastro() }}</h1>
+          <p>Preencha os campos abaixo. Você poderá revisar o cadastro na lista depois de salvar.</p>
+        </div>
+        <div class="context-badge" [class.brigada]="tipoModelo() === 'BRIGADA'">
+          <i [class]="tipoModelo() === 'CIPA' ? 'pi pi-shield' : 'pi pi-bolt'"></i>
+          <span><small>Você está configurando</small><strong>{{ tipoModelo() === 'CIPA' ? 'CIPA' : 'Brigada de incêndio' }}</strong></span>
+        </div>
+      </header>
+
+      <div class="form-body">
+        @switch (cadastro()) {
+          @case ('modelos-ata') {
+            <div class="form-intro"><span>Documento de reunião</span><h2>Como a ata deve ser organizada?</h2><p>Dê um nome fácil de reconhecer e mantenha apenas as seções que realmente serão usadas.</p></div>
+            <div class="form-grid">
+              <div class="field wide">
+                <label for="nomeModelo">Nome do modelo *</label>
+                <input id="nomeModelo" pInputText [(ngModel)]="modeloForm.nome" [disabled]="isLeitura()" [placeholder]="tipoModelo()==='CIPA'?'Ex.: Ata mensal da CIPA':'Ex.: Ata de reunião da Brigada'" />
+              </div>
+              <div class="field">
+                <label for="baseModelo">Usar somente em uma base</label>
+                <p-select inputId="baseModelo" [(ngModel)]="modeloForm.idBaseAplicavel" [options]="bases()" optionLabel="nome" optionValue="id" placeholder="Todas as bases" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" [disabled]="isLeitura()" />
+                <small class="field-help">Deixe vazio para disponibilizar em todas as bases.</small>
+              </div>
+              <div class="field wide">
+                <label for="orientacoesModelo">Orientações para gerar a ata</label>
+                <textarea id="orientacoesModelo" pTextarea [(ngModel)]="modeloForm.orientacoesGerais" [disabled]="isLeitura()" rows="3" placeholder="Ex.: escreva de forma objetiva e destaque decisões e responsáveis"></textarea>
+              </div>
+            </div>
+
+
+
+            @if (selecionado()) {
+              <section class="subsection publish-panel">
+                <div class="subsection-head"><div><span>Modelo em Word e publicação</span><p>Essas ações ficam disponíveis depois que o rascunho é salvo.</p></div><p-tag [value]="rotulo(selecionado()!.status)" [severity]="selecionado()!.status==='PUBLICADO'?'success':'warn'" /></div>
+                <div class="publish-actions">
+                  @if (selecionado()!.status === 'RASCUNHO') {
+                    <div class="flex items-center gap-2">
+                      <p-fileUpload mode="basic" chooseLabel="Enviar arquivo DOCX" chooseIcon="pi pi-file-word" accept=".docx" [customUpload]="true" [auto]="true" (uploadHandler)="selecionarDocx($event);enviarDocx()" />
+                      @if (selecionado()!.nomeArquivoDocx) {
+                        <span class="text-xs text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700">
+                          <i class="pi pi-check-circle text-green-500 mr-1"></i> {{ selecionado()!.nomeArquivoDocx }}
+                        </span>
+                      }
+                    </div>
+                  }
+                  @if (selecionado()!.status === 'RASCUNHO') {
+                    <div [pTooltip]="motivoBloqueioPublicacao()"><p-button label="Publicar modelo" icon="pi pi-check" severity="success" [disabled]="!podePublicarModelo()" [loading]="processando()==='publicacao'" (onClick)="comandoModelo('publicacao')" /></div>
+                  }
+                  <p-button label="Duplicar" icon="pi pi-copy" [text]="true" severity="secondary" [loading]="processando()==='duplicacao'" (onClick)="comandoModelo('duplicacao')" />
+                  @if (selecionado()!.status === 'PUBLICADO' || selecionado()!.status === 'RETIRADO') {
+                    <p-button label="Criar nova revisão" icon="pi pi-history" [text]="true" severity="secondary" [loading]="processando()==='nova-revisao'" (onClick)="comandoModelo('nova-revisao')" />
+                  }
+                  @if (selecionado()!.status === 'PUBLICADO') {
+                    <p-button label="Retirar modelo" icon="pi pi-ban" [text]="true" severity="secondary" [loading]="processando()==='retirada'" (onClick)="comandoModelo('retirada')" />
+                  }
+                </div>
+              </section>
+            }
+          }
+
+          @case ('checklists') {
+            <div class="form-intro"><span>Inspeções</span><h2>Qual formulário será usado?</h2><p>Primeiro monte as perguntas no construtor padrão. Depois dê um nome simples para quem fará a inspeção.</p></div>
+            <div class="info-note"><i class="pi pi-info-circle"></i><p>Precisa criar ou mudar as perguntas? <button type="button" (click)="router.navigateByUrl('/sst/formularios/novo')">Abrir o construtor de formulários</button>.</p></div>
+            <div class="form-grid">
+              <div class="field">
+                <label>Usar em</label>
+                <input pInputText [value]="tipoModelo()==='CIPA'?'CIPA':'Brigada de incêndio'" disabled />
+              </div>
+              <div class="field">
+                <label for="formularioChecklist">Formulário de inspeção *</label>
+                <p-select inputId="formularioChecklist" [(ngModel)]="checklistForm.idFormulario" [options]="formularios()" optionLabel="titulo" optionValue="id" placeholder="Selecione a estrutura de perguntas" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" />
+              </div>
+              <div class="field wide">
+                <label for="nomeChecklist">Nome que o usuário verá *</label>
+                <input id="nomeChecklist" pInputText [(ngModel)]="checklistForm.nome" [placeholder]="tipoModelo()==='CIPA'?'Ex.: Inspeção mensal da CIPA':'Ex.: Inspeção de equipamentos da Brigada'" />
+              </div>
+              <div class="field wide">
+                <label for="orientacaoChecklist">Orientação para quem vai preencher</label>
+                <textarea id="orientacaoChecklist" pTextarea [(ngModel)]="checklistForm.orientacao" rows="3" placeholder="Explique quando e como usar este checklist"></textarea>
+              </div>
+              <div class="field wide">
+                <label for="referenciaChecklist">Referência normativa</label>
+                <input id="referenciaChecklist" pInputText [(ngModel)]="checklistForm.referenciaNormativa" placeholder="Ex.: procedimento interno ou instrução técnica vigente" />
+              </div>
+            </div>
+          }
+
+          @case ('treinamentos') {
+            <div class="form-intro"><span>Catálogo</span><h2>Qual capacitação será disponibilizada?</h2><p>Use o mesmo nome que aparece nos certificados para facilitar a conferência.</p></div>
+            <div class="form-grid">
+              <div class="field"><label for="codigoTreinamento">Código *</label><input id="codigoTreinamento" pInputText [(ngModel)]="treinamentoForm.codigo" placeholder="Ex.: NR-05" /></div>
+              <div class="field"><label>Disponível para</label><input pInputText [value]="tipoModelo()==='CIPA'?'CIPA':'Brigada de incêndio'" disabled /></div>
+              <div class="field wide"><label for="nomeTreinamento">Nome do treinamento *</label><input id="nomeTreinamento" pInputText [(ngModel)]="treinamentoForm.nome" placeholder="Ex.: Formação de membros da CIPA" /></div>
+              <div class="field wide"><label for="descricaoTreinamento">Descrição</label><textarea id="descricaoTreinamento" pTextarea [(ngModel)]="treinamentoForm.descricao" rows="3" placeholder="Explique resumidamente o conteúdo da capacitação"></textarea></div>
+            </div>
+          }
+
+          @case ('regras-treinamento') {
+            <div class="form-intro"><span>Obrigatoriedade</span><h2>Quem precisa fazer este treinamento?</h2><p>Escolha a capacitação e indique o cargo, o papel no grupo ou ambos.</p></div>
+            <div class="form-grid">
+              <div class="field wide"><label for="treinamentoRegra">Treinamento *</label><p-select inputId="treinamentoRegra" [(ngModel)]="exigenciaForm.idTreinamento" [options]="treinamentos()" optionLabel="nome" optionValue="id" placeholder="Selecione o treinamento" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" /></div>
+              <div class="field"><label for="aplicarRegra">Aplicar por *</label><p-select inputId="aplicarRegra" [(ngModel)]="exigenciaForm.modoAplicabilidade" [options]="modoAplicabilidadeOptions" optionLabel="label" optionValue="value" class="custom-select field-control" size="small" appendTo="body" /></div>
+              <div class="field"><label>Grupo</label><input pInputText [value]="tipoModelo()==='CIPA'?'CIPA':'Brigada de incêndio'" disabled /></div>
+              @if (exigenciaForm.modoAplicabilidade !== 'PAPEL_CORPO') {
+                <div class="field"><label for="cargoRegra">Cargo *</label><p-select inputId="cargoRegra" [(ngModel)]="exigenciaForm.idFuncao" [options]="funcoes()" optionLabel="nome" optionValue="id" placeholder="Selecione o cargo" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" /></div>
+              }
+              @if (exigenciaForm.modoAplicabilidade !== 'FUNCAO') {
+                <div class="field"><label for="papelRegra">Papel no grupo *</label><p-select inputId="papelRegra" [(ngModel)]="exigenciaForm.papelCorpo" [options]="papelOptions()" optionLabel="label" optionValue="value" placeholder="Selecione o papel" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" /></div>
+              }
+              <div class="field"><label for="cargaRegra">Carga horária (horas)</label><input id="cargaRegra" pInputText type="number" min="1" [(ngModel)]="exigenciaForm.cargaHorariaHoras" /></div>
+              <div class="field"><label for="recorrenciaRegra">Refazer a cada (meses)</label><input id="recorrenciaRegra" pInputText type="number" min="1" [(ngModel)]="exigenciaForm.recorrenciaMeses" /></div>
+              <div class="field"><label for="vigenciaRegra">Válida a partir de</label><p-datepicker inputId="vigenciaRegra" [(ngModel)]="exigenciaForm.vigenciaInicio" dateFormat="dd/mm/yy" dateMask [showIcon]="true" iconDisplay="input" [showClear]="true" [showOnFocus]="true" [showButtonBar]="true" placeholder="dd/mm/aaaa" class="custom-date field-control" size="small" appendTo="body" /></div>
+              <div class="field"><label for="fonteRegra">Fonte da regra *</label><input id="fonteRegra" pInputText [(ngModel)]="exigenciaForm.identificadorFonte" placeholder="Ex.: Matriz interna de treinamento" /></div>
+            </div>
+          }
+
+          @case ('escolas') {
+            <div class="form-intro"><span>Cadastro compartilhado</span><h2>Qual instituição oferece os treinamentos?</h2><p>Esta instituição poderá ser usada tanto pela CIPA quanto pela Brigada.</p></div>
+            <div class="shared-note"><i class="pi pi-share-alt"></i><div><strong>Este cadastro é compartilhado</strong><p>Não será necessário cadastrar a mesma instituição novamente ao trocar de grupo.</p></div></div>
+            <div class="form-grid">
+              <div class="field wide"><label for="nomeEscola">Nome da instituição *</label><input id="nomeEscola" pInputText [(ngModel)]="escolaForm.nome" placeholder="Nome que aparece no certificado" /></div>
+              <div class="field"><label for="cnpjEscola">CNPJ</label><input id="cnpjEscola" pInputText [(ngModel)]="escolaForm.cnpj" placeholder="00.000.000/0000-00" /></div>
+              <div class="field"><label for="localEscola">Cidade ou local</label><input id="localEscola" pInputText [(ngModel)]="escolaForm.local" placeholder="Ex.: Salvador - BA" /></div>
+            </div>
+          }
+
+          @case ('documentos') {
+            <div class="form-intro"><span>Classificação</span><h2>Que tipo de documento será controlado?</h2><p>Defina um nome claro, onde ele será usado e como a validade deverá ser acompanhada.</p></div>
+            <div class="form-grid">
+              <div class="field"><label for="codigoCategoria">Código *</label><input id="codigoCategoria" pInputText [(ngModel)]="categoriaForm.codigo" placeholder="Ex.: AVCB" /></div>
+              <div class="field"><label for="nomeCategoria">Nome *</label><input id="nomeCategoria" pInputText [(ngModel)]="categoriaForm.nome" placeholder="Ex.: Licença do Corpo de Bombeiros" /></div>
+              <div class="field"><label for="contextoCategoria">Usar em *</label><p-select inputId="contextoCategoria" [(ngModel)]="categoriaForm.contexto" [options]="contextoDocumentoOptions()" optionLabel="label" optionValue="value" class="custom-select field-control" size="small" appendTo="body" /></div>
+              <div class="field"><label for="naturezaCategoria">Tipo de documento *</label><p-select inputId="naturezaCategoria" [(ngModel)]="categoriaForm.natureza" [options]="naturezaDocumentoOptions()" optionLabel="label" optionValue="value" class="custom-select field-control" size="small" appendTo="body" /></div>
+              <div class="field"><label for="escopoCategoria">Vincular o documento a *</label><p-select inputId="escopoCategoria" [(ngModel)]="categoriaForm.escopoTitular" [options]="escopoDocumentoOptions" optionLabel="label" optionValue="value" class="custom-select field-control" size="small" appendTo="body" /></div>
+              <div class="field"><label for="alertasCategoria">Alertar antes do vencimento</label><input id="alertasCategoria" pInputText [(ngModel)]="categoriaForm.faixasAlertaDias" placeholder="Ex.: 90,60,30" /><small class="field-help">Informe os dias separados por vírgula.</small></div>
+            </div>
+          }
+
+          @case ('ativos') {
+            <div class="form-intro"><span>Inspeções da base</span><h2>Qual item precisa ser verificado?</h2><p>Cadastre uma identificação que seja fácil de localizar durante a inspeção.</p></div>
+            <div class="form-grid">
+              <div class="field wide"><label for="baseAtivoCadastro">Base operacional *</label><p-select inputId="baseAtivoCadastro" [(ngModel)]="idBaseAtivos" [options]="bases()" optionLabel="nome" optionValue="id" placeholder="Selecione a base" [filter]="true" class="custom-select field-control" size="small" appendTo="body" (onChange)="carregarAtivos()" /></div>
+              <div class="field"><label for="tipoAtivo">Tipo de item *</label><p-select inputId="tipoAtivo" [(ngModel)]="ativoForm.tipo" [options]="ativoTipoOptions" optionLabel="label" optionValue="value" class="custom-select field-control" size="small" appendTo="body" /></div>
+              <div class="field"><label for="identificacaoAtivo">Identificação *</label><input id="identificacaoAtivo" pInputText [(ngModel)]="ativoForm.identificadorLocal" placeholder="Ex.: EXT-012" /></div>
+              <div class="field wide"><label for="localizacaoAtivo">Localização *</label><input id="localizacaoAtivo" pInputText [(ngModel)]="ativoForm.localizacao" placeholder="Ex.: corredor do térreo, próximo à recepção" /></div>
+            </div>
+          }
+        }
+      </div>
+      <footer class="form-footer">
+        <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="voltar()" styleClass="footer-back" />
+        @if (cadastro() !== 'modelos-ata' || !isLeitura()) {
+          <p-button [label]="cadastro()==='modelos-ata'?'SALVAR MODELO':cadastro()==='checklists'?'VINCULAR CHECKLIST':'SALVAR CADASTRO'" icon="pi pi-check" [loading]="processando()==='salvar'" [disabled]="!podeSalvar()||processando()==='salvar'" (onClick)="salvarCadastro()" styleClass="footer-save" />
+        }
+      </footer>
+    </section>
+  } @else if (secao() === 'inicio') {
+    <section class="catalog-shell">
+      <header class="catalog-header">
+        <span class="eyebrow">Preparação da área</span>
+        <h1>O que você precisa configurar?</h1>
+        <p>Escolha uma opção. Você verá primeiro os registros já cadastrados e só abrirá um formulário quando solicitar um novo cadastro.</p>
+      </header>
+
+      <div class="catalog-grid">
+        @for (item of itensConfiguracao; track item.id) {
+          <button type="button" class="config-card" (click)="abrirSecao(item.id)">
+            <span class="card-icon"><i [class]="item.icon"></i></span>
+            <span class="card-copy">
+              <span class="card-context" [class.shared]="item.compartilhado">{{ item.compartilhado ? 'Compartilhado' : tipoModelo()==='CIPA'?'CIPA':'Brigada' }}</span>
+              <strong>{{ item.titulo }}</strong>
+              <small>{{ item.descricao }}</small>
+            </span>
+            <span class="card-meta"><b>{{ quantidade(item.id) }}</b><small>cadastrados</small></span>
+            <span class="card-action">{{ item.acao }} <i class="pi pi-arrow-right"></i></span>
+          </button>
+        }
+      </div>
+    </section>
+  } @else {
+    <section class="list-shell">
+      <header class="list-header">
+        <div>
+          <button type="button" class="back-link" (click)="abrirSecao('inicio')"><i class="pi pi-arrow-left"></i> Todas as configurações</button>
+          <span class="eyebrow">{{ secaoAtual()?.compartilhado ? 'Cadastro compartilhado' : tipoModelo()==='CIPA'?'Configuração da CIPA':'Configuração da Brigada' }}</span>
+          <h1>{{ secaoAtual()?.titulo }}</h1>
+          <p>{{ secaoAtual()?.descricao }}</p>
+        </div>
+        <div class="header-actions">
+          @if (secao() === 'checklists') { <p-button label="Criar perguntas" icon="pi pi-external-link" [outlined]="true" (onClick)="router.navigateByUrl('/sst/formularios/novo')" /> }
+          @if (secao() === 'regras-treinamento') { <p-button label="Importar referência" icon="pi pi-file-import" [text]="true" severity="secondary" [loading]="processando()==='import-matriz-treinamentos'" (onClick)="importar('matriz-treinamentos')" /> }
+          @if (secao() === 'escolas') { <p-button label="Importar referência" icon="pi pi-file-import" [text]="true" severity="secondary" [loading]="processando()==='import-escolas'" (onClick)="importar('escolas')" /> }
+          @if (secao() === 'ativos') { <p-button label="Importar da base" icon="pi pi-file-import" [text]="true" severity="secondary" [disabled]="!idBaseAtivos" [loading]="processando()==='import-ativos-inspecionaveis'" (onClick)="importar('ativos-inspecionaveis')" /> }
+          <p-button [label]="secao()==='checklists'?'Vincular checklist':'Novo cadastro'" icon="pi pi-plus" [disabled]="secao()==='ativos'&&!idBaseAtivos" (onClick)="abrirCadastro()" />
+        </div>
+      </header>
+
+      @if (secaoAtual()?.compartilhado) {
+        <div class="shared-note compact"><i class="pi pi-share-alt"></i><div><strong>Esta lista é compartilhada</strong><p>Os mesmos registros ficam disponíveis para CIPA e Brigada.</p></div></div>
+      }
+
+      @if (secao() === 'ativos') {
+        <div class="scope-bar">
+          <div><span>Base operacional</span><p>Selecione a base para ver e cadastrar seus itens.</p></div>
+          <p-select [(ngModel)]="idBaseAtivos" [options]="bases()" optionLabel="nome" optionValue="id" placeholder="Selecione a base" [filter]="true" [showClear]="true" class="custom-select" size="small" appendTo="body" (onChange)="carregarAtivos()" />
+        </div>
+      }
+
+      <div class="table-wrap">
+        @switch (secao()) {
+          @case ('modelos-ata') {
+            <p-table [value]="modelosVisiveis()" styleClass="p-datatable-sm custom-table governance-table table-minute-models" [rowHover]="true" [paginator]="modelosVisiveis().length>10" [rows]="10" [rowsPerPageOptions]="[10,25,50]" paginatorDropdownAppendTo="body">
+              <ng-template pTemplate="header"><tr><th class="table-actions">Ações</th><th>Modelo</th><th>Aplicação</th><th>Revisão</th><th>Situação</th></tr></ng-template>
+              <ng-template pTemplate="body" let-item><tr><td class="table-actions"><p-button icon="pi pi-pencil" [rounded]="true" [text]="true" pTooltip="Editar modelo" styleClass="table-action-button !text-primary-700 dark:!text-primary-400" (onClick)="editarModelo(item)" /></td><td><span class="table-primary">{{ item.nome }}</span><span class="table-secondary">{{ item.orientacoesGerais || 'Sem orientação adicional' }}</span></td><td>{{ item.idBaseAplicavel ? 'Uma base específica' : 'Todas as bases' }}</td><td>{{ item.revisao }}</td><td><p-tag [value]="rotulo(item.status)" [severity]="item.status==='PUBLICADO'?'success':item.status==='RETIRADO'?'secondary':'warn'" /></td></tr></ng-template>
+              <ng-template pTemplate="emptymessage"><tr><td colspan="5"><div class="empty-state"><i class="pi pi-file-word"></i><b>Nenhum modelo de ata cadastrado</b><span>Cadastre o primeiro modelo para padronizar as reuniões.</span></div></td></tr></ng-template>
+            </p-table>
+          }
+          @case ('checklists') {
+            <p-table [value]="checklistsVisiveis()" styleClass="p-datatable-sm custom-table governance-table table-checklists" [rowHover]="true" [paginator]="checklistsVisiveis().length>10" [rows]="10" [rowsPerPageOptions]="[10,25,50]" paginatorDropdownAppendTo="body">
+              <ng-template pTemplate="header"><tr><th class="table-actions">Ações</th><th>Checklist</th><th>Formulário</th><th>Orientação</th><th>Situação</th></tr></ng-template>
+              <ng-template pTemplate="body" let-item><tr><td class="table-actions"><p-button icon="pi pi-pencil" [rounded]="true" [text]="true" pTooltip="Editar perguntas" styleClass="table-action-button !text-primary-700 dark:!text-primary-400" (onClick)="editarEstruturaChecklist(item)" /></td><td><span class="table-primary">{{ item.nome }}</span><span class="table-secondary">{{ item.referenciaNormativa || 'Sem referência normativa' }}</span></td><td>{{ item.formulario || item.formularioTitulo }}</td><td>{{ item.orientacao || 'Sem orientação adicional' }}</td><td><p-tag [value]="item.ativo?'Ativo':'Inativo'" [severity]="item.ativo?'success':'secondary'" /><span class="table-secondary">{{ item.utilizado||item.emUso?'Já utilizado':'Estrutura editável' }}</span></td></tr></ng-template>
+              <ng-template pTemplate="emptymessage"><tr><td colspan="5"><div class="empty-state"><i class="pi pi-list-check"></i><b>Nenhum checklist vinculado</b><span>Crie as perguntas e vincule o primeiro checklist.</span></div></td></tr></ng-template>
+            </p-table>
+          }
+          @case ('treinamentos') {
+            <p-table [value]="treinamentos()" styleClass="p-datatable-sm custom-table governance-table table-training-catalog" [rowHover]="true" [paginator]="treinamentos().length>10" [rows]="10" [rowsPerPageOptions]="[10,25,50]" paginatorDropdownAppendTo="body">
+              <ng-template pTemplate="header"><tr><th>Código</th><th>Treinamento</th><th>Disponível para</th><th>Situação</th></tr></ng-template>
+              <ng-template pTemplate="body" let-item><tr><td><span class="code-pill">{{ item.codigo }}</span></td><td><b>{{ item.nome }}</b><small>{{ item.descricao || 'Sem descrição' }}</small></td><td>{{ tipoModelo()==='CIPA'?'CIPA':'Brigada de incêndio' }}</td><td><p-tag [value]="item.ativo?'Ativo':'Inativo'" [severity]="item.ativo?'success':'secondary'" /></td></tr></ng-template>
+              <ng-template pTemplate="emptymessage"><tr><td colspan="4"><div class="empty-state"><i class="pi pi-graduation-cap"></i><b>Nenhum treinamento cadastrado</b><span>Cadastre as capacitações usadas por este grupo.</span></div></td></tr></ng-template>
+            </p-table>
+          }
+          @case ('regras-treinamento') {
+            <p-table [value]="exigencias()" styleClass="p-datatable-sm custom-table governance-table table-training-rules" [rowHover]="true" [paginator]="exigencias().length>10" [rows]="10" [rowsPerPageOptions]="[10,25,50]" paginatorDropdownAppendTo="body">
+              <ng-template pTemplate="header"><tr><th>Treinamento</th><th>Aplicar por</th><th>Cargo ou papel</th><th>Carga</th><th>Recorrência</th><th>Conferência</th></tr></ng-template>
+              <ng-template pTemplate="body" let-item><tr><td><b>{{ item.treinamentoNome || item.idTreinamento }}</b></td><td>{{ rotulo(item.modoAplicabilidade) }}</td><td>{{ item.funcaoNome || rotulo(item.papelCorpo) }}</td><td>{{ item.cargaHorariaMinutos/60 | number:'1.0-1' }} h</td><td>{{ item.recorrenciaMeses ? item.recorrenciaMeses + ' meses' : 'Não recorrente' }}</td><td><p-tag [value]="item.fonteConfirmada?'Confirmada':'Conferir'" [severity]="item.fonteConfirmada?'success':'warn'" /></td></tr></ng-template>
+              <ng-template pTemplate="emptymessage"><tr><td colspan="6"><div class="empty-state"><i class="pi pi-sitemap"></i><b>Nenhuma regra cadastrada</b><span>Informe quem precisa fazer cada treinamento.</span></div></td></tr></ng-template>
+            </p-table>
+          }
+          @case ('escolas') {
+            <p-table [value]="escolas()" styleClass="p-datatable-sm custom-table governance-table table-schools" [rowHover]="true" [paginator]="escolas().length>10" [rows]="10" [rowsPerPageOptions]="[10,25,50]" paginatorDropdownAppendTo="body">
+              <ng-template pTemplate="header"><tr><th>Instituição</th><th>CNPJ</th><th>Contato</th><th>Homologação</th><th>Conferência</th></tr></ng-template>
+              <ng-template pTemplate="body" let-item><tr><td><b>{{ item.nome }}</b><small>{{ item.local || item.razaoSocial || 'Local não informado' }}</small></td><td>{{ item.cnpj || 'Não informado' }}</td><td>{{ item.contatos || item.telefones || 'Não informado' }}</td><td>{{ item.homologacoes?.[0]?.statusFonte || 'Sem registro' }}</td><td><p-tag [value]="item.possuiDadoSuspeito?'Revisar dado':'Pendente de homologação'" [severity]="item.possuiDadoSuspeito?'danger':'warn'" /></td></tr></ng-template>
+              <ng-template pTemplate="emptymessage"><tr><td colspan="5"><div class="empty-state"><i class="pi pi-building-columns"></i><b>Nenhuma instituição cadastrada</b><span>Cadastre a primeira instituição de treinamento.</span></div></td></tr></ng-template>
+            </p-table>
+          }
+          @case ('documentos') {
+            <p-table [value]="categorias()" styleClass="p-datatable-sm custom-table governance-table table-document-types" [rowHover]="true" [paginator]="categorias().length>10" [rows]="10" [rowsPerPageOptions]="[10,25,50]" paginatorDropdownAppendTo="body">
+              <ng-template pTemplate="header"><tr><th>Tipo de documento</th><th>Usar em</th><th>Vincular a</th><th>Validade</th><th>Conferência</th></tr></ng-template>
+              <ng-template pTemplate="body" let-item><tr><td><b>{{ item.nome }}</b><small>{{ item.codigo }}</small></td><td>{{ rotulo(item.contexto) }}</td><td>{{ rotulo(item.escopoTitular) }}</td><td>{{ item.semValidade?'Sem validade':item.exigeDataValidade?'Obrigatória':'Opcional' }}</td><td><p-tag [value]="item.confirmada?'Confirmada':'Conferir'" [severity]="item.confirmada?'success':'warn'" /></td></tr></ng-template>
+              <ng-template pTemplate="emptymessage"><tr><td colspan="5"><div class="empty-state"><i class="pi pi-folder"></i><b>Nenhum tipo de documento cadastrado</b><span>Cadastre os documentos que precisam ser controlados.</span></div></td></tr></ng-template>
+            </p-table>
+          }
+          @case ('ativos') {
+            <p-table [value]="ativos()" styleClass="p-datatable-sm custom-table governance-table table-assets" [rowHover]="true" [paginator]="ativos().length>10" [rows]="10" [rowsPerPageOptions]="[10,25,50]" paginatorDropdownAppendTo="body">
+              <ng-template pTemplate="header"><tr><th>Identificação</th><th>Tipo</th><th>Localização</th><th>Origem</th><th>Conferência</th></tr></ng-template>
+              <ng-template pTemplate="body" let-item><tr><td><b>{{ item.identificadorLocal }}</b></td><td>{{ rotulo(item.tipo) }}</td><td>{{ item.localizacao }}</td><td>{{ rotulo(item.origem) }}</td><td><p-tag [value]="rotulo(item.statusConferencia)" [severity]="item.statusConferencia==='CONFIRMADO'?'success':'warn'" /></td></tr></ng-template>
+              <ng-template pTemplate="emptymessage"><tr><td colspan="5"><div class="empty-state"><i class="pi pi-box"></i><b>{{ idBaseAtivos ? 'Nenhum item cadastrado nesta base' : 'Selecione uma base operacional' }}</b><span>{{ idBaseAtivos ? 'Cadastre o primeiro item que precisa ser inspecionado.' : 'Os itens são organizados por base para facilitar a localização.' }}</span></div></td></tr></ng-template>
+            </p-table>
+          }
+        }
+      </div>
+    </section>
+  }
+</main>

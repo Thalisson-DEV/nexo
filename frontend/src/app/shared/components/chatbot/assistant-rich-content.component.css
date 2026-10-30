@@ -1,0 +1,63 @@
+:host { display: block; min-width: 0; }
+.rich-content { display: flex; flex-direction: column; gap: 0.75rem; }
+.plain-content { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.79rem; line-height: 1.58; }
+
+.visualization-card {
+  overflow: hidden;
+  border: 1px solid #dfe7f0;
+  border-radius: 0.95rem;
+  background: #fbfcfe;
+}
+
+.visualization-card > header { padding: 0.75rem 0.8rem 0.45rem; }
+.visualization-heading { display: flex; align-items: flex-start; gap: 0.55rem; }
+.visualization-heading > i { margin-top: 0.15rem; color: var(--p-primary-600); font-size: 0.72rem; }
+.visualization-heading h4 { margin: 0; color: #334155; font-size: 0.73rem; font-weight: 750; line-height: 1.35; }
+.visualization-heading p { margin: 0.2rem 0 0; color: #718096; font-size: 0.61rem; line-height: 1.45; }
+
+.visualization-chart { height: 13rem; padding: 0.25rem 0.45rem 0.65rem; }
+:host ::ng-deep .visualization-chart .p-chart { display: block; width: 100%; height: 100%; }
+.chart-placeholder { display: flex; height: 100%; align-items: center; justify-content: center; gap: 0.4rem; color: #8491a3; font-size: 0.62rem; }
+.chart-placeholder i { color: var(--p-primary-500); font-size: 0.7rem; }
+
+.indicator-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.5rem; padding: 0.45rem 0.8rem 0.8rem; }
+.indicator-value { padding: 0.75rem; border-radius: 0.75rem; background: color-mix(in srgb, var(--p-primary-50) 68%, white); }
+.indicator-value strong { display: block; color: var(--p-primary-700); font-size: 1.25rem; font-weight: 780; letter-spacing: -0.035em; }
+.indicator-value span { display: block; margin-top: 0.15rem; color: #526177; font-size: 0.62rem; font-weight: 700; }
+.indicator-value small { display: block; margin-top: 0.1rem; color: #8491a3; font-size: 0.56rem; }
+
+.visualization-table { border-top: 1px solid #e5ebf2; }
+.visualization-table summary { display: flex; cursor: pointer; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.6rem 0.8rem; color: #64748b; font-size: 0.62rem; font-weight: 650; list-style: none; }
+.visualization-table summary::-webkit-details-marker { display: none; }
+.visualization-table summary span { display: flex; align-items: center; gap: 0.35rem; }
+.visualization-table summary:hover { color: var(--p-primary-700); }
+.table-chevron { font-size: 0.52rem; transition: transform 160ms ease; }
+.visualization-table[open] .table-chevron { transform: rotate(180deg); }
+.visualization-table-scroll { max-width: 100%; overflow-x: auto; border-top: 1px solid #e5ebf2; }
+.visualization-table-scroll:focus-visible { outline: 2px solid var(--p-primary-400); outline-offset: -2px; }
+.visualization-table table { width: 100%; border-collapse: collapse; background: white; font-size: 0.61rem; text-align: left; }
+.visualization-table th, .visualization-table td { min-width: 4.5rem; padding: 0.45rem 0.55rem; border-bottom: 1px solid #edf1f5; }
+.visualization-table th { background: #f1f5f9; color: #526177; font-weight: 700; }
+.visualization-table td { color: #64748b; }
+.visualization-table tr:last-child td { border-bottom: 0; }
+
+@media (max-width: 768px) {
+  .rich-content { gap: 0.65rem; }
+  .plain-content { font-size: 14px; line-height: 1.55; }
+  .visualization-card > header { padding: 0.7rem 0.7rem 0.4rem; }
+  .visualization-heading h4 { font-size: 13px; }
+  .visualization-heading p { font-size: 11px; }
+  .visualization-chart { height: 11rem; padding-inline: 0.2rem; }
+  .chart-placeholder { font-size: 11px; }
+  .indicator-grid { grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); padding: 0.4rem 0.65rem 0.7rem; }
+  .indicator-value { padding: 0.65rem; }
+  .indicator-value strong { font-size: 18px; }
+  .indicator-value span { font-size: 11px; }
+  .indicator-value small { font-size: 10px; }
+  .visualization-table summary { min-height: 2.75rem; box-sizing: border-box; font-size: 11px; }
+  .visualization-table table { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-chevron { transition: none; }
+}

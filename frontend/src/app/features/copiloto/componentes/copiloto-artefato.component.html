@@ -1,0 +1,190 @@
+<section class="painel" [attr.aria-labelledby]="'artefato-' + artefato().codigo">
+  <header class="painel__cabecalho">
+    <span class="painel__icone" aria-hidden="true"><i [class]="icone[artefato().tipo] || 'pi pi-file'"></i></span>
+    <div class="painel__titulos">
+      <h2 class="painel__titulo" [id]="'artefato-' + artefato().codigo">{{ artefato().titulo }}</h2>
+      <p class="painel__subtitulo">
+        {{ rotulo[artefato().tipo] || artefato().tipo }} · {{ artefato().codigo }}
+        @if (artefato().descricao) {
+          · {{ artefato().descricao }}
+        }
+      </p>
+    </div>
+    <div class="painel__acoes">
+      @if (artefatos().length > 1) {
+        <ces-icon-button icon="pi pi-angle-left" label="Artefato anterior" size="icon-sm" [disabled]="indice() <= 0" (pressed)="anterior()"></ces-icon-button>
+        <span class="painel__posicao">{{ indice() + 1 }}/{{ artefatos().length }}</span>
+        <ces-icon-button icon="pi pi-angle-right" label="Próximo artefato" size="icon-sm" [disabled]="indice() >= artefatos().length - 1" (pressed)="proximo()"></ces-icon-button>
+      }
+      <ces-icon-button icon="pi pi-times" label="Fechar painel de artefatos" size="icon-sm" (pressed)="fechar.emit()"></ces-icon-button>
+    </div>
+  </header>
+
+  <div class="painel__corpo">
+    @if (arquivo(); as arq) {
+      <div class="painel__arquivo">
+        <i [class]="artefato().tipo === 'RELATORIO' ? 'pi pi-file-pdf' : 'pi pi-file-excel'" aria-hidden="true"></i>
+        <span class="painel__arquivo-nome">{{ arq.nome }}</span>
+        @if (artefato().tipo === 'RELATORIO') {
+          <ces-button variant="outline" size="sm" icon="pi pi-external-link" label="Abrir PDF" (pressed)="abrirPdf()"></ces-button>
+        }
+        <ces-button size="sm" icon="pi pi-download" label="Baixar" (pressed)="baixar()"></ces-button>
+      </div>
+    }
+
+    @switch (artefato().tipo) {
+      @case ('RELATORIO') {
+        @if (spec().periodo || spec().subtitulo) {
+          <p class="painel__meta">{{ spec().subtitulo }}@if (spec().subtitulo && spec().periodo) { · }{{ spec().periodo ? 'Período: ' + spec().periodo : '' }}</p>
+        }
+        @if (spec().resumo) {
+          <section class="bloco bloco--destaque" aria-label="Resumo executivo">
+            <h3>Resumo executivo</h3>
+            <app-copiloto-markdown [content]="spec().resumo"></app-copiloto-markdown>
+          </section>
+        }
+        @for (secao of spec().secoes ?? []; track $index) {
+          <section class="bloco">
+            <h3>{{ secao.titulo }}</h3>
+            @if (secao.texto) {
+              <app-copiloto-markdown [content]="secao.texto"></app-copiloto-markdown>
+            }
+            <ng-container [ngTemplateOutlet]="componentesTpl" [ngTemplateOutletContext]="{ $implicit: secao.componentes }"></ng-container>
+          </section>
+        }
+        @if (spec().conclusoes) {
+          <section class="bloco">
+            <h3>Conclusões e recomendações</h3>
+            <app-copiloto-markdown [content]="spec().conclusoes"></app-copiloto-markdown>
+          </section>
+        }
+      }
+      @case ('PLANILHA') {
+        <section class="bloco">
+          <h3>Conteúdo da planilha</h3>
+          <ul class="abas">
+            @for (aba of spec().abas ?? []; track $index) {
+              <li>
+                <i class="pi pi-table" aria-hidden="true"></i>
+                <strong>{{ aba.nome }}</strong>
+                <span>{{ aba.linhas.toLocaleString('pt-BR') }} linhas · {{ aba.colunas }} colunas · {{ aba.resultado }}</span>
+              </li>
+            }
+          </ul>
+          @for (aviso of spec().avisos ?? []; track $index) {
+            <ces-callout tone="warning" icon="pi-info-circle" [dense]="true">{{ aviso }}</ces-callout>
+          }
+        </section>
+      }
+      @default {
+        <ng-container [ngTemplateOutlet]="componentesTpl" [ngTemplateOutletContext]="{ $implicit: spec().componentes }"></ng-container>
+      }
+    }
+
+    @if (spec().procedencia?.length) {
+      <section class="procedencia">
+        <button type="button" class="procedencia__botao" [attr.aria-expanded]="procedenciaAberta()" (click)="procedenciaAberta.set(!procedenciaAberta())">
+          <i class="pi pi-database" aria-hidden="true"></i>
+          Procedência dos dados ({{ spec().procedencia!.length }})
+          <i class="pi" [class.pi-chevron-up]="procedenciaAberta()" [class.pi-chevron-down]="!procedenciaAberta()" aria-hidden="true"></i>
+        </button>
+        @if (procedenciaAberta()) {
+          <ul class="procedencia__lista">
+            @for (item of spec().procedencia!; track item.codigo) {
+              <li>
+                <span class="procedencia__codigo">{{ item.codigo }}</span>
+                <span class="procedencia__texto">
+                  <strong>{{ item.titulo }}</strong>
+                  <span>{{ natureza[item.natureza] || item.natureza }}@if (item.linhas !== undefined) { · {{ item.linhas.toLocaleString('pt-BR') }} linhas }@if (item.origem) { · {{ item.origem }} }</span>
+                </span>
+              </li>
+            }
+          </ul>
+          <p class="procedencia__nota">Os valores foram calculados pelo Nexo a partir desses resultados, com as suas permissões.</p>
+        }
+      </section>
+    }
+  </div>
+</section>
+
+<ng-template #componentesTpl let-componentes>
+  @if (kpis(componentes).length) {
+    <div class="kpis">
+      @for (kpi of kpis(componentes); track $index) {
+        <div class="kpi">
+          <span class="kpi__titulo">{{ kpi.titulo }}</span>
+          <strong class="kpi__valor">{{ formatarValor(kpi.valor, kpi.formato) }}</strong>
+          @if (variacao(kpi); as v) {
+            <ces-status [tone]="v.tom" [icon]="v.icone" emphasis="soft">{{ v.texto }}</ces-status>
+          }
+          @if (kpi.descricao) {
+            <span class="kpi__descricao">{{ kpi.descricao }}</span>
+          }
+        </div>
+      }
+    </div>
+  }
+  <div class="componentes">
+    @for (componente of demais(componentes); track $index) {
+      <div class="componente" [class.componente--metade]="componente.largura === 'metade'">
+        @switch (componente.tipo) {
+          @case ('grafico') {
+            <ces-chart
+              [kind]="tipoGrafico($any(componente))"
+              [title]="componente.titulo || 'Gráfico'"
+              [description]="componente.descricao"
+              [labels]="$any(componente).rotulos ?? []"
+              [series]="series($any(componente))"
+              [points]="pontos($any(componente))"
+              [valueFormat]="formatoGrafico($any(componente))"
+              [xAxisLabel]="$any(componente).eixoX"
+              [yAxisLabel]="$any(componente).eixoY"
+              [note]="$any(componente).observacao"
+            ></ces-chart>
+          }
+          @case ('tabela') {
+            <figure class="tabela">
+              @if (componente.titulo) {
+                <figcaption class="tabela__titulo">{{ componente.titulo }}</figcaption>
+              }
+              <div class="tabela__rolagem" role="region" tabindex="0" [attr.aria-label]="componente.titulo || 'Tabela'">
+                <table>
+                  <thead>
+                    <tr>
+                      @for (coluna of $any(componente).colunas; track $index) {
+                        <th scope="col" [class.num]="coluna.tipo === 'inteiro' || coluna.tipo === 'numero'">{{ coluna.rotulo }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (linha of $any(componente).linhas; track $index) {
+                      <tr>
+                        @for (celula of linha; track $index) {
+                          <td [class.num]="$any(componente).colunas[$index]?.tipo === 'inteiro' || $any(componente).colunas[$index]?.tipo === 'numero'">
+                            {{ formatarCelula(celula, $any(componente).colunas[$index]?.tipo, $any(componente).colunas[$index]?.nome) }}
+                          </td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <p class="tabela__rodape">
+                {{ $any(componente).exibidas }} de {{ ($any(componente).total ?? 0).toLocaleString('pt-BR') }} linhas
+                @if ($any(componente).observacao) { · {{ $any(componente).observacao }} }
+              </p>
+            </figure>
+          }
+          @case ('texto') {
+            <div class="texto">
+              @if (componente.titulo) {
+                <h3>{{ componente.titulo }}</h3>
+              }
+              <app-copiloto-markdown [content]="$any(componente).conteudo"></app-copiloto-markdown>
+            </div>
+          }
+        }
+      </div>
+    }
+  </div>
+</ng-template>

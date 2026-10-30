@@ -1,0 +1,55 @@
+# Perfil de PRODUCAO. Sobrepoe o application.yaml quando SPRING_PROFILES_ACTIVE=prod.
+# Mantem apenas o delta de prod; o restante (datasource url/user/pass, CORS, JWT,
+# flyway, context-path /api) ja vem do application.yaml via variaveis de ambiente.
+server:
+  port: ${PORT:8080}        # Railway injeta $PORT em runtime
+
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: validate    # schema e criado/versionado pelo Flyway; aqui so validamos
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+      timeout: 2000ms
+      repositories:
+        enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,redis
+  metrics:
+    tags:
+      application: nexo-core
+
+logging:
+  structured:
+    format:
+      # JSON estruturado com o nível no topo ("level"), onde o Railway o lê. No formato
+      # ecs o nível ficava em log.level e todo erro aparecia como info no painel.
+      console: logstash
+  level:
+    root: INFO
+    com.nexo.app: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web: INFO
+    # Sobrescreve o DEBUG herdado do application.yaml base (ruido em prod)
+    org.flywaydb: INFO
+    org.springframework.modulith: INFO

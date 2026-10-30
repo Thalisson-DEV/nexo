@@ -1,0 +1,174 @@
+<section
+  class="sp"
+  aria-label="Copiloto — conversa sobre este painel"
+  (dragover)="aoArrastar($event)"
+  (dragleave)="aoSairArrasto($event)"
+  (drop)="aoSoltar($event)"
+>
+  <header class="sp__topo">
+    <img class="sp__avatar" src="icons/copiloto-1.png" alt="" aria-hidden="true" />
+    <div class="sp__identidade">
+      <span class="sp__marca">Copiloto</span>
+      <h2 class="sp__titulo" [attr.title]="titulo()">{{ titulo() }}</h2>
+    </div>
+    <ces-icon-button icon="pi pi-plus" label="Nova análise neste painel" tooltipPosition="bottom" (pressed)="nova()"></ces-icon-button>
+    <ces-icon-button
+      icon="pi pi-external-link"
+      [label]="store.conversaId() ? 'Abrir no Copiloto (continuar esta conversa no workspace completo)' : 'Abrir no Copiloto (workspace completo com o contexto deste painel)'"
+      tooltipPosition="bottom"
+      (pressed)="abrirNoWorkspace()"
+    ></ces-icon-button>
+    <ces-icon-button icon="pi pi-times" label="Ocultar Copiloto" tooltipPosition="bottom" (pressed)="painel.fechar()"></ces-icon-button>
+  </header>
+
+  <div class="sp__mensagens" #rolagem (scroll)="aoRolar()">
+    <div class="sp__conteudo" [class.sp__conteudo--vazio]="store.vazia()" role="log" aria-label="Mensagens da conversa" aria-live="off">
+      @if (store.carregandoConversa()) {
+        <ces-async-state state="loading" [compact]="true" title="Abrindo a análise"></ces-async-state>
+      } @else if (store.erroConversa()) {
+        <ces-async-state
+          state="error"
+          [compact]="true"
+          title="Não foi possível abrir esta análise"
+          [description]="store.erroConversa() || undefined"
+          actionLabel="Começar nova análise"
+          actionIcon="pi pi-plus"
+          (action)="nova()"
+        ></ces-async-state>
+      } @else if (store.vazia()) {
+        <div class="sp__boas-vindas">
+          <img class="sp__boas-vindas-avatar" src="icons/copiloto-2.png" alt="" aria-hidden="true" />
+          @if (contexto(); as ctx) {
+            <p class="sp__entendi">Estou olhando o painel <strong>{{ ctx.nome }}</strong> com você.</p>
+            <dl class="sp__recorte" aria-label="Recorte atual do painel">
+              <div>
+                <dt>Período</dt>
+                <dd>{{ ctx.periodo?.rotulo || 'Todo o período' }}</dd>
+              </div>
+              @for (filtro of filtrosAtivos(); track filtro.chave) {
+                <div>
+                  <dt>{{ filtro.rotulo }}</dt>
+                  <dd>{{ filtro.valor }}</dd>
+                </div>
+              } @empty {
+                <div>
+                  <dt>Filtros</dt>
+                  <dd>Nenhum filtro aplicado</dd>
+                </div>
+              }
+            </dl>
+            <p class="sp__convite">
+              Posso investigar os indicadores, comparar períodos, encontrar anomalias ou aprofundar qualquer gráfico
+              — consultando os dados detalhados, não só o que está na tela.
+            </p>
+          } @else {
+            <p class="sp__entendi">Carregando o contexto do painel…</p>
+          }
+
+          @if (store.capacidades(); as cap) {
+            @if (!cap.disponivel) {
+              <ces-callout tone="warning" icon="pi-exclamation-triangle" title="Copiloto indisponível" [dense]="true">
+                {{ cap.motivoIndisponibilidade || 'O provedor de IA não está configurado neste ambiente.' }}
+              </ces-callout>
+            } @else if (sugestoes().length) {
+              <ul class="sp__sugestoes" aria-label="Sugestões para este painel">
+                @for (sugestao of sugestoes(); track sugestao.rotulo) {
+                  <li>
+                    <button type="button" class="sp__sugestao" (click)="usarSugestao(sugestao.pergunta)">
+                      <i [class]="sugestao.icone" aria-hidden="true"></i>
+                      <span>{{ sugestao.rotulo }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          } @else if (store.erroCapacidades()) {
+            <ces-async-state state="error" [compact]="true" title="Não foi possível falar com o Copiloto" [description]="store.erroCapacidades() || undefined"></ces-async-state>
+          } @else {
+            <ces-async-state state="loading" [compact]="true" title="Preparando o Copiloto"></ces-async-state>
+          }
+
+          @if (anterior(); as conversa) {
+            <ces-button
+              variant="ghost"
+              size="sm"
+              icon="pi pi-history"
+              [label]="'Continuar análise anterior: ' + conversa.titulo"
+              (pressed)="continuarAnterior()"
+            ></ces-button>
+          }
+        </div>
+      } @else {
+        @for (mensagem of store.mensagens(); track mensagem.chave) {
+          <app-copiloto-mensagem [mensagem]="mensagem" (abrirArtefato)="abrirArtefato($event)"></app-copiloto-mensagem>
+        }
+      }
+    </div>
+  </div>
+
+  @if (!grudado() && !store.vazia()) {
+    <div class="sp__fim">
+      <ces-button variant="secondary" size="sm" icon="pi pi-arrow-down" label="Ir para o fim" (pressed)="irParaOFim()"></ces-button>
+    </div>
+  }
+
+  <div class="sp__rodape">
+    @if (store.reconectando()) {
+      <ces-callout tone="warning" icon="pi-sync" [dense]="true">
+        A conexão oscilou. Reconectando à resposta em andamento — nada foi perdido.
+      </ces-callout>
+    }
+    @if (recorteMudou() && !store.transmitindo()) {
+      <p class="sp__aviso-recorte" role="status">
+        <i class="pi pi-filter" aria-hidden="true"></i>
+        Os filtros mudaram. A próxima pergunta usa o recorte atual: {{ recorteAtual() }}.
+      </p>
+    }
+    <div class="sp__contexto">
+      @if (foco(); as f) {
+        <span class="sp__foco">
+          <ces-status tone="brand" icon="pi-bullseye">Foco: {{ f.rotulo || f.id }}</ces-status>
+          <ces-icon-button icon="pi pi-times" size="icon-sm" label="Remover foco da pergunta" (pressed)="removerFoco()"></ces-icon-button>
+        </span>
+      } @else if (contexto()) {
+        <ces-status tone="neutral" icon="pi-objects-column">{{ recorteAtual() }}</ces-status>
+      }
+    </div>
+    <app-copiloto-compositor
+      [(valor)]="rascunho"
+      [anexos]="store.anexos()"
+      [contexto]="null"
+      [transmitindo]="store.transmitindo()"
+      [parando]="store.parando()"
+      [disponivel]="store.disponivel()"
+      [enviandoAnexos]="store.enviandoAnexos()"
+      (enviar)="enviar($event)"
+      (parar)="store.parar()"
+      (anexar)="store.anexar($event)"
+      (removerAnexo)="store.removerAnexo($event)"
+    ></app-copiloto-compositor>
+  </div>
+
+  @if (store.artefatoSelecionado(); as artefato) {
+    <div class="sp__artefato" role="dialog" aria-modal="false" aria-label="Artefato gerado">
+      <div class="sp__artefato-barra">
+        <span>Prévia do artefato</span>
+        <ces-button variant="ghost" size="sm" icon="pi pi-external-link" label="Abrir no workspace" (pressed)="abrirNoWorkspace()"></ces-button>
+      </div>
+      <app-copiloto-artefato
+        [artefato]="artefato"
+        [artefatos]="store.artefatos()"
+        (fechar)="store.abrirArtefato(null)"
+        (selecionar)="store.abrirArtefato($event)"
+      ></app-copiloto-artefato>
+    </div>
+  }
+
+  @if (arrastando()) {
+    <div class="sp__soltar" aria-hidden="true">
+      <i class="pi pi-paperclip"></i>
+      <span>Solte para anexar à pergunta</span>
+    </div>
+  }
+</section>
+<div class="ces-sr-only" aria-live="polite" role="status">{{ store.anuncio() }}</div>

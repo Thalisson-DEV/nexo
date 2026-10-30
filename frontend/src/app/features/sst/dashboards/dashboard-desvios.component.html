@@ -1,0 +1,464 @@
+<app-copiloto-area [contexto]="contextoCopiloto()">
+<main class="dash-page">
+  <div class="dash-shell">
+    <ces-page-header title="Ocorrência e tratamento dos desvios" icon="pi pi-exclamation-triangle"
+      [breadcrumb]="[{ label: 'Segurança' }, { label: 'Painel de desvios' }]"
+      description="Acompanhe os desvios identificados, veja onde eles aparecem e priorize o que ainda precisa de tratamento.">
+      <app-copiloto-gatilho actions></app-copiloto-gatilho>
+        @if (atualizadoEm()) { <span actions class="dash-updated">Atualizado às {{ atualizadoEm() | date: 'HH:mm' }}</span> }
+        <ces-button actions label="Atualizar" icon="pi pi-refresh"
+          [loading]="loading()" (pressed)="aplicar()"></ces-button>
+    </ces-page-header>
+
+    <ces-filter-panel storageKey="dash-sst-desvios" [activeCount]="chips().length" [summary]="chips()" [loading]="loading()"
+      (applied)="aplicar()" (cleared)="limpar()" (chipRemoved)="removerFiltro($event)">
+      <div class="ces-filter-grid">
+        <ces-datepicker label="Início" [(value)]="dataInicio" [clearable]="true"></ces-datepicker>
+        <ces-datepicker label="Fim" [(value)]="dataFim" [clearable]="true"></ces-datepicker>
+        <ces-multiselect label="Processo da inspeção" [options]="opcoes.processos()" [value]="$any(filter.idProcesso ?? [])" (valueChange)="filter.idProcesso = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Processo do inspetor" [options]="opcoes.processos()" [value]="$any(filter.idProcessoInspetor ?? [])" (valueChange)="filter.idProcessoInspetor = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Equipe" [options]="opcoes.equipes()" [value]="$any(filter.idEquipe ?? [])" (valueChange)="filter.idEquipe = $event" placeholder="Todas" [loading]="equipesLoading()" (opened)="openEquipes()" (search)="searchEquipes({ filter: $event })"></ces-multiselect>
+        <ces-multiselect label="Centro de custo" [options]="opcoes.centrosCusto()" [value]="$any(filter.idCentroCusto ?? [])" (valueChange)="filter.idCentroCusto = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Base operacional" [options]="opcoes.basesOperacionais()" [value]="$any(filter.idBaseOperacional ?? [])" (valueChange)="filter.idBaseOperacional = $event" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Gravidade" [options]="gravidadeOptions" [value]="$any(filter.gravidade ?? [])" (valueChange)="filter.gravidade = $event" [filter]="false" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Status" [options]="statusOptions" [value]="$any(filter.status ?? [])" (valueChange)="filter.status = $event" [filter]="false" placeholder="Todos"></ces-multiselect>
+      </div>
+    </ces-filter-panel>
+
+    @if (loading()) {
+      <div class="dash-metrics">@for (item of [1,2,3,4]; track item) { <p-skeleton height="156px" borderRadius="16px" /> }</div>
+      <p-skeleton height="430px" borderRadius="16px" />
+    } @else if (data(); as d) {
+      @if (visaoGerencial(); as vg) {
+        <app-dashboard-visao-gerencial [veredito]="vg.veredito" [leituras]="vg.leituras" [copiloto]="copilotoDisponivel"
+          (abrir)="analisar($event.dimension, $event.value)" (perguntar)="perguntarVisao(vg.pergunta)" />
+      }
+
+      <section class="dash-metrics" aria-label="Indicadores principais">
+        <app-dashboard-metric-card label="Desvios identificados" [value]="d.indicadores.totalDesvios.valor" icon="pi-exclamation-triangle"
+          [detail]="comparison(d.indicadores.totalDesvios)" [pTooltip]="descricaoIndicador(d.indicadores.totalDesvios)" tone="primary"
+          actionLabel="Analisar desvios" (activate)="analisar('kpi', 'total')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'totalDesvios', rotulo: 'Desvios identificados' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Desvios críticos identificados" [value]="d.indicadores.desviosCriticos.valor" icon="pi-bolt"
+          [detail]="comparison(d.indicadores.desviosCriticos)" [pTooltip]="descricaoIndicador(d.indicadores.desviosCriticos)" tone="red"
+          actionLabel="Analisar críticos" (activate)="analisar('kpi', 'criticos')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'desviosCriticos', rotulo: 'Desvios críticos' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Inspeções com desvio" [value]="d.indicadores.inspecoesComDesvio.valor" icon="pi-clipboard"
+          [detail]="comparison(d.indicadores.inspecoesComDesvio)" [pTooltip]="descricaoIndicador(d.indicadores.inspecoesComDesvio)" tone="amber"
+          actionLabel="Ver as inspeções" (activate)="analisar('kpi', 'inspecoes')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'inspecoesComDesvio', rotulo: 'Inspeções com desvio' }" />
+        </app-dashboard-metric-card>
+        <app-dashboard-metric-card label="Desvios resolvidos" [value]="percentualOuSemAmostra(d.totalDesvios, d.indicadores.taxaResolucao.valor)" icon="pi-check-circle"
+          [detail]="'Acompanhamento das correções · ' + comparison(d.indicadores.taxaResolucao)" [pTooltip]="descricaoIndicador(d.indicadores.taxaResolucao)"
+          tone="green" [progress]="d.indicadores.taxaResolucao.valor"
+          actionLabel="Analisar tratamento" (activate)="analisar('kpi', 'resolucao')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'taxaResolucao', rotulo: 'Desvios resolvidos' }" />
+        </app-dashboard-metric-card>
+      </section>
+
+      @if (d.totalDesvios === 0) {
+        <div class="dash-panel dash-empty dash-empty--tight" role="status">
+          <i class="pi pi-info-circle"></i>
+          Nenhum desvio identificado no período. Consulte o dashboard de inspeções para avaliar o volume inspecionado.
+        </div>
+      }
+
+      @if (hasDataQualityWarning(d)) {
+        <div class="dash-quality" role="status"><i class="pi pi-info-circle"></i><div><strong>Qualidade dos dados requer atenção</strong><span>{{ d.qualidadeDados.registrosSemPrazo }} sem prazo · {{ d.qualidadeDados.registrosSemResponsavel }} sem responsável · {{ d.qualidadeDados.coberturaCadastroPercentual | number:'1.0-2' }}% dos cadastros cobertos</span></div></div>
+      }
+
+      <!-- Ocorrência histórica e tempo de resolução -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Tendência temporal</span>
+              <h2>Desvios identificados ao longo do período</h2>
+              <p>Evolução conforme a data da inspeção · exibição {{ rotuloGranularidade(d.granularidade) }}. {{ periodoComparativo(d) }}.</p>
+              @if (recorteDesviosAplicado(); as recorte) {
+                <span class="dash-badge">Filtro aplicado · {{ recorte }}</span>
+              }
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'tendenciaDesvios', rotulo: 'Desvios identificados ao longo do período' }" />
+          </header>
+          @if (d.tendenciaDesvios.length) {
+            <div class="dash-chart dash-chart--responsive dash-chart--drill">
+              <p-chart type="line" [data]="deviationTrendData" [options]="trendChartOptions" [responsive]="true"
+                ariaLabel="Desvios identificados ao longo do período. Clique num ponto para analisar." (onDataSelect)="onTendenciaSelect($event)" />
+            </div>
+            <p class="dash-drill-hint"><i class="pi pi-hand-pointer" aria-hidden="true"></i> Clique num ponto para ver os desvios daquele período</p>
+            @if (d.totalDesvios === 0) {
+              <p class="dash-note">Os intervalos zerados foram mantidos para preservar a continuidade do período.</p>
+            }
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-line"></i>Sem série histórica disponível para o período.</div>
+          }
+        </article>
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Tempo de ciclo</span>
+              <h2>Tempo para resolver</h2>
+              <p>Quanto tempo foi necessário para concluir os desvios resolvidos.</p>
+            </div>
+            <ces-button size="sm" variant="outline" icon="pi pi-chart-bar" label="Analisar" (pressed)="analisar('kpi', 'resolucao')"></ces-button>
+          </header>
+          <div class="dash-summary">
+            <div class="dash-summary__total">
+              <strong>{{ d.totalResolvidos > 0 ? (d.tempoMedianoResolucaoDias | number:'1.0-2') + ' dias' : 'Sem dados no período' }}</strong>
+              <span>metade foi resolvida em até esse prazo</span>
+            </div>
+            <div class="dash-summary__items">
+              <div class="dash-summary__item">
+                <i class="dash-summary__dot" style="background:#c2413b"></i>
+                <span>9 em cada 10 resolvidos em até</span>
+                <strong>{{ d.totalResolvidos > 0 ? (d.tempoP90ResolucaoDias | number:'1.0-2') + ' dias' : 'Sem dados' }}</strong>
+              </div>
+              <div class="dash-summary__item">
+                <i class="dash-summary__dot" style="background:#c57a16"></i>
+                <span>Sem prazo definido</span>
+                <strong>{{ d.totalSemPrazo }}</strong>
+              </div>
+              <div class="dash-summary__item">
+                <i class="dash-summary__dot"></i>
+                <span>No prazo</span>
+                <strong>{{ d.totalNoPrazo }}</strong>
+              </div>
+              <div class="dash-summary__item">
+                <i class="dash-summary__dot" style="background:var(--p-primary-500)"></i>
+                <span>Pendências abertas</span>
+                <strong>{{ d.totalPendentes }}</strong>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Distribuição dos desvios identificados -->
+      <section class="dash-panel mb-6" aria-labelledby="volume-gravidade-title">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Volume por gravidade</span>
+            <h2 id="volume-gravidade-title">Distribuição dos desvios identificados</h2>
+            <p>Participação de cada gravidade no período e variação em relação ao período anterior. Clique numa gravidade para analisá-la.</p>
+          </div>
+          <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'volumePorGravidade', rotulo: 'Distribuição dos desvios por gravidade' }" />
+          @if (d.totalDesvios > 0) {
+            <span class="dash-badge !font-bold">{{ d.totalDesvios }} desvio(s) no período</span>
+          }
+        </header>
+
+        @if (d.volumePorGravidade.length) {
+          <div class="dash-severity-grid">
+            @for (volume of d.volumePorGravidade; track volume.gravidade) {
+              <div class="dash-aging-card"
+                   [class.is-vazio]="volume.total === 0"
+                   [class.is-alerta]="volume.total > 0 && volume.gravidade === 'CRITICA'">
+                <button type="button" class="dash-card-hit" (click)="analisar('gravidade', volume.gravidade)"
+                  [attr.aria-label]="'Analisar desvios de gravidade ' + rotuloGravidade(volume.gravidade) + ': ' + volume.total"></button>
+                <div class="dash-aging-card__header">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="dash-aging-dot" [attr.data-tone]="tomGravidade(volume.gravidade)"></span>
+                    <strong class="dash-aging-card__range">
+                      @if (volume.gravidade === 'CRITICA') {
+                        <i class="pi pi-bolt mr-0.5 text-red-600 dark:text-red-400" aria-hidden="true"></i>
+                      }
+                      {{ rotuloGravidade(volume.gravidade) }}
+                    </strong>
+                  </div>
+                  <span class="dash-aging-card__stage" [attr.data-tone]="tomGravidade(volume.gravidade)">
+                    {{ subtituloGravidade(volume.gravidade) }}
+                  </span>
+                </div>
+
+                <div class="dash-aging-card__body">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="dash-aging-card__total-wrap">
+                      <strong class="dash-aging-card__total">{{ volume.total }}</strong>
+                      <span class="dash-aging-card__unit">desvio(s)</span>
+                    </div>
+                    <div class="flex flex-col items-end" [pTooltip]="(volume.percentual | number:'1.0-1') + '% do volume total de desvios'">
+                      <span class="dash-share-pill" [attr.data-tone]="volume.total > 0 ? tomGravidade(volume.gravidade) : 'neutral'">
+                        {{ volume.percentual | number:'1.0-1' }}%
+                      </span>
+                      <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">do volume</span>
+                    </div>
+                  </div>
+
+                  @if (volume.total > 0) {
+                    <!-- Barra de proporção por gravidade -->
+                    <div class="dash-aging-bar" [pTooltip]="(volume.percentual | number:'1.0-1') + '% do volume total (' + volume.total + ' de ' + d.totalDesvios + ')'">
+                      <span class="dash-aging-bar__seg"
+                            [class.dash-aging-bar__seg--critical]="volume.gravidade === 'CRITICA'"
+                            [class.dash-aging-bar__seg--high]="volume.gravidade === 'ALTA'"
+                            [class.dash-aging-bar__seg--medium]="volume.gravidade === 'MEDIA'"
+                            [class.dash-aging-bar__seg--low]="volume.gravidade === 'BAIXA'"
+                            [style.width.%]="barWidth(volume.percentual)"></span>
+                    </div>
+
+                    <!-- Rodapé com comparativo do período anterior -->
+                    <div class="dash-card-footer">
+                      <span class="dash-badge !text-[11px] !py-0.5 !px-2 font-semibold"
+                            [class]="classeVariacaoGravidade(volume)"
+                            [pTooltip]="textoTooltipVariacao(volume)">
+                        <i [class]="iconeVariacao(volume.variacaoPercentual)" aria-hidden="true"></i>
+                        {{ formatarVariacao(volume.variacaoPercentual, volume.anterior) }}
+                      </span>
+                      <span class="text-slate-500 dark:text-slate-400 font-medium tabular-nums" [pTooltip]="'Total registrado no período anterior comparado'">
+                        Anterior: <strong class="text-slate-700 dark:text-slate-200 font-bold">{{ volume.anterior }}</strong>
+                      </span>
+                    </div>
+                  } @else {
+                    <div class="dash-aging-card__empty py-1">
+                      <i class="pi pi-check" aria-hidden="true"></i>
+                      <span>Sem desvios no período</span>
+                    </div>
+                    <div class="dash-card-footer">
+                      @if (volume.anterior > 0) {
+                        <span class="dash-badge dash-badge--success !text-[11px] !py-0.5 !px-2 font-semibold"
+                              [pTooltip]="'Redução de 100% vs. período anterior (de ' + volume.anterior + ' para 0)'">
+                          <i class="pi pi-arrow-down" aria-hidden="true"></i> -100%
+                        </span>
+                        <span class="text-slate-500 dark:text-slate-400 font-medium tabular-nums">
+                          Anterior: <strong class="text-slate-700 dark:text-slate-200 font-bold">{{ volume.anterior }}</strong>
+                        </span>
+                      } @else {
+                        <span class="text-[10px] text-slate-400 dark:text-slate-500 italic">Sem registros anteriores</span>
+                        <span class="text-slate-400 dark:text-slate-500 font-medium tabular-nums">Anterior: 0</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="dash-empty"><i class="pi pi-chart-bar"></i>Sem dados de volume por gravidade no período.</div>
+        }
+      </section>
+
+      <section aria-labelledby="operacao-pendente-title">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Operação pendente</span>
+            <h2 id="operacao-pendente-title">O que precisa de tratamento</h2>
+            <p>Os totais pendentes e vencidos consideram tudo que ainda precisava de tratamento até o fim do período, inclusive desvios identificados antes dele.</p>
+          </div>
+        </header>
+
+        <div class="dash-metrics" aria-label="Indicadores da operação pendente">
+          <app-dashboard-metric-card label="Total pendente até o fim do período" [value]="d.indicadores.backlog.valor" icon="pi-inbox"
+            [detail]="comparison(d.indicadores.backlog)" [pTooltip]="descricaoIndicador(d.indicadores.backlog)" tone="primary"
+          actionLabel="Ver pendências" (activate)="analisar('kpi', 'backlog')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'backlog', rotulo: 'Total pendente' }" />
+        </app-dashboard-metric-card>
+          <app-dashboard-metric-card label="Total vencido até o fim do período" [value]="d.indicadores.vencidos.valor" icon="pi-calendar-times"
+            [detail]="comparison(d.indicadores.vencidos)" [pTooltip]="descricaoIndicador(d.indicadores.vencidos)" tone="red"
+          actionLabel="Ver vencidos" (activate)="analisar('kpi', 'vencidos')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'vencidos', rotulo: 'Total vencido' }" />
+        </app-dashboard-metric-card>
+          <app-dashboard-metric-card label="Pendências identificadas no período" [value]="d.totalPendentes" icon="pi-list-check"
+            [detail]="d.totalAbertos + ' abertos · ' + d.totalEmTratamento + ' em tratamento'" tone="slate"
+          actionLabel="Ver pendências" (activate)="analisar('kpi', 'pendentes-periodo')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'totalPendentes', rotulo: 'Pendências do período' }" />
+        </app-dashboard-metric-card>
+          <app-dashboard-metric-card label="Pendências vencidas do período" [value]="d.totalVencidos" icon="pi-clock"
+            [detail]="d.totalNoPrazo + ' no prazo · ' + d.totalSemPrazo + ' sem prazo'" tone="amber"
+          actionLabel="Ver vencidas" (activate)="analisar('kpi', 'vencidos-periodo')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'totalVencidos', rotulo: 'Pendências vencidas do período' }" />
+        </app-dashboard-metric-card>
+        </div>
+
+      <!-- Pendências por tempo em aberto -->
+      <section class="dash-panel">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Tempo em aberto</span>
+            <h2>Pendências por tempo em aberto</h2>
+            <p>Veja há quantos dias cada pendência aguarda tratamento e qual é sua gravidade. Casos antigos e graves precisam de atenção primeiro. Clique numa faixa para ver as pendências.</p>
+          </div>
+          <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'backlogPorIdade', rotulo: 'Pendências por tempo em aberto' }" />
+          @if (totalBacklogPorIdade(d) > 0) {
+            <span class="dash-badge !font-bold">{{ totalBacklogPorIdade(d) }} pendência(s) em aberto</span>
+          }
+        </header>
+
+        @if (d.backlogPorIdade.length) {
+          <div class="dash-aging-grid">
+            @for (faixa of d.backlogPorIdade; track faixa.faixa) {
+              <div class="dash-aging-card"
+                   [class.is-vazio]="faixa.total === 0"
+                   [class.is-alerta]="faixa.total > 0 && (faixa.faixa === '31-60' || faixa.faixa === '>60') && (faixa.porGravidade.CRITICA > 0 || faixa.porGravidade.ALTA > 0)">
+                <button type="button" class="dash-card-hit" (click)="analisar('faixa', faixa.faixa)" [disabled]="faixa.total === 0"
+                  [attr.aria-label]="'Ver pendências ' + rotuloFaixaIdade(faixa.faixa) + ': ' + faixa.total"></button>
+                <div class="dash-aging-card__header">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="dash-aging-dot" [attr.data-tone]="tomFaixaIdade(faixa.faixa)"></span>
+                    <strong class="dash-aging-card__range">{{ rotuloFaixaIdade(faixa.faixa) }}</strong>
+                  </div>
+                  <span class="dash-aging-card__stage" [attr.data-tone]="tomFaixaIdade(faixa.faixa)">{{ subtituloFaixaIdade(faixa.faixa) }}</span>
+                </div>
+
+                <div class="dash-aging-card__body">
+                  <div class="dash-aging-card__total-wrap">
+                    <strong class="dash-aging-card__total">{{ faixa.total }}</strong>
+                    <span class="dash-aging-card__unit">pendência(s)</span>
+                  </div>
+
+                  @if (faixa.total > 0) {
+                    <!-- Barra de distribuição proporcional por gravidade -->
+                    <div class="dash-aging-bar" [pTooltip]="'Crítica: ' + faixa.porGravidade.CRITICA + ' · Alta: ' + faixa.porGravidade.ALTA + ' · Média: ' + faixa.porGravidade.MEDIA + ' · Baixa: ' + faixa.porGravidade.BAIXA">
+                      @if (faixa.porGravidade.CRITICA > 0) {
+                        <span class="dash-aging-bar__seg dash-aging-bar__seg--critical" [style.width.%]="percentualGravidade(faixa.total, faixa.porGravidade.CRITICA)"></span>
+                      }
+                      @if (faixa.porGravidade.ALTA > 0) {
+                        <span class="dash-aging-bar__seg dash-aging-bar__seg--high" [style.width.%]="percentualGravidade(faixa.total, faixa.porGravidade.ALTA)"></span>
+                      }
+                      @if (faixa.porGravidade.MEDIA > 0) {
+                        <span class="dash-aging-bar__seg dash-aging-bar__seg--medium" [style.width.%]="percentualGravidade(faixa.total, faixa.porGravidade.MEDIA)"></span>
+                      }
+                      @if (faixa.porGravidade.BAIXA > 0) {
+                        <span class="dash-aging-bar__seg dash-aging-bar__seg--low" [style.width.%]="percentualGravidade(faixa.total, faixa.porGravidade.BAIXA)"></span>
+                      }
+                    </div>
+
+                    <!-- Detalhamento de severidades com chips -->
+                    <div class="dash-aging-chips">
+                      @if (faixa.porGravidade.CRITICA > 0) {
+                        <span class="dash-badge dash-badge--danger !text-[11px] !py-0.5 !px-1.5" [pTooltip]="faixa.porGravidade.CRITICA + ' desvios críticos'">
+                          <i class="pi pi-bolt"></i> {{ faixa.porGravidade.CRITICA }} crítica
+                        </span>
+                      }
+                      @if (faixa.porGravidade.ALTA > 0) {
+                        <span class="dash-badge dash-badge--orange !text-[11px] !py-0.5 !px-1.5" [pTooltip]="faixa.porGravidade.ALTA + ' desvios de alta gravidade'">
+                          {{ faixa.porGravidade.ALTA }} alta
+                        </span>
+                      }
+                      @if (faixa.porGravidade.MEDIA > 0) {
+                        <span class="dash-badge dash-badge--warning !text-[11px] !py-0.5 !px-1.5" [pTooltip]="faixa.porGravidade.MEDIA + ' desvios de média gravidade'">
+                          {{ faixa.porGravidade.MEDIA }} média
+                        </span>
+                      }
+                      @if (faixa.porGravidade.BAIXA > 0) {
+                        <span class="dash-badge !text-[11px] !py-0.5 !px-1.5" [pTooltip]="faixa.porGravidade.BAIXA + ' desvios de baixa gravidade'">
+                          {{ faixa.porGravidade.BAIXA }} baixa
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <div class="dash-aging-card__empty">
+                      <i class="pi pi-check"></i>
+                      <span>Sem pendências nesta faixa</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="dash-empty"><i class="pi pi-clock"></i>Não há pendências para exibir.</div>
+        }
+      </section>
+
+      <!-- Fila de Atuação -->
+      <section class="dash-grid mt-4">
+        <article class="dash-panel dash-col-12">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Fila de atuação</span>
+              <h2>Pendências que exigem gestão</h2>
+              <p>Pendentes, vencidos e críticos por agrupamento. Clique para ver os desvios e as pendências do grupo.</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'pendencias.' + pendingDimension(), rotulo: 'Pendências que exigem gestão' }" />
+            <div class="dash-tabs" aria-label="Forma de agrupar as pendências">
+              @for (tab of pendingTabs; track tab.value) {
+                <button class="dash-tab" [class.is-active]="pendingDimension() === tab.value" (click)="pendingDimension.set(tab.value)">{{ tab.label }}</button>
+              }
+            </div>
+          </header>
+          <ces-data-table caption="Pendências que exigem gestão" storageKey="sst-dashboard-pendencias" exportFileName="pendencias-desvios"
+            searchPlaceholder="Buscar agrupamento" rowActionLabel="Analisar" rowActionIcon="pi pi-chart-bar"
+            [columns]="colunasPendencias" [rows]="pendingRows()" [rowKey]="chaveGrupo" [rowLabel]="rotuloGrupo"
+            stateTitle="Não há pendências neste agrupamento" (rowActivate)="analisarGrupo(pendingDimension(), $event.id)">
+            <ng-template cesCell="totalVencidos" let-item>
+              @if (item.totalVencidos > 0) { <ces-status tone="danger" icon="pi-calendar-times">{{ item.totalVencidos }}</ces-status> } @else { <span class="dash-zero">0</span> }
+            </ng-template>
+            <ng-template cesCell="totalCriticos" let-item>
+              @if (item.totalCriticos > 0) { <ces-status tone="danger" icon="pi-bolt">{{ item.totalCriticos }}</ces-status> } @else { <span class="dash-zero">0</span> }
+            </ng-template>
+          </ces-data-table>
+        </article>
+      </section>
+      </section>
+
+      <!-- Volume por gravidade, comparação proporcional e principais problemas -->
+      <section aria-labelledby="analise-desvios-title">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Análise de ocorrências</span>
+            <h2 id="analise-desvios-title">Onde os desvios ocorrem</h2>
+            <p>A comparação considera quantas inspeções foram feitas em cada área.</p>
+          </div>
+      </header>
+      <section class="dash-grid mt-4">
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Comparação entre áreas</span>
+              <h2>Desvios a cada 100 inspeções</h2>
+              <p>Veja onde os desvios aparecem com mais frequência, considerando a quantidade de inspeções.</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'exposicao.' + exposureDimension(), rotulo: 'Desvios a cada 100 inspeções' }" />
+            <div class="dash-tabs">
+              @for (tab of pendingTabs; track tab.value) {
+                <button class="dash-tab" [class.is-active]="exposureDimension() === tab.value" (click)="exposureDimension.set(tab.value)">{{ tab.label }}</button>
+              }
+            </div>
+          </header>
+          <ces-data-table caption="Desvios a cada 100 inspeções" storageKey="sst-dashboard-exposicao" exportFileName="desvios-por-100-inspecoes"
+            searchPlaceholder="Buscar agrupamento" rowActionLabel="Analisar" rowActionIcon="pi pi-chart-bar"
+            [columns]="colunasExposicao" [rows]="exposureRows()" [rowKey]="chaveGrupo" [rowLabel]="rotuloGrupo"
+            stateTitle="Não há dados para este agrupamento" (rowActivate)="analisarGrupo(exposureDimension(), $event.id)">
+            <ng-template cesCell="vencidos" let-item>
+              @if (item.vencidos > 0) { <ces-status tone="danger" icon="pi-calendar-times">{{ item.vencidos }}</ces-status> } @else { <span class="dash-zero">0</span> }
+            </ng-template>
+          </ces-data-table>
+        </article>
+
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Principais problemas encontrados</span>
+              <h2>Itens com mais desvios</h2>
+              <p>Itens que mais concentraram desvios no período analisado. Clique para ver onde e com quem aconteceu.</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'itensCriticosRecorrentes', rotulo: 'Itens com mais desvios' }" />
+          </header>
+          @if (d.itensCriticosRecorrentes.length) {
+            <ces-data-table caption="Itens com mais desvios" storageKey="sst-dashboard-itens" exportFileName="itens-com-mais-desvios"
+              searchPlaceholder="Buscar item" rowActionLabel="Analisar" rowActionIcon="pi pi-chart-bar"
+              [columns]="colunasItens" [rows]="d.itensCriticosRecorrentes" [rowKey]="chaveItem" [rowLabel]="rotuloItem"
+              (rowActivate)="analisar('item', $event.idPergunta)">
+              <ng-template cesCell="maiorGravidade" let-item>
+                <ces-status [tone]="item.maiorGravidade === 'CRITICA' ? 'danger' : item.maiorGravidade === 'ALTA' ? 'warning' : item.maiorGravidade === 'MEDIA' ? 'info' : 'neutral'"
+                  [icon]="item.maiorGravidade === 'CRITICA' ? 'pi-bolt' : 'pi-exclamation-triangle'">{{ rotuloGravidade(item.maiorGravidade) }}</ces-status>
+              </ng-template>
+            </ces-data-table>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-list"></i>Nenhum item crítico no período.</div>
+          }
+        </article>
+      </section>
+      </section>
+    } @else {
+      <div class="dash-panel dash-empty"><i class="pi pi-inbox"></i>Não há dados disponíveis para os filtros selecionados.</div>
+    }
+  </div>
+</main>
+</app-copiloto-area>
+
+<app-dashboard-analise [vista]="vistaAnalise()" [trilha]="analise.trilha()" [copiloto]="copilotoDisponivel"
+  (fechar)="analise.fechar()" (navegar)="aprofundar($event)" (trocar)="analise.trocar($event)"
+  (voltar)="analise.voltar($event)" (perguntar)="perguntarAnalise($event)" />

@@ -1,0 +1,8 @@
+{
+  "token": "token-opaco-da-previa",
+  "combinacoes": [
+    {"chave": "SOL-001", "tipo": "221"},
+    {"chave": "SOL-001", "tipo": "922"}
+  ],
+  "reconhecerAvisos": true
+}

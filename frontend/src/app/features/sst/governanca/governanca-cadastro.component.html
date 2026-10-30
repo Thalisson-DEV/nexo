@@ -1,0 +1,423 @@
+<div class="page-shell">
+  <div class="page-topbar">
+    <p-breadcrumb [model]="breadcrumb" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button
+      icon="pi pi-arrow-left"
+      label="Voltar"
+      [text]="true"
+      severity="secondary"
+      (onClick)="cancelar()"
+      styleClass="!text-slate-400 !text-[10px] !font-medium"
+    />
+  </div>
+
+  @if (carregando()) {
+    <p-skeleton height="34rem" styleClass="!rounded-2xl max-w-[56rem] !mx-auto" />
+  } @else if (erro()) {
+    <section class="error-state">
+      <i class="pi pi-exclamation-circle"></i>
+      <h2>Não foi possível preparar o formulário</h2>
+      <p>{{ erro() }}</p>
+      <p-button label="Tentar novamente" icon="pi pi-refresh" [outlined]="true" (onClick)="carregar()" />
+    </section>
+  } @else {
+    <section class="wizard-shell" [attr.data-contexto]="tipo.toLowerCase()">
+      <header class="wizard-header">
+        <div class="header-copy">
+          <div class="eyebrow"><i [class]="tipo === 'CIPA' ? 'pi pi-users' : 'pi pi-shield'"></i> Novo registro</div>
+          <h1>{{ titulo() }}</h1>
+          <p>{{ subtitulo() }}</p>
+        </div>
+        <div class="context-badge">
+          <span>Você está cadastrando em</span>
+          <strong>{{ tipo === 'CIPA' ? 'CIPA' : 'Brigada de incêndio' }}</strong>
+          <small>O registro não será misturado com o outro grupo.</small>
+        </div>
+      </header>
+
+      <form class="wizard-body" [formGroup]="form">
+        <p-stepper [(value)]="activeStep">
+          <p-step-list>
+            @for (passo of passos(); track passo.numero) {
+              <p-step [value]="passo.numero" class="flex flex-row flex-auto gap-2">
+                <ng-template #content let-value="value">
+                  <button type="button" class="step-button" (click)="irParaEtapa(passo.numero)">
+                    <span class="step-circle" [class.step-active]="value <= activeStep()" [class.step-inactive]="value > activeStep()">
+                      <i [class]="passo.icon"></i>
+                    </span>
+                    <span class="step-copy"><strong>{{ passo.label }}</strong></span>
+                  </button>
+                </ng-template>
+              </p-step>
+            }
+          </p-step-list>
+
+          <p-step-panels>
+            @if (cadastro === 'composicao') {
+              <p-step-panel [value]="1">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro">
+                      <span>Identifique o grupo</span>
+                      <h2>{{ tipo === 'CIPA' ? 'Qual composição será criada?' : 'Qual equipe será criada?' }}</h2>
+                      <p>Use um nome que as pessoas reconheçam e selecione a base principal.</p>
+                    </div>
+                    <div class="form-grid grid-cols-1 md:grid-cols-2">
+                      <div class="field md:col-span-2">
+                        <label for="nome">{{ tipo === 'CIPA' ? 'Nome da composição' : 'Nome da equipe' }} *</label>
+                        <input
+                          id="nome"
+                          pInputText
+                          formControlName="nome"
+                          maxlength="150"
+                          [placeholder]="tipo === 'CIPA' ? 'Ex.: CIPA 2026/2027' : 'Ex.: Brigada da matriz 2026'"
+                        />
+                        <span class="field-help">Inclua a unidade ou o período quando isso ajudar na identificação.</span>
+                        @if (campoInvalido('nome')) { <small class="field-error">Informe um nome para o grupo.</small> }
+                      </div>
+                      <div class="field" [class.wide-field]="tipo !== 'CIPA'">
+                        <label for="base">Base principal *</label>
+                        <p-select
+                          inputId="base"
+                          formControlName="idBaseOperacional"
+                          [options]="bases()"
+                          optionLabel="nome"
+                          optionValue="id"
+                          placeholder="Selecione a base"
+                          [filter]="true"
+                          [showClear]="true"
+                          class="custom-select field-control"
+                          size="small"
+                          appendTo="body"
+                          (onChange)="aoAlterarBase()"
+                        />
+                        @if (campoInvalido('idBaseOperacional')) { <small class="field-error">Selecione a base principal.</small> }
+                      </div>
+                      @if (tipo === 'CIPA') {
+                        <div class="field">
+                          <label for="regime">Forma de composição</label>
+                          <p-select
+                            inputId="regime"
+                            formControlName="regimeComposicao"
+                            [options]="regimeOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            class="custom-select field-control"
+                            size="small"
+                            appendTo="body"
+                            (onChange)="aoAlterarRegime()"
+                          />
+                          <span class="field-help">Escolha conforme o dimensionamento aplicável à unidade.</span>
+                        </div>
+                      }
+                      <div class="field md:col-span-2">
+                        <label for="basesAbrangidas">Outras bases abrangidas</label>
+                        <p-multiselect
+                          inputId="basesAbrangidas"
+                          formControlName="idsBasesAbrangidas"
+                          [options]="basesAbrangiveis()"
+                          optionLabel="nome"
+                          optionValue="id"
+                          placeholder="Somente a base principal"
+                          [filter]="true"
+                          [showClear]="true"
+                          display="chip"
+                          [maxSelectedLabels]="2"
+                          selectedItemsLabel="{0} bases selecionadas"
+                          class="custom-multiselect field-control"
+                          size="small"
+                          appendTo="body"
+                        />
+                        <span class="field-help">Inclua somente bases que participam desta mesma composição ou equipe.</span>
+                      </div>
+                    </div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+
+              <p-step-panel [value]="2">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro">
+                      <span>Defina a vigência</span>
+                      <h2>Onde e por quanto tempo?</h2>
+                      <p>O período organiza reuniões, documentos, treinamentos e o histórico dos participantes.</p>
+                    </div>
+                    <div class="form-grid grid-cols-1 md:grid-cols-2">
+                      <div class="field md:col-span-2">
+                        <label for="unidade">Unidade ou estabelecimento *</label>
+                        <input
+                          id="unidade"
+                          pInputText
+                          formControlName="unidadeGovernanca"
+                          placeholder="Nome usado pelas pessoas no dia a dia"
+                        />
+                        @if (campoInvalido('unidadeGovernanca')) { <small class="field-error">Informe a unidade ou o estabelecimento.</small> }
+                      </div>
+                      <div class="field">
+                        <label for="uf">UF da unidade *</label>
+                        <p-select inputId="uf" formControlName="uf" [options]="ufOptions" optionLabel="label" optionValue="value" placeholder="Selecione a UF" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" (onChange)="revalidarPerfil()" />
+                        @if (campoInvalido('uf')) { <small class="field-error">Informe a UF aplicável.</small> }
+                      </div>
+                      <div class="field">
+                        <label for="grauRisco">Grau de risco *</label>
+                        <p-select inputId="grauRisco" formControlName="grauRisco" [options]="grauRiscoOptions" optionLabel="label" optionValue="value" placeholder="Selecione" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" />
+                        @if (campoInvalido('grauRisco')) { <small class="field-error">Informe o grau de risco.</small> }
+                      </div>
+                      <div class="field">
+                        <label for="inicio">Início do período *</label>
+                        <p-datepicker
+                          inputId="inicio"
+                          formControlName="inicioPeriodo"
+                          dateFormat="dd/mm/yy"
+                          dateMask
+                          [showIcon]="true"
+                          iconDisplay="input"
+                          [showClear]="true"
+                          [showOnFocus]="true"
+                          [showButtonBar]="true"
+                          placeholder="dd/mm/aaaa"
+                          class="custom-date field-control"
+                          size="small"
+                          appendTo="body"
+                          (onSelect)="aoAlterarInicio()"
+                          (onClear)="aoAlterarInicio()"
+                        />
+                        @if (campoInvalido('inicioPeriodo')) { <small class="field-error">Informe a data de início.</small> }
+                      </div>
+                      <div class="field">
+                        <label for="fim">Fim do período *</label>
+                        <p-datepicker
+                          inputId="fim"
+                          formControlName="fimPeriodo"
+                          dateFormat="dd/mm/yy"
+                          dateMask
+                          [showIcon]="true"
+                          iconDisplay="input"
+                          [showClear]="true"
+                          [showOnFocus]="true"
+                          [showButtonBar]="true"
+                          placeholder="dd/mm/aaaa"
+                          class="custom-date field-control"
+                          size="small"
+                          appendTo="body"
+                        />
+                        @if (campoInvalido('fimPeriodo')) { <small class="field-error">Informe a data de término.</small> }
+                      </div>
+                      @if (periodoInvalido()) {
+                        <div class="validation-note md:col-span-2"><i class="pi pi-exclamation-circle"></i> O fim do período não pode ser anterior ao início.</div>
+                      }
+                      @if (periodoCipaInvalido()) {
+                        <div class="validation-note md:col-span-2"><i class="pi pi-exclamation-circle"></i> O mandato da CIPA deve terminar um dia antes de completar um ano.</div>
+                      }
+                      <div class="field md:col-span-2">
+                        <label for="perfilNormativo">Perfil normativo aplicável</label>
+                        <p-select inputId="perfilNormativo" formControlName="idPerfilNormativo" [options]="perfilOptions()" optionLabel="rotulo" optionValue="id" placeholder="Registrar sem perfil confirmado" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" />
+                        <span class="field-help">A lista considera tipo, UF, vigência e apenas perfis confirmados. Sem perfil, o fato é registrado sem declarar conformidade.</span>
+                        @if (tipo === 'CIPA' && form.controls.regimeComposicao.value === 'REPRESENTANTE_NOMEADO' && campoInvalido('idPerfilNormativo')) {
+                          <small class="field-error">O representante nomeado exige um perfil nacional confirmado.</small>
+                        }
+                      </div>
+                      @if (tipo === 'CIPA' && form.controls.regimeComposicao.value === 'REPRESENTANTE_NOMEADO') {
+                        <div class="field md:col-span-2">
+                          <label for="hipoteseRepresentante">Hipótese da NR-5 confirmada *</label>
+                          <p-select inputId="hipoteseRepresentante" formControlName="hipoteseRepresentanteNomeadoConfirmada" [options]="confirmacaoOptions" optionLabel="label" optionValue="value" class="custom-select field-control" size="small" appendTo="body" />
+                          @if (!form.controls.hipoteseRepresentanteNomeadoConfirmada.value) { <small class="field-error">Confirme a hipótese normativa para usar este regime.</small> }
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+
+              <p-step-panel [value]="3">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro"><span>Confira antes de criar</span><h2>Os dados estão corretos?</h2><p>Depois de criar, você poderá incluir e acompanhar os participantes.</p></div>
+                    <div class="review-grid">
+                      <div class="review-card wide"><span>Grupo</span><strong>{{ tipo === 'CIPA' ? 'CIPA' : 'Brigada de incêndio' }}</strong></div>
+                      <div class="review-card"><span>Nome</span><strong>{{ form.controls.nome.value }}</strong></div>
+                      <div class="review-card"><span>Base principal</span><strong>{{ nomeBase(form.controls.idBaseOperacional.value) }}</strong></div>
+                      <div class="review-card wide"><span>Unidade</span><strong>{{ form.controls.unidadeGovernanca.value }}</strong></div>
+                      <div class="review-card"><span>UF</span><strong>{{ form.controls.uf.value }}</strong></div>
+                      <div class="review-card"><span>Grau de risco</span><strong>{{ form.controls.grauRisco.value }}</strong></div>
+                      <div class="review-card"><span>Início</span><strong>{{ form.controls.inicioPeriodo.value | date:'dd/MM/yyyy' }}</strong></div>
+                      <div class="review-card"><span>Fim</span><strong>{{ form.controls.fimPeriodo.value | date:'dd/MM/yyyy' }}</strong></div>
+                      <div class="review-card wide"><span>Perfil normativo</span><strong>{{ nomePerfil(form.controls.idPerfilNormativo.value) }}</strong></div>
+                      <div class="review-card wide"><span>Bases adicionais</span><strong>{{ form.controls.idsBasesAbrangidas.value.length || 'Nenhuma' }}</strong></div>
+                    </div>
+                    <div class="context-note"><i class="pi pi-info-circle"></i><p>Integrantes serão incluídos na próxima etapa de gestão. Entradas e saídas permanecem no histórico.</p></div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+            }
+
+            @if (cadastro === 'reuniao') {
+              <p-step-panel [value]="1">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro"><span>Escolha o grupo</span><h2>Quem realizará a reunião?</h2><p>Somente grupos ativos de {{ tipo === 'CIPA' ? 'CIPA' : 'Brigada' }} aparecem nesta lista.</p></div>
+                    @if (!corpos().length) {
+                      <div class="empty-guidance"><i class="pi pi-users"></i><strong>Nenhum grupo ativo disponível</strong><p>Crie ou ative uma {{ tipo === 'CIPA' ? 'composição da CIPA' : 'equipe da Brigada' }} antes de agendar.</p><p-button label="Ir para composição e equipe" [outlined]="true" (onClick)="irParaComposicoes()" /></div>
+                    } @else {
+                      <div class="form-grid grid-cols-1 md:grid-cols-2">
+                        <div class="field md:col-span-2">
+                          <label for="corpo">{{ tipo === 'CIPA' ? 'Composição da CIPA' : 'Equipe da Brigada' }} *</label>
+                          <p-select inputId="corpo" formControlName="idCorpo" [options]="corpos()" optionLabel="nome" optionValue="id" placeholder="Selecione o grupo ativo" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" />
+                          @if (campoInvalido('idCorpo')) { <small class="field-error">Selecione o grupo.</small> }
+                        </div>
+                        <div class="field">
+                          <label for="tipoReuniao">Tipo de reunião</label>
+                          <p-select inputId="tipoReuniao" formControlName="tipoReuniao" [options]="tipoReuniaoOptions" optionLabel="label" optionValue="value" class="custom-select field-control" size="small" appendTo="body" />
+                        </div>
+                        <div class="field">
+                          <label for="modeloAta">Modelo de ata *</label>
+                          <p-select inputId="modeloAta" formControlName="idModeloAta" [options]="modelosAta()" optionLabel="nome" optionValue="id" placeholder="Selecione o modelo" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" />
+                          @if (campoInvalido('idModeloAta')) { <small class="field-error">Selecione o modelo da ata.</small> }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </ng-template>
+              </p-step-panel>
+
+              <p-step-panel [value]="2">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro"><span>Organize o encontro</span><h2>Quando, onde e sobre o quê?</h2><p>Uma pauta clara ajuda os participantes a se preparar e orienta o registro da ata.</p></div>
+                    <div class="form-grid grid-cols-1 md:grid-cols-2">
+                      <div class="field">
+                        <label for="dataHora">Data e hora *</label>
+                        <p-datepicker inputId="dataHora" formControlName="dataHora" [showTime]="true" hourFormat="24" dateFormat="dd/mm/yy" [showIcon]="true" iconDisplay="input" [showClear]="true" [showOnFocus]="true" [showButtonBar]="true" placeholder="dd/mm/aaaa hh:mm" class="custom-date field-control" size="small" appendTo="body" />
+                        @if (campoInvalido('dataHora')) { <small class="field-error">Informe data e hora.</small> }
+                      </div>
+                      <div class="field">
+                        <label for="duracao">Duração prevista em minutos *</label>
+                        <input id="duracao" pInputText type="number" min="1" max="1440" formControlName="duracaoMinutos" />
+                      </div>
+                      <div class="field md:col-span-2">
+                        <label for="local">Local ou meio *</label>
+                        <input id="local" pInputText formControlName="localOuMeio" maxlength="255" placeholder="Ex.: sala de treinamento ou videoconferência" />
+                        @if (campoInvalido('localOuMeio')) { <small class="field-error">Informe onde a reunião ocorrerá.</small> }
+                      </div>
+                      <div class="field md:col-span-2">
+                        <label for="pauta">Pauta *</label>
+                        <textarea id="pauta" pTextarea formControlName="pauta" rows="7" maxlength="4000" placeholder="Liste os assuntos e decisões esperadas para a reunião."></textarea>
+                        <div class="field-meta"><span>@if (campoInvalido('pauta')) { <small class="field-error">Informe a pauta.</small> }</span><span>{{ form.controls.pauta.value.length }}/4000</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+
+              <p-step-panel [value]="3">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro"><span>Confira o agendamento</span><h2>A reunião está pronta para ser agendada?</h2><p>Após salvar, você poderá registrar presença, fotos, transcrição e ata.</p></div>
+                    <div class="review-grid">
+                      <div class="review-card wide"><span>Grupo</span><strong>{{ nomeCorpo(form.controls.idCorpo.value) }}</strong></div>
+                      <div class="review-card"><span>Tipo</span><strong>{{ nomeTipoReuniao(form.controls.tipoReuniao.value) }}</strong></div>
+                      <div class="review-card"><span>Modelo de ata</span><strong>{{ nomeModelo(form.controls.idModeloAta.value) }}</strong></div>
+                      <div class="review-card"><span>Quando</span><strong>{{ form.controls.dataHora.value | date:'dd/MM/yyyy HH:mm' }}</strong></div>
+                      <div class="review-card"><span>Duração</span><strong>{{ form.controls.duracaoMinutos.value }} minutos</strong></div>
+                      <div class="review-card wide"><span>Local</span><strong>{{ form.controls.localOuMeio.value }}</strong></div>
+                      <div class="review-card wide"><span>Pauta</span><p>{{ form.controls.pauta.value }}</p></div>
+                    </div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+            }
+
+            @if (cadastro === 'documento') {
+              <p-step-panel [value]="1">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro"><span>Comece pelo arquivo</span><h2>Qual documento será enviado?</h2><p>O arquivo ficará privado e passará por conferência antes de ser considerado válido.</p></div>
+                    <label class="upload-area" for="arquivoDocumento" [class.has-file]="arquivo()">
+                      <input id="arquivoDocumento" type="file" hidden accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" (change)="selecionarArquivo($event)" />
+                      <span class="upload-icon"><i [class]="arquivo() ? 'pi pi-file-check' : 'pi pi-upload'"></i></span>
+                      @if (arquivo(); as selecionado) {
+                        <strong>{{ selecionado.name }}</strong><small>{{ (selecionado.size / 1048576) | number:'1.1-1' }} MB · clique para trocar</small>
+                      } @else {
+                        <strong>Selecionar arquivo</strong><small>PDF, Word ou imagem de até 15 MB</small>
+                      }
+                    </label>
+                    @if (etapaTentada() >= 1 && !arquivo()) { <small class="field-error text-center">Selecione o documento antes de continuar.</small> }
+                    @if (arquivo()) { <div class="flex justify-center"><p-button label="Remover arquivo" icon="pi pi-trash" [text]="true" severity="danger" size="small" (onClick)="removerArquivo()" /></div> }
+                  </div>
+                </ng-template>
+              </p-step-panel>
+
+              <p-step-panel [value]="2">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro"><span>Classifique o registro</span><h2>Que documento é este e a qual base pertence?</h2><p>A classificação correta define alertas, validade e onde o arquivo será encontrado.</p></div>
+                    <div class="form-grid grid-cols-1 md:grid-cols-2">
+                      <div class="field md:col-span-2">
+                        <label for="categoria">Tipo de documento *</label>
+                        <p-select inputId="categoria" formControlName="idCategoria" [options]="categorias()" optionLabel="nome" optionValue="id" placeholder="Selecione o tipo de documento" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" />
+                        @if (campoInvalido('idCategoria')) { <small class="field-error">Selecione o tipo de documento.</small> }
+                      </div>
+                      <div class="field md:col-span-2">
+                        <label for="baseDocumento">Base *</label>
+                        <p-select inputId="baseDocumento" formControlName="idBaseDocumento" [options]="bases()" optionLabel="nome" optionValue="id" placeholder="Selecione a base" [filter]="true" [showClear]="true" class="custom-select field-control" size="small" appendTo="body" />
+                        @if (campoInvalido('idBaseDocumento')) { <small class="field-error">Selecione a base.</small> }
+                      </div>
+                      <div class="field"><label for="numero">Número do documento</label><input id="numero" pInputText formControlName="numeroDocumento" placeholder="Opcional" /></div>
+                      <div class="field"><label for="emissor">Órgão ou pessoa emissora</label><input id="emissor" pInputText formControlName="emissor" placeholder="Opcional" /></div>
+                    </div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+
+              <p-step-panel [value]="3">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro"><span>Informe as datas</span><h2>Quando foi emitido e até quando vale?</h2><p>Se o documento não possuir validade, deixe o segundo campo em branco.</p></div>
+                    <div class="form-grid grid-cols-1 md:grid-cols-2">
+                      <div class="field"><label for="emissao">Data de emissão</label><p-datepicker inputId="emissao" formControlName="dataEmissao" dateFormat="dd/mm/yy" dateMask [showIcon]="true" iconDisplay="input" [showClear]="true" [showOnFocus]="true" [showButtonBar]="true" placeholder="dd/mm/aaaa" class="custom-date field-control" size="small" appendTo="body" /></div>
+                      <div class="field"><label for="validade">Data de validade</label><p-datepicker inputId="validade" formControlName="dataValidade" dateFormat="dd/mm/yy" dateMask [showIcon]="true" iconDisplay="input" [showClear]="true" [showOnFocus]="true" [showButtonBar]="true" placeholder="Sem validade" class="custom-date field-control" size="small" appendTo="body" /></div>
+                      @if (validadeInvalida()) { <div class="validation-note md:col-span-2"><i class="pi pi-exclamation-circle"></i> A validade não pode ser anterior à emissão.</div> }
+                      <div class="field md:col-span-2"><label for="observacoes">Observações</label><textarea id="observacoes" pTextarea formControlName="observacoes" rows="5" maxlength="2000" placeholder="Inclua uma orientação somente se ela ajudar na conferência."></textarea><div class="field-meta"><span></span><span>{{ form.controls.observacoes.value.length }}/2000</span></div></div>
+                    </div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+
+              <p-step-panel [value]="4">
+                <ng-template #content>
+                  <div class="step-panel">
+                    <div class="step-intro"><span>Confira antes de enviar</span><h2>O arquivo e a classificação estão corretos?</h2><p>O documento será enviado para conferência humana.</p></div>
+                    <div class="review-grid">
+                      <div class="review-card wide"><span>Arquivo</span><strong>{{ arquivo()?.name }}</strong></div>
+                      <div class="review-card"><span>Tipo de documento</span><strong>{{ nomeCategoria(form.controls.idCategoria.value) }}</strong></div>
+                      <div class="review-card"><span>Base</span><strong>{{ nomeBase(form.controls.idBaseDocumento.value) }}</strong></div>
+                      <div class="review-card"><span>Emissão</span><strong>{{ form.controls.dataEmissao.value ? (form.controls.dataEmissao.value | date:'dd/MM/yyyy') : 'Não informada' }}</strong></div>
+                      <div class="review-card"><span>Validade</span><strong>{{ form.controls.dataValidade.value ? (form.controls.dataValidade.value | date:'dd/MM/yyyy') : 'Sem validade informada' }}</strong></div>
+                    </div>
+                    <div class="context-note"><i class="pi pi-shield"></i><p>O envio fica vinculado somente à {{ tipo === 'CIPA' ? 'CIPA' : 'Brigada de incêndio' }} e à base selecionada.</p></div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+            }
+          </p-step-panels>
+        </p-stepper>
+      </form>
+    </section>
+
+    <footer class="floating-footer">
+      <div class="footer-actions">
+        @if (activeStep() > 1) {
+          <p-button label="Voltar etapa" icon="pi pi-arrow-left" [text]="true" severity="secondary" (onClick)="voltarEtapa()" styleClass="footer-secondary" />
+        } @else {
+          <p-button label="Cancelar" icon="pi pi-times" [text]="true" severity="secondary" (onClick)="cancelar()" styleClass="footer-secondary" />
+        }
+        @if (activeStep() < passos().length) {
+          <p-button label="Continuar" icon="pi pi-arrow-right" iconPos="right" (onClick)="continuar()" styleClass="footer-primary" />
+        } @else {
+          <p-button [label]="cadastro === 'reuniao' ? 'Agendar reunião' : cadastro === 'documento' ? 'Enviar documento' : 'Criar grupo'" icon="pi pi-check" [loading]="salvando()" [disabled]="salvando()" (onClick)="salvar()" styleClass="footer-primary" />
+        }
+      </div>
+    </footer>
+  }
+</div>

@@ -1,0 +1,30 @@
+{
+  "content": [
+    {
+      "idReferenciaOperacao": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+      "tipo": "ESTORNO",
+      "dataHora": "2026-09-01T11:00:00-03:00",
+      "operadorNome": "Operador Almoxarifado",
+      "estoqueOrigem": {
+        "id": "14141414-1414-1414-1414-141414141414",
+        "nomeIdentificador": "OBRA 2026-0042",
+        "tipoEstoque": null,
+        "idBaseOperacional": "15151515-1515-1515-1515-151515151515",
+        "idEquipe": null,
+        "idObra": "11111111-1111-1111-1111-111111111111",
+        "ativo": true
+      },
+      "estoqueDestino": null,
+      "contexto": "TECNICO",
+      "idSolicitacao": "77777777-7777-7777-7777-777777777771",
+      "tipoTecnico": "ADICAO_COMUM",
+      "tipoObra": "CORRETIVA",
+      "ocorrencia": "OC 1042",
+      "idReserva": "88888888-8888-8888-8888-888888888881",
+      "idOperacao": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+      "idObra": "11111111-1111-1111-1111-111111111111",
+      "idEquipe": "33333333-3333-3333-3333-333333333333"
+    }
+  ],
+  "page": {"size": 20, "number": 0, "totalElements": 1, "totalPages": 1}
+}

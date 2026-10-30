@@ -1,0 +1,113 @@
+/*
+ * Relatório da solicitação financeira. A base (cabeçalho, .kv, destaques, impressão
+ * A4) vem de relatorios/relatorio.css, a mesma dos relatórios de turno e de nota;
+ * aqui ficam só os cartões de resumo (iguais aos da solicitação de material), os
+ * blocos do formulário e os valores clicáveis.
+ */
+
+/* CARTÕES DE RESUMO */
+.resumo {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-lg, 0.75rem);
+  background: var(--ces-surface);
+  color: inherit;
+  font: inherit;
+}
+.resumo__topo { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.resumo__rotulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ces-foreground-muted); }
+.resumo__icone {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 1.75rem; height: 1.75rem; border-radius: var(--ces-radius-md, 0.5rem);
+  border: 1px solid var(--ces-border); background: var(--ces-surface-muted); color: var(--ces-foreground-muted); font-size: 0.75rem;
+}
+.resumo__valor { display: block; font-size: 1.5rem; font-weight: 700; color: var(--ces-foreground); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.resumo__legenda { font-size: 11px; font-weight: 500; color: var(--ces-foreground-muted); }
+
+.resumo--destaque { border-color: var(--ces-brand); background: var(--ces-brand-soft); }
+.resumo--destaque .resumo__rotulo,
+.resumo--destaque .resumo__valor,
+.resumo--destaque .resumo__icone { color: var(--ces-brand); }
+.resumo--destaque .resumo__icone { border-color: var(--ces-brand); background: transparent; }
+
+.resumo--sucesso { border-color: var(--ces-success); background: var(--ces-success-soft); }
+.resumo--sucesso .resumo__rotulo,
+.resumo--sucesso .resumo__valor,
+.resumo--sucesso .resumo__icone { color: var(--ces-success-text); }
+.resumo--sucesso .resumo__icone { border-color: var(--ces-success); background: transparent; }
+
+.resumo--clicavel { cursor: pointer; transition: border-color var(--ces-duration-fast, 120ms) var(--ces-ease-standard, ease); }
+.resumo--clicavel:hover { border-color: var(--ces-border-strong); }
+.resumo--clicavel:focus-visible { outline: none; box-shadow: var(--ces-focus-ring); }
+.resumo[data-tone='warning'] .resumo__icone { color: var(--ces-warning-text); border-color: var(--ces-warning); }
+.resumo[data-tone='danger'] .resumo__icone { color: var(--ces-danger-text); border-color: var(--ces-danger); }
+
+/* BLOCOS DO FORMULÁRIO */
+.bloco {
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-lg, 0.75rem);
+  background: var(--ces-surface);
+}
+.bloco .kv + .kv { border-top: 1px dashed var(--ces-border); }
+
+.texto-longo {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--ces-radius-md, 0.5rem);
+  background: var(--ces-surface-subtle);
+  font-size: 0.75rem;
+  color: var(--ces-foreground);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Valor que abre as outras solicitações com o mesmo dado. */
+.kv-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ces-brand);
+  cursor: pointer;
+}
+.kv-link:hover { text-decoration: underline; }
+.kv-link:focus-visible { outline: none; box-shadow: var(--ces-focus-ring); border-radius: var(--ces-radius-sm, 0.25rem); }
+
+/* Barra de ações: no celular ocupa a largura, com fundo para não sobrepor o texto. */
+.barra-acoes {
+  background: linear-gradient(to top, var(--ces-surface) 70%, transparent);
+}
+
+@media (min-width: 768px) {
+  .barra-acoes {
+    background: none;
+  }
+}
+
+:host-context(.app-dark) .barra-acoes,
+:host-context(.dark) .barra-acoes {
+  background: linear-gradient(to top, var(--ces-canvas) 70%, transparent);
+}
+
+@media (min-width: 768px) {
+  :host-context(.app-dark) .barra-acoes,
+  :host-context(.dark) .barra-acoes {
+    background: none;
+  }
+}
+
+@media print {
+  .resumo, .resumo--destaque, .resumo--sucesso, .bloco {
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  .resumo__rotulo, .resumo__valor, .resumo__icone { color: #0f172a !important; }
+  .resumo__valor { font-size: 1rem; }
+  .texto-longo { background: transparent !important; padding: 0; font-size: 9.5px; }
+  .kv-link { color: #0f172a !important; }
+}

@@ -1,0 +1,640 @@
+ces:
+  assistente:
+    navigation:
+      version: "1.1"
+      entries:
+        # Geral e IAM
+        - key: CES_HOME
+          model-description: Voltar ao inicio ou abrir a pagina inicial do Nexo.
+          default-label: Ir para o inicio
+          required-authorities: ["assistente:chat:use"]
+          parameters: []
+          state: ATIVO
+        - key: IAM_USUARIOS
+          model-description: Consultar, cadastrar ou administrar usuarios do Nexo.
+          default-label: Abrir usuarios
+          required-authorities: ["iam:usuario:read"]
+          parameters: []
+          state: ATIVO
+        - key: IAM_PERFIS_ACESSO
+          model-description: Consultar ou administrar perfis de acesso.
+          default-label: Abrir perfis de acesso
+          required-authorities: ["iam:perfil:read"]
+          parameters: []
+          state: ATIVO
+        - key: IAM_PERMISSOES
+          model-description: Consultar as permissoes cadastradas no Nexo.
+          default-label: Abrir permissoes
+          required-authorities: ["iam:permissao:read"]
+          parameters: []
+          state: ATIVO
+        - key: IAM_STATUS
+          model-description: Consultar ou administrar cadastros de status do sistema.
+          default-label: Abrir status
+          required-authorities: ["iam:status:read"]
+          parameters: []
+          state: BLOQUEADO
+
+        # Recursos Humanos
+        - key: RH_COLABORADORES
+          model-description: Consultar colaboradores ou chegar a tela que inicia seu cadastro.
+          default-label: Abrir colaboradores
+          required-authorities: ["rh:colaborador:read"]
+          parameters: []
+          state: ATIVO
+        - key: RH_FUNCOES
+          model-description: Consultar ou cadastrar funcoes de colaboradores.
+          default-label: Abrir funcoes
+          required-authorities: ["rh:funcao:read"]
+          parameters: []
+          state: ATIVO
+        - key: RH_PROCESSOS
+          model-description: Consultar ou cadastrar processos de negocio.
+          default-label: Abrir processos
+          required-authorities: ["rh:processo-negocio:read"]
+          parameters: []
+          state: ATIVO
+        - key: RH_BASES_OPERACIONAIS
+          model-description: Consultar ou cadastrar bases operacionais.
+          default-label: Abrir bases operacionais
+          required-authorities: ["rh:base-operacional:read"]
+          parameters: []
+          state: ATIVO
+        - key: RH_MUNICIPIOS
+          model-description: Consultar ou cadastrar municipios.
+          default-label: Abrir municipios
+          required-authorities: ["rh:municipio:read"]
+          parameters: []
+          state: ATIVO
+        - key: RH_VEICULOS
+          model-description: Consultar ou cadastrar veiculos.
+          default-label: Abrir veiculos
+          required-authorities: ["rh:veiculo:read"]
+          parameters: []
+          state: ATIVO
+        - key: RH_EQUIPES
+          model-description: Consultar ou cadastrar equipes.
+          default-label: Abrir equipes
+          required-authorities: ["rh:equipe:read"]
+          parameters: []
+          state: ATIVO
+        - key: RH_TIPOS_EQUIPE
+          model-description: Consultar ou cadastrar tipos de equipe.
+          default-label: Abrir tipos de equipe
+          required-authorities: ["rh:tipo-equipe:read"]
+          parameters: []
+          state: ATIVO
+        - key: RH_CENTROS_CUSTO
+          model-description: Consultar ou cadastrar centros de custo e faturamento.
+          default-label: Abrir centros de custo
+          required-authorities: ["rh:centro-faturamento:read"]
+          parameters: []
+          state: ATIVO
+
+        # Contratos e cadastros de desconto
+        - key: CONTRATOS
+          model-description: Consultar ou cadastrar contratos.
+          default-label: Abrir contratos
+          required-authorities: ["contrato:contrato:read"]
+          parameters: []
+          state: ATIVO
+        - key: CONTRATO_ACOES
+          model-description: Consultar ou cadastrar acoes contratuais.
+          default-label: Abrir acoes contratuais
+          required-authorities: ["contrato:acao:read"]
+          parameters: []
+          state: ATIVO
+        - key: CONTRATO_ACOES_VALORES
+          model-description: Administrar a relacao entre acoes contratuais e valores.
+          default-label: Abrir acoes e valores
+          required-authorities: ["contrato:acao-valor:read"]
+          parameters: []
+          state: ATIVO
+        - key: EXECUCAO_TIPOS_SERVICO
+          model-description: Consultar ou administrar os tipos de servico informados no lancamento das notas.
+          default-label: Abrir tipos de servico
+          required-authorities: ["execucao:tipo-servico:read"]
+          parameters: []
+          state: ATIVO
+        - key: DESCONTO_MOTIVOS
+          model-description: Consultar ou administrar motivos de desconto.
+          default-label: Abrir motivos de desconto
+          required-authorities: ["desconto:motivo:read"]
+          parameters: []
+          state: ATIVO
+        - key: DESCONTO_TIPOS_EQUIPAMENTO
+          model-description: Consultar ou administrar tipos de equipamento usados em descontos.
+          default-label: Abrir tipos de equipamento
+          required-authorities: ["desconto:tipo-equipamento:read"]
+          parameters: []
+          state: ATIVO
+
+        # Departamento Pessoal - descontos
+        - key: DESCONTOS_LISTA
+          model-description: Consultar, pesquisar ou acompanhar descontos existentes. Nao use para criar um desconto.
+          default-label: Ver descontos
+          required-authorities: ["desconto:read"]
+          parameters: []
+          state: ATIVO
+        - key: DESCONTO_NOVO
+          model-description: Abrir o formulario para solicitar, lancar ou registrar um novo desconto. Nao afirme que foi salvo.
+          default-label: Lancar novo desconto
+          required-authorities: ["desconto:solicitar"]
+          parameters: []
+          state: ATIVO
+        # Automacoes
+        - key: AUTOMACOES
+          model-description: Abrir a lista de automacoes (regras de aviso, e-mails automaticos, relatorios agendados, aprovacoes).
+          default-label: Abrir automações
+          required-authorities: ["automacao:read"]
+          parameters: []
+          state: ATIVO
+        - key: AUTOMACAO_EDITOR
+          model-description: Abrir no editor visual uma automacao cujo identificador UUID ja seja conhecido (por exemplo o rascunho recem-criado).
+          default-label: Abrir no editor
+          required-authorities: ["automacao:manage"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: DESCONTO_DETALHE
+          model-description: Abrir os detalhes de um desconto cujo identificador UUID ja seja conhecido. Nao deduza o ID pelo nome.
+          default-label: Ver detalhe do desconto
+          required-authorities: ["desconto:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+            - name: mode
+              type: ENUM
+              frontend-destination: QUERY
+              required: false
+              allowed-values: ["print"]
+          state: ATIVO
+
+        # Obras e cadastros de SST (links dos cartoes de cadastro do Copiloto)
+        - key: OBRAS
+          model-description: Consultar a lista de obras.
+          default-label: Abrir obras
+          required-authorities: ["obras:obra:read"]
+          parameters: []
+          state: ATIVO
+        - key: OBRA_DETALHE
+          model-description: Abrir uma obra com UUID conhecido.
+          default-label: Ver obra
+          required-authorities: ["obras:obra:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: OBRAS_STATUS
+          model-description: Consultar os status de obra cadastrados.
+          default-label: Abrir status de obra
+          required-authorities: ["obras:cadastros:read"]
+          parameters: []
+          state: ATIVO
+        - key: OBRAS_AGENTES
+          model-description: Consultar os agentes responsaveis por obras.
+          default-label: Abrir agentes responsaveis
+          required-authorities: ["obras:cadastros:read"]
+          parameters: []
+          state: ATIVO
+        - key: OBRAS_TIPOS_ANEXO
+          model-description: Consultar os tipos de anexo de obra.
+          default-label: Abrir tipos de anexo
+          required-authorities: ["obras:cadastros:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_EVENTOS
+          model-description: Consultar eventos de seguranca (acidentes, incidentes, quase acidentes).
+          default-label: Abrir eventos de seguranca
+          required-authorities: ["sst:evento:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_EVENTO_DETALHE
+          model-description: Abrir um evento de seguranca com UUID conhecido.
+          default-label: Ver evento de seguranca
+          required-authorities: ["sst:evento:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: SST_GOVERNANCA_ACOES
+          model-description: Consultar as acoes da CIPA e da brigada.
+          default-label: Abrir acoes de seguranca
+          required-authorities: ["sst:governanca:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_METAS_INSPECAO
+          model-description: Consultar as metas de inspecao de seguranca.
+          default-label: Abrir metas de inspecao
+          required-authorities: ["sst:meta:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_TIPOS_INSPECAO
+          model-description: Consultar os tipos de inspecao de seguranca.
+          default-label: Abrir tipos de inspecao
+          required-authorities: ["sst:catalogo:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_ATIVIDADES
+          model-description: Consultar as atividades usadas nos eventos de seguranca.
+          default-label: Abrir atividades de seguranca
+          required-authorities: ["sst:catalogo:read"]
+          parameters: []
+          state: ATIVO
+        # Seguranca do Trabalho
+        - key: SST_FORMULARIOS
+          model-description: Consultar modelos e formularios de inspecao de seguranca.
+          default-label: Ver formularios de inspecao
+          required-authorities: ["sst:formulario:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_FORMULARIO_NOVO
+          model-description: Abrir a tela para criar um novo formulario de inspecao. Nao afirme que foi criado.
+          default-label: Criar formulario de inspecao
+          required-authorities: ["sst:formulario:write"]
+          parameters: []
+          state: ATIVO
+        - key: SST_FORMULARIO_EDITAR
+          model-description: Abrir para edicao um formulario de inspecao com UUID conhecido. Nao execute a edicao.
+          default-label: Editar formulario de inspecao
+          required-authorities: ["sst:formulario:write"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: SST_INSPECOES
+          model-description: Consultar e pesquisar inspecoes de seguranca.
+          default-label: Ver inspecoes
+          required-authorities: ["sst:inspecao:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_INSPECAO_NOVA
+          model-description: Abrir a tela para iniciar ou registrar uma nova inspecao. Nao afirme que foi registrada.
+          default-label: Iniciar nova inspecao
+          required-authorities: ["sst:inspecao:write"]
+          parameters: []
+          state: ATIVO
+        - key: SST_INSPECAO_DETALHE
+          model-description: Abrir uma inspecao existente cujo UUID seja conhecido.
+          default-label: Ver detalhe da inspecao
+          required-authorities: ["sst:inspecao:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: SST_MEUS_DESVIOS
+          model-description: Consultar e tratar os desvios vinculados ao usuario atual.
+          default-label: Abrir meus desvios
+          required-authorities: ["sst:inspecao:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_DESVIOS
+          model-description: Consultar e pesquisar todos os desvios de seguranca da empresa, com filtros por status, gravidade, prazo, inspetor, colaborador, base, equipe e processo.
+          default-label: Ver desvios
+          required-authorities: ["sst:inspecao:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_DESVIO_DETALHE
+          model-description: Abrir um desvio de seguranca existente cujo UUID seja conhecido.
+          default-label: Ver detalhe do desvio
+          required-authorities: ["sst:inspecao:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: SST_DASHBOARD_INSPECOES
+          model-description: Abrir o dashboard e os indicadores de inspecoes.
+          default-label: Ver dashboard de inspecoes
+          required-authorities: ["sst:dashboard:read"]
+          parameters: []
+          state: ATIVO
+        - key: SST_DASHBOARD_DESVIOS
+          model-description: Abrir o dashboard e os indicadores de desvios.
+          default-label: Ver dashboard de desvios
+          required-authorities: ["sst:dashboard:read"]
+          parameters: []
+          state: ATIVO
+
+        # Chamados
+        - key: CHAMADOS_MEUS
+          model-description: Consultar ou acompanhar os chamados do usuario atual.
+          default-label: Abrir meus chamados
+          required-authorities: ["chamado:read"]
+          parameters: []
+          state: ATIVO
+        - key: CHAMADO_NOVO
+          model-description: Abrir a tela para criar ou registrar um novo chamado. Nao afirme que foi aberto.
+          default-label: Abrir novo chamado
+          required-authorities: ["chamado:write"]
+          parameters: []
+          state: ATIVO
+        - key: CHAMADO_MEU_DETALHE
+          model-description: Abrir um chamado conhecido do usuario solicitante usando seu UUID.
+          default-label: Ver chamado
+          required-authorities: ["chamado:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: CHAMADOS_FILA
+          model-description: Consultar a fila da central de atendimento.
+          default-label: Abrir fila de chamados
+          required-authorities: ["chamado:manage"]
+          parameters: []
+          state: ATIVO
+        - key: CHAMADO_FILA_DETALHE
+          model-description: Abrir um chamado conhecido da fila da central usando seu UUID.
+          default-label: Atender chamado da fila
+          required-authorities: ["chamado:manage"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: CHAMADOS_TOPICOS
+          model-description: Consultar ou administrar topicos de chamados.
+          default-label: Abrir topicos de chamados
+          required-authorities: ["chamado:manage"]
+          parameters: []
+          state: ATIVO
+        - key: CHAMADOS_EQUIPES
+          model-description: Consultar ou administrar equipes de atendimento.
+          default-label: Abrir equipes de atendimento
+          required-authorities: ["chamado:manage"]
+          parameters: []
+          state: ATIVO
+
+        # Financeiro
+        - key: FINANCEIRO_COMPRAS
+          model-description: Consultar as solicitacoes de compra do usuario.
+          default-label: Ver solicitacoes de compra
+          required-authorities: ["financeiro:compra:read"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_COMPRA_NOVA
+          model-description: Abrir a tela para criar uma nova solicitacao de compra. Nao afirme que foi criada.
+          default-label: Nova solicitacao de compra
+          required-authorities: ["financeiro:compra:write"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_COMPRA_DETALHE
+          model-description: Abrir os detalhes de uma solicitacao de compra com UUID conhecido.
+          default-label: Ver solicitacao de compra
+          required-authorities: ["financeiro:compra:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: FINANCEIRO_COMPRA_EDITAR
+          model-description: Abrir para edicao uma solicitacao de compra com UUID conhecido. Nao execute a edicao.
+          default-label: Editar solicitacao de compra
+          required-authorities: ["financeiro:compra:write"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: FINANCEIRO_PAGAMENTOS
+          model-description: Consultar as solicitacoes de pagamento do usuario.
+          default-label: Ver solicitacoes de pagamento
+          required-authorities: ["financeiro:pagamento:read"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_PAGAMENTO_NOVO
+          model-description: Abrir a tela para criar uma nova solicitacao de pagamento. Nao afirme que foi criada.
+          default-label: Nova solicitacao de pagamento
+          required-authorities: ["financeiro:pagamento:write"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_PAGAMENTO_DETALHE
+          model-description: Abrir os detalhes de uma solicitacao de pagamento com UUID conhecido.
+          default-label: Ver solicitacao de pagamento
+          required-authorities: ["financeiro:pagamento:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: FINANCEIRO_PAGAMENTO_EDITAR
+          model-description: Abrir para edicao uma solicitacao de pagamento com UUID conhecido. Nao execute a edicao.
+          default-label: Editar solicitacao de pagamento
+          required-authorities: ["financeiro:pagamento:write"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: FINANCEIRO_APROVAR_COMPRAS
+          model-description: Abrir as solicitacoes de compra pendentes de aprovacao. Nao execute aprovacoes.
+          default-label: Ver compras para aprovacao
+          required-authorities: ["financeiro:compra:aprovar"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_APROVAR_PAGAMENTOS
+          model-description: Abrir as solicitacoes de pagamento pendentes de aprovacao. Nao execute aprovacoes.
+          default-label: Ver pagamentos para aprovacao
+          required-authorities: ["financeiro:pagamento:aprovar"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_FORNECEDORES
+          model-description: Consultar ou cadastrar fornecedores.
+          default-label: Abrir fornecedores
+          required-authorities: ["financeiro:fornecedor:read"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_ALCADAS
+          model-description: Consultar ou administrar alcadas de aprovacao.
+          default-label: Abrir alcadas de aprovacao
+          required-authorities: ["financeiro:alcada:read"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_FORMULARIOS
+          model-description: Consultar formularios financeiros.
+          default-label: Abrir formularios financeiros
+          required-authorities: ["financeiro:formulario:read"]
+          parameters: []
+          state: ATIVO
+        - key: FINANCEIRO_FORMULARIO_EDITAR
+          model-description: Abrir para edicao um formulario financeiro com UUID conhecido. Nao execute a edicao.
+          default-label: Editar formulario financeiro
+          required-authorities: ["financeiro:formulario:write"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+
+        # Almoxarifado
+        - key: ALMOX_MATERIAIS
+          model-description: Consultar ou administrar materiais do almoxarifado.
+          default-label: Abrir materiais
+          required-authorities: ["estoque:material:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_AVALIACOES
+          model-description: Consultar avaliacoes tecnicas de materiais.
+          default-label: Abrir avaliacoes de materiais
+          required-authorities: ["estoque:avaliacao-material:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_CENTROS_INVESTIMENTO
+          model-description: Consultar centros de investimento do almoxarifado.
+          default-label: Abrir centros de investimento
+          required-authorities: ["estoque:centro-investimento:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_ESTOQUES
+          model-description: Consultar ou administrar estoques.
+          default-label: Abrir estoques
+          required-authorities: ["estoque:estoque:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_TIPOS_ESTOQUE
+          model-description: Consultar os tipos de estoque cadastrados.
+          default-label: Abrir tipos de estoque
+          required-authorities: ["estoque:tipo-estoque:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_SOLICITACOES
+          model-description: Consultar solicitacoes de material.
+          default-label: Abrir solicitacoes de material
+          required-authorities: ["estoque:solicitacao:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_SOLICITACAO_DETALHE
+          model-description: Abrir uma solicitacao de material com UUID conhecido.
+          default-label: Ver solicitacao de material
+          required-authorities: ["estoque:solicitacao:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: ALMOX_DASHBOARD_SOLICITACOES
+          model-description: Abrir o dashboard e o relatorio de solicitacoes de material.
+          default-label: Ver dashboard de solicitacoes
+          required-authorities: ["estoque:solicitacao:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_SALDOS
+          model-description: Consultar saldos de estoque.
+          default-label: Abrir saldos de estoque
+          required-authorities: ["estoque:saldo:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_SALDOS_RELATORIO
+          model-description: Abrir o relatorio detalhado de saldos de estoque.
+          default-label: Ver relatorio de saldos
+          required-authorities: ["estoque:saldo:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_MOVIMENTACOES
+          model-description: Consultar movimentacoes de estoque.
+          default-label: Abrir movimentacoes de estoque
+          required-authorities: ["estoque:movimentacao:read"]
+          parameters: []
+          state: ATIVO
+        - key: ALMOX_MOVIMENTACAO_DETALHE
+          model-description: Abrir uma movimentacao de estoque com UUID conhecido.
+          default-label: Ver movimentacao de estoque
+          required-authorities: ["estoque:movimentacao:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO
+        - key: ALMOX_TRANSFERENCIA_NOVA
+          model-description: Abrir a transferencia de estoque em lote quando houver guard funcional definido.
+          default-label: Nova transferencia de estoque
+          required-authorities: []
+          parameters: []
+          state: BLOQUEADO
+        - key: ALMOX_ENTRADA_AVULSA
+          model-description: Abrir a entrada avulsa de estoque quando houver guard funcional definido.
+          default-label: Nova entrada avulsa
+          required-authorities: []
+          parameters: []
+          state: BLOQUEADO
+        - key: ALMOX_BAIXA_AVULSA
+          model-description: Abrir a baixa avulsa de estoque quando houver guard funcional definido.
+          default-label: Nova baixa avulsa
+          required-authorities: []
+          parameters: []
+          state: BLOQUEADO
+
+        # Execucao
+        - key: EXECUCAO_COMERCIAL
+          model-description: Consultar execucoes comerciais.
+          default-label: Abrir execucoes comerciais
+          required-authorities: ["execucao:comercial:read"]
+          parameters: []
+          state: ATIVO
+        - key: EXECUCAO_TURNOS
+          model-description: Consultar turnos das equipes por equipe, base, processo, situacao e periodo de abertura, com notas e producao de cada turno.
+          default-label: Abrir consulta de turnos
+          required-authorities: ["execucao:comercial:read"]
+          parameters: []
+          state: ATIVO
+        - key: EXECUCAO_DASHBOARD_OPERACIONAL
+          model-description: Abrir o dashboard operacional com a producao das equipes no periodo, meta e ritmo.
+          default-label: Ver dashboard operacional
+          required-authorities: ["execucao:comercial:read"]
+          parameters: []
+          state: ATIVO
+        - key: EXECUCAO_DASHBOARD_TURNOS
+          model-description: Abrir o dashboard de turnos com a situacao das equipes no dia (em turno, encerrado, sem turno) e os lancamentos.
+          default-label: Ver dashboard de turnos
+          required-authorities: ["execucao:comercial:read"]
+          parameters: []
+          state: ATIVO
+        - key: EXECUCAO_COMERCIAL_DETALHE
+          model-description: Abrir o relatorio de uma execucao comercial com UUID conhecido.
+          default-label: Ver execucao comercial
+          required-authorities: ["execucao:comercial:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+            - name: mode
+              type: ENUM
+              frontend-destination: QUERY
+              required: false
+              allowed-values: ["print"]
+          state: ATIVO
+        - key: EXECUCAO_TURNO_DETALHE
+          model-description: Abrir o detalhamento de um turno com UUID conhecido.
+          default-label: Ver detalhe do turno
+          required-authorities: ["execucao:comercial:read"]
+          parameters:
+            - name: id
+              type: UUID
+              frontend-destination: PATH
+              required: true
+          state: ATIVO

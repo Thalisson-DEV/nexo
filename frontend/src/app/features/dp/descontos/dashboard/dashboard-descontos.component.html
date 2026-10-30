@@ -1,0 +1,480 @@
+<app-copiloto-area [contexto]="contextoCopiloto()">
+<main class="dash-page">
+  <div class="dash-shell">
+    <ces-page-header title="Recuperação de valor e gargalos do ciclo" icon="pi pi-money-bill"
+      [breadcrumb]="[{ label: 'Departamento pessoal' }, { label: 'Descontos' }, { label: 'Painel' }]"
+      description="Quanto do que foi solicitado virou desconto real, onde o processo trava e em que motivos, materiais e equipes as perdas se concentram.">
+      <app-copiloto-gatilho actions></app-copiloto-gatilho>
+      @if (atualizadoEm()) { <span actions class="dash-updated">Atualizado às {{ atualizadoEm() | date: 'HH:mm' }}</span> }
+      <ces-button actions [label]="showManagementView() ? 'Ocultar leitura' : 'Leitura gerencial'" [icon]="showManagementView() ? 'pi pi-eye-slash' : 'pi pi-eye'"
+        variant="secondary" (pressed)="showManagementView.set(!showManagementView())"></ces-button>
+      <ces-button actions label="Ver lançamentos" icon="pi pi-list" variant="secondary" (pressed)="verListagem()"></ces-button>
+      <ces-button actions label="Atualizar" icon="pi pi-refresh" [loading]="loading()" (pressed)="aplicar()"></ces-button>
+    </ces-page-header>
+
+    <ces-filter-panel storageKey="dash-descontos" [activeCount]="chips().length" [summary]="chips()" [loading]="loading()"
+      (applied)="aplicar()" (cleared)="limpar()" (chipRemoved)="removerFiltro($event)">
+      <div class="ces-filter-grid">
+        <ces-select label="Analisar por" inputId="desconto-tipo-data" [options]="tiposFiltroData" [value]="tipoDataFiltro()" (valueChange)="tipoDataFiltro.set($any($event))"></ces-select>
+        <ces-datepicker label="Início" inputId="desconto-inicio" [(value)]="dataInicio" [clearable]="true"></ces-datepicker>
+        <ces-datepicker label="Fim" inputId="desconto-fim" [(value)]="dataFim" [clearable]="true"></ces-datepicker>
+        <ces-multiselect label="Motivo" [options]="opcoesMotivos()" [value]="$any(filter.idMotivo ?? [])" (valueChange)="filter.idMotivo = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Tipo de equipamento" [options]="opcoesTipos()" [value]="$any(filter.idTipoEquipamento ?? [])" (valueChange)="filter.idTipoEquipamento = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Centro de custo" [options]="opcoesCentros()" [value]="$any(filter.idCentroCusto ?? [])" (valueChange)="filter.idCentroCusto = $event" placeholder="Todos"></ces-multiselect>
+        <ces-multiselect label="Base operacional" [options]="opcoesBases()" [value]="$any(filter.idBaseOperacional ?? [])" (valueChange)="filter.idBaseOperacional = $event" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Função" [options]="opcoesFuncoes()" [value]="$any(filter.idFuncao ?? [])" (valueChange)="filter.idFuncao = $event" placeholder="Todas"></ces-multiselect>
+        <ces-multiselect label="Status" [options]="statusOptions" [value]="$any(filter.status ?? [])" (valueChange)="filter.status = $event" [filter]="false" placeholder="Todos"></ces-multiselect>
+        <ces-select label="Agrupamento do gráfico" [options]="granularidadeOptions" [value]="filter.granularidade ?? null"
+          (valueChange)="filter.granularidade = $event; onGranularidadeChange()"></ces-select>
+      </div>
+    </ces-filter-panel>
+
+    @if (loading()) {
+      <div class="dash-metrics">@for (item of [1,2,3,4]; track item) { <p-skeleton height="156px" borderRadius="16px" /> }</div>
+      <p-skeleton height="430px" borderRadius="16px" />
+    } @else if (data(); as d) {
+
+      @if (showManagementView()) {
+        <app-dashboard-insight-panel headingId="descontos-briefing" eyebrow="Leitura gerencial"
+          title="O que merece atenção agora"
+          description="Pendências travadas, comprovação faltando e o que os números do período dizem sobre o processo. As prioridades saem dos dados, não de um limiar arbitrário de desempenho."
+          [insights]="insights()" [actionable]="d.prioridades.length > 0"
+          (actionSelected)="abrirPrioridadePorIndice($event)" />
+      }
+
+      <!-- Cartões principais -->
+      <section class="dash-metrics" aria-label="Indicadores principais">
+        <app-dashboard-metric-card label="Descontado em folha" [value]="moedaCompacta(d.financeiro.valorBaixado)"
+          icon="pi-wallet" tone="green"
+          [detail]="d.financeiro.valorBaixadoPeriodoAnterior > 0
+            ? (d.financeiro.variacaoValorBaixado | number:'1.0-1') + '% vs. período anterior (' + moedaCompacta(d.financeiro.valorBaixadoPeriodoAnterior) + ')'
+            : 'Sem período anterior para comparar'" />
+
+        <app-dashboard-metric-card label="Recuperação do solicitado"
+          [value]="d.resumo.totalDescontos > 0 ? percentual(d.financeiro.taxaRecuperacao) : 'Sem dados no período'"
+          icon="pi-percentage" tone="primary" [progress]="d.financeiro.taxaRecuperacao"
+          [detail]="moedaCompacta(d.financeiro.valorBaixado) + ' de ' + moedaCompacta(d.financeiro.valorSolicitado) + ' solicitados'" />
+
+        <app-dashboard-metric-card label="Em aberto" [value]="moedaCompacta(d.financeiro.valorEmAberto)"
+          icon="pi-hourglass" tone="amber"
+          [detail]="d.resumo.pendentes + ' termo(s) pendente(s) no período · pendência mais antiga há ' + d.ciclo.idadeMaximaPendenteDias + ' dia(s)'" />
+
+        <app-dashboard-metric-card label="Termos no período" [value]="d.resumo.totalDescontos"
+          icon="pi-file" tone="slate" [detail]="variacaoDoVolume(d.resumo)" />
+      </section>
+
+      @if (d.qualidade.pendentesSemAnexo > 0 || d.qualidade.pendentesSemItens > 0 || d.qualidade.colaboradoresNaoIdentificados > 0) {
+        <div class="dash-quality" role="status">
+          <i class="pi pi-exclamation-triangle"></i>
+          <div>
+            <strong>Os números têm ressalvas</strong>
+            <span>
+              @if (d.qualidade.pendentesSemAnexo > 0) { {{ d.qualidade.pendentesSemAnexo }} pendência(s) sem nenhum anexo. }
+              @if (d.qualidade.pendentesSemItens > 0) { {{ d.qualidade.pendentesSemItens }} sem itens lançados — não há valor a validar. }
+              @if (d.qualidade.colaboradoresNaoIdentificados > 0) { {{ d.qualidade.colaboradoresNaoIdentificados }} termo(s) com colaborador fora do cadastro de RH ficam de fora dos agrupamentos por base, centro de custo e função. }
+            </span>
+          </div>
+        </div>
+      }
+
+      <!-- Série temporal + anel de recuperação -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <h2>Solicitado × descontado ao longo do período</h2>
+              <p>{{ descricaoSerie(d.granularidade) }}</p>
+            </div>
+            <div class="dash-tabs" aria-label="Período rápido">
+              @for (periodo of periodosRapidos; track periodo.value) {
+                <button class="dash-tab" [class.is-active]="periodoAtivo() === periodo.value" (click)="setPeriodo(periodo.value)">{{ periodo.label }}</button>
+              }
+            </div>
+          </header>
+
+          <div class="dash-chart-controls">
+            <div class="dash-tabs" aria-label="Unidade da série">
+              @for (opcao of abasUnidade; track opcao.value) {
+                <button class="dash-tab" [class.is-active]="unidadeSerie() === opcao.value" (click)="onUnidadeSerieChange(opcao.value)">{{ opcao.label }}</button>
+              }
+            </div>
+            <div class="dash-tabs" aria-label="Modo de leitura do gráfico">
+              @for (modo of abasSerieModo; track modo.value) {
+                <button class="dash-tab" [class.is-active]="serieModo() === modo.value" (click)="onSerieModoChange(modo.value)">{{ modo.label }}</button>
+              }
+            </div>
+          </div>
+
+          @if (d.serieTemporal.length) {
+            <div class="dash-chart"><p-chart type="bar" [data]="serieData" [options]="serieOptions" height="310px" /></div>
+            @if (d.resumo.totalDescontos === 0) {
+              <p class="dash-note">Nenhum termo no período — os intervalos aparecem zerados para manter o gráfico contínuo.</p>
+            } @else {
+              <p class="dash-note">Cada intervalo agrupa os termos pela <strong>data da ocorrência</strong>, com o desfecho que eles têm hoje. Um termo baixado com atraso continua pertencendo ao intervalo em que aconteceu.</p>
+            }
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-bar"></i>Sem movimentação no período selecionado.</div>
+          }
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Do pedido ao caixa</span>
+              <h2>Quanto sobreviveu</h2>
+            </div>
+          </header>
+
+          @if (d.resumo.totalDescontos === 0) {
+            <div class="dash-empty dash-empty--tight">
+              <i class="pi pi-inbox"></i>
+              <strong class="block text-slate-600 text-sm">Nenhum termo no recorte</strong>
+              <span class="block mt-2 text-xs leading-relaxed">Ajuste o período ou remova filtros para ver a taxa de recuperação.</span>
+            </div>
+          } @else {
+            <div class="dash-gauge-wrap">
+              <div class="dash-gauge" [style.--dash-gauge-pct]="barWidth(d.financeiro.taxaRecuperacao)">
+                <div class="dash-gauge__inner">
+                  <strong>{{ d.financeiro.taxaRecuperacao | number:'1.0-1' }}%</strong>
+                  <span>recuperado</span>
+                </div>
+              </div>
+              <div class="dash-gauge__legend">
+                <div><span>Solicitado</span><strong>{{ moedaCompacta(d.financeiro.valorSolicitado) }}</strong></div>
+                <div><span>Descontado</span><strong>{{ moedaCompacta(d.financeiro.valorBaixado) }}</strong></div>
+                <div><span>Cortado na validação</span><strong>{{ moedaCompacta(d.financeiro.glosaValidacao) }}</strong></div>
+                <div><span>Ajustado na baixa</span><strong>{{ moedaCompacta(d.financeiro.ajusteBaixa) }}</strong></div>
+              </div>
+            </div>
+
+            <div class="dash-kpis !mt-5">
+              @for (kpi of kpisComparativos(); track kpi.chave) {
+                <div class="dash-kpi">
+                  <span class="dash-kpi__label">{{ kpi.rotulo }}</span>
+                  <strong class="dash-kpi__value">{{ kpi.valor }}</strong>
+                  <span class="dash-kpi__trend" [attr.data-trend]="kpi.tom">
+                    @if (kpi.seta) { <i class="pi" [class]="kpi.seta"></i> }
+                    {{ kpi.comparativo }}
+                  </span>
+                  <span class="dash-kpi__hint">{{ kpi.definicao }}</span>
+                </div>
+              }
+            </div>
+          }
+        </aside>
+      </section>
+
+      <!-- Funil + envelhecimento -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Conversão</span>
+              <h2>Onde o valor se perde</h2>
+              <p>Dos termos ocorridos no período, quanto chegou a cada etapa. Um termo já baixado conta também como validado — por isso o funil só estreita.</p>
+            </div>
+          </header>
+          @if (d.resumo.totalDescontos) {
+            <div class="dash-chart dash-chart--short"><p-chart type="bar" [data]="funilData" [options]="funilOptions" height="240px" /></div>
+            <div class="dash-summary__items !mt-4">
+              @for (etapa of d.funil; track etapa.etapa) {
+                <div class="dash-summary__item">
+                  <i class="dash-summary__dot" [style.background]="corDaEtapa(etapa.etapa)"></i>
+                  <span>{{ etapa.rotulo }}</span>
+                  <strong>{{ etapa.quantidade }} · {{ moedaCompacta(etapa.valor) }}</strong>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-filter"></i>Sem termos para montar o funil.</div>
+          }
+        </article>
+
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Backlog</span>
+              <h2>Há quanto tempo cada pendência está parada</h2>
+              <p>A idade conta desde a entrada na etapa atual, não desde a abertura — e inclui pendências abertas antes do período consultado.</p>
+            </div>
+          </header>
+          @if (totalPendenteHistorico() > 0) {
+            <div class="dash-chart dash-chart--short"><p-chart type="bar" [data]="envelhecimentoData" [options]="envelhecimentoOptions" height="240px" /></div>
+            <div class="dash-summary__items !mt-4">
+              @for (faixa of d.envelhecimento; track faixa.faixa) {
+                @if (faixa.quantidade > 0) {
+                  <div class="dash-summary__item">
+                    <i class="dash-summary__dot" [style.background]="corDaFaixa(faixa.idadeMinimaDias)"></i>
+                    <span>{{ faixa.faixa }} dias parados</span>
+                    <strong>{{ faixa.quantidade }} · {{ moedaCompacta(faixa.valor) }}</strong>
+                  </div>
+                }
+              }
+            </div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-check-circle"></i>Nenhuma pendência em aberto.</div>
+          }
+        </article>
+      </section>
+
+      <!-- Status + ciclo -->
+      <section class="dash-grid">
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div><span class="dash-eyebrow">Distribuição</span><h2>Onde os termos estão</h2></div>
+          </header>
+          <div class="dash-tabs mb-4" aria-label="Unidade da distribuição">
+            @for (opcao of abasUnidade; track opcao.value) {
+              <button class="dash-tab" [class.is-active]="unidadeStatus() === opcao.value" (click)="onUnidadeStatusChange(opcao.value)">{{ opcao.label }}</button>
+            }
+          </div>
+          @if (d.resumo.totalDescontos) {
+            <div class="dash-chart dash-chart--short"><p-chart type="doughnut" [data]="statusData" [options]="statusChartOptions" height="240px" /></div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-chart-pie"></i>Sem termos no período.</div>
+          }
+        </aside>
+
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Tempo de processo</span>
+              <h2>Quanto cada etapa demora</h2>
+              <p>Barras próximas indicam ritmo previsível. Um P90 muito acima da mediana significa que existe um punhado de casos travando a fila.</p>
+            </div>
+          </header>
+          @if (d.ciclo.amostraValidacao || d.ciclo.amostraBaixa) {
+            <div class="dash-chart"><p-chart type="bar" [data]="cicloData" [options]="cicloOptions" height="280px" /></div>
+            <p class="dash-note">
+              Amostra: {{ d.ciclo.amostraValidacao }} termo(s) validado(s) e {{ d.ciclo.amostraBaixa }} baixado(s) no período.
+              Idade média das pendências: {{ d.ciclo.idadeMediaPendentesDias | number:'1.0-1' }} dia(s).
+            </p>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-clock"></i>Nenhum termo concluiu uma etapa no período — sem amostra para medir tempo.</div>
+          }
+        </article>
+      </section>
+
+      <!-- Motivos + tipos de equipamento -->
+      <section class="dash-grid">
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Motivos</span>
+              <h2>Por que os descontos acontecem</h2>
+              <p>Ordenado por valor. O motivo mais frequente raramente é o mais caro.</p>
+            </div>
+          </header>
+          @if (d.porMotivo.length) {
+            <div class="dash-chart dash-chart--tall"><p-chart type="bar" [data]="motivoData" [options]="motivoOptions" height="320px" /></div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-tag"></i>Nenhum motivo com termos no período.</div>
+          }
+        </article>
+
+        <article class="dash-panel dash-col-6">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Materiais</span>
+              <h2>Que equipamento está sumindo</h2>
+              <p>Contado por item lançado, não por termo — um único desconto pode ter três luvas.</p>
+            </div>
+          </header>
+          @if (d.porTipoEquipamento.length) {
+            <div class="dash-chart dash-chart--tall"><p-chart type="bar" [data]="tipoEquipamentoData" [options]="tipoEquipamentoOptions" height="320px" /></div>
+          } @else {
+            <div class="dash-empty"><i class="pi pi-box"></i>Nenhum item lançado no período.</div>
+          }
+        </article>
+      </section>
+
+      <!-- Estrutura organizacional -->
+      <section class="dash-panel">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Estrutura</span>
+            <h2>Onde as perdas se concentram</h2>
+            <p>Volume e dinheiro lado a lado. A taxa de aprovação usa só os termos já finalizados do grupo.</p>
+          </div>
+          <div class="dash-tabs" aria-label="Forma de agrupamento">
+            @for (aba of abasOrganizacionais; track aba.value) {
+              <button class="dash-tab" [class.is-active]="dimensaoOrganizacional() === aba.value" (click)="onDimensaoOrganizacionalChange(aba.value)">{{ aba.label }}</button>
+            }
+          </div>
+        </header>
+        <div class="dash-table-wrap">
+          <p-table [value]="linhasOrganizacionais()" [paginator]="linhasOrganizacionais().length > 8" [rows]="8" styleClass="dash-table" [rowHover]="true">
+            <ng-template pTemplate="header">
+              <tr>
+                <th>{{ rotuloOrganizacional() }}</th><th>Termos</th><th>Solicitado</th><th>Valor efetivo</th>
+                <th>% do valor</th><th>Ticket médio</th><th>Pendentes</th><th>Aprovação</th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-item>
+              <tr>
+                <td>
+                  <div class="dash-table-name">
+                    <div class="max-w-[200px] md:max-w-[320px]">
+                      <strong class="block truncate" [pTooltip]="item.nome?.length > 28 ? item.nome : undefined">{{ nomeOuPlaceholder(item.nome) }}</strong>
+                      <span class="block truncate">{{ item.baixados }} baixado(s) · {{ item.rejeitados }} rejeitado(s)</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="dash-number">{{ item.quantidade }}</td>
+                <td class="dash-number">{{ moedaCompacta(item.valorSolicitado) }}</td>
+                <td class="dash-number">{{ moedaCompacta(item.valorEfetivo) }}</td>
+                <td>
+                  <div class="dash-progress">
+                    <div class="dash-progress__track"><span [style.width.%]="barWidth(item.percentualValor)"></span></div>
+                    <strong>{{ item.percentualValor | number:'1.0-1' }}%</strong>
+                  </div>
+                </td>
+                <td class="dash-number">{{ moedaCompacta(item.ticketMedio) }}</td>
+                <td class="dash-number">{{ item.pendentes }}</td>
+                <td class="dash-number">{{ item.baixados + item.rejeitados > 0 ? (item.taxaAprovacao | number:'1.0-1') + '%' : '—' }}</td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="8"><div class="dash-empty"><i class="pi pi-sitemap"></i>Sem dados de {{ rotuloOrganizacional().toLowerCase() }} no período.</div></td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </section>
+
+      <!-- Colaboradores + solicitantes -->
+      <section class="dash-grid mt-4">
+        <article class="dash-panel dash-col-8">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Colaboradores</span>
+              <h2>Quem está sendo descontado</h2>
+              <p>Ordenado por valor efetivo. A coluna de dias separa histórico antigo de problema corrente — quatro termos no mês passado e nenhum desde então já foi tratado.</p>
+            </div>
+          </header>
+          <div class="dash-table-wrap">
+            <p-table [value]="d.porColaborador" [paginator]="d.porColaborador.length > 10" [rows]="10" styleClass="dash-table" [rowHover]="true">
+              <ng-template pTemplate="header">
+                <tr><th>Colaborador</th><th>Termos</th><th>Valor efetivo</th><th>Pendentes</th><th>Parcelas (média)</th><th>Última ocorrência</th><th>Dias desde a última</th><th><span class="sr-only">Detalhar</span></th></tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-item>
+                <tr class="cursor-pointer" (click)="abrirColaborador(item.idColaborador)">
+                  <td>
+                    <div class="dash-table-name">
+                      <div class="max-w-[200px] md:max-w-[320px]">
+                        <strong class="block truncate" [pTooltip]="item.nomeColaborador?.length > 28 ? item.nomeColaborador : undefined">{{ nomeOuPlaceholder(item.nomeColaborador) }}</strong>
+                        <span class="block truncate">{{ item.funcao ?? '—' }}{{ item.baseOperacional ? ' · ' + item.baseOperacional : '' }}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="dash-number">{{ item.quantidade }}</td>
+                  <td class="dash-number">{{ moeda(item.valorEfetivo) }}</td>
+                  <td class="dash-number">{{ item.pendentes }}</td>
+                  <td class="dash-number">{{ item.mediaParcelas | number:'1.0-1' }}</td>
+                  <td class="text-[11px]">{{ item.ultimaOcorrencia ? (item.ultimaOcorrencia | date:'dd/MM/yyyy') : '—' }}</td>
+                  <td>
+                    <span class="dash-days" [attr.data-alert]="alertaDeIdade(item.diasDesdeUltimaOcorrencia)">
+                      {{ item.diasDesdeUltimaOcorrencia }} dia(s)
+                    </span>
+                  </td>
+                  <td class="text-right" (click)="$event.stopPropagation()">
+                    <ces-icon-button icon="pi pi-search-plus" size="icon-sm" [label]="'Ver termos de ' + nomeOuPlaceholder(item.nomeColaborador)" (pressed)="abrirColaborador(item.idColaborador)" />
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="8"><div class="dash-empty"><i class="pi pi-users"></i>Nenhum colaborador foi descontado no período.</div></td></tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </article>
+
+        <aside class="dash-panel dash-col-4">
+          <header class="dash-panel__header">
+            <div>
+              <span class="dash-eyebrow">Quem lança</span>
+              <h2>Solicitantes</h2>
+              <p>Volume e taxa de aprovação de cada pessoa que abre termos.</p>
+            </div>
+          </header>
+          <div class="dash-table-wrap">
+            <p-table [value]="d.porSolicitante" [paginator]="d.porSolicitante.length > 8" [rows]="8" styleClass="dash-table" [rowHover]="true">
+              <ng-template pTemplate="header">
+                <tr><th>Solicitante</th><th>Termos</th><th>Valor</th><th>Aprovação</th></tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-item>
+                <tr>
+                  <td>
+                    <div class="dash-table-name !min-w-[150px]">
+                      <div class="max-w-[180px]">
+                        <strong class="block truncate" [pTooltip]="item.nome?.length > 22 ? item.nome : undefined">{{ nomeOuPlaceholder(item.nome) }}</strong>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="dash-number">{{ item.quantidade }}</td>
+                  <td class="dash-number">{{ moedaCompacta(item.valorEfetivo) }}</td>
+                  <td class="dash-number">{{ item.baixados + item.rejeitados > 0 ? (item.taxaAprovacao | number:'1.0-0') + '%' : '—' }}</td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="4"><div class="dash-empty"><i class="pi pi-user"></i>Ninguém lançou termos no período.</div></td></tr>
+              </ng-template>
+            </p-table>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Rodapé de contexto -->
+      <section class="dash-panel">
+        <header class="dash-panel__header">
+          <div>
+            <span class="dash-eyebrow">Contexto do recorte</span>
+            <h2>Como ler estes números</h2>
+          </div>
+        </header>
+        <div class="dash-summary__items">
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:var(--p-primary-400)"></i>
+            <span>Período analisado ({{ d.periodo.diasNoPeriodo }} dia(s), pela data da ocorrência)</span>
+            <strong>{{ d.inicio | date:'dd/MM/yyyy' }} — {{ d.fim | date:'dd/MM/yyyy' }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#94a3b8"></i>
+            <span>Comparado com</span>
+            <strong>{{ d.periodo.comparacaoInicio | date:'dd/MM/yyyy' }} — {{ d.periodo.comparacaoFim | date:'dd/MM/yyyy' }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#0f766e"></i>
+            <span>Cobertura do efetivo</span>
+            <strong>{{ d.resumo.colaboradoresAtingidos }} de {{ d.resumo.colaboradoresAtivos }} ({{ d.resumo.percentualDoEfetivo | number:'1.0-1' }}%)</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#9f1239"></i>
+            <span>Reincidentes (2+ termos no período)</span>
+            <strong>{{ d.resumo.colaboradoresReincidentes }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#c57a16"></i>
+            <span>Itens lançados · média por termo</span>
+            <strong>{{ d.resumo.totalItens }} · {{ d.resumo.mediaItensPorDesconto | number:'1.0-2' }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#7c3aed"></i>
+            <span>Impacto mensal em folha (valor médio da parcela)</span>
+            <strong>{{ moeda(d.financeiro.valorMedioParcela) }}</strong>
+          </div>
+          <div class="dash-summary__item">
+            <i class="dash-summary__dot" style="background:#475569"></i>
+            <span>Documentação das pendências</span>
+            <strong>{{ d.qualidade.coberturaDocumentalPercentual | number:'1.0-1' }}% dos campos de apoio preenchidos</strong>
+          </div>
+        </div>
+      </section>
+
+    } @else {
+      <div class="dash-panel dash-empty"><i class="pi pi-inbox"></i>Não há dados disponíveis para os filtros selecionados.</div>
+    }
+  </div>
+</main>
+</app-copiloto-area>
+
+<app-dashboard-drill [recorte]="recorteDrill()" (fechar)="drill.close()" />

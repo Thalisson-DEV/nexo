@@ -1,0 +1,23 @@
+{
+  "content": [
+    {
+      "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "estoqueOrigemNome": "ALMOX CENTRAL",
+      "estoqueDestinoNome": "EQUIPE 12",
+      "status": "APROVADO",
+      "dataSolicitacao": "2026-08-24T09:00:00-03:00",
+      "dataVerificacao": "2026-08-24T09:10:00-03:00",
+      "dataEntrega": null,
+      "idRequisitante": "12121212-1212-1212-1212-121212121212",
+      "idAprovador": "13131313-1313-1313-1313-131313131313",
+      "idEntregadorAlmox": null,
+      "totalItens": 1,
+      "versao": 5,
+      "contexto": "COMERCIAL",
+      "statusSeparacao": "PRONTO_PARA_SEPARACAO",
+      "acoesPermitidas": ["INICIAR_SEPARACAO", "VER_HISTORICO"],
+      "tecnico": null
+    }
+  ],
+  "page": {"size": 20, "number": 0, "totalElements": 1, "totalPages": 1}
+}

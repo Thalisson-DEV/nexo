@@ -1,0 +1,598 @@
+<div class="flex flex-col gap-4 pb-28">
+  <div class="flex justify-between items-center">
+    <p-breadcrumb [model]="breadcrumb" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button
+      icon="pi pi-arrow-left"
+      label="Voltar"
+      [text]="true"
+      severity="secondary"
+      (onClick)="cancel()"
+      styleClass="!text-slate-400 !text-[10px] !font-medium"
+    />
+  </div>
+
+  @if (loadingLookups()) {
+    <div
+      class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 min-h-96 flex flex-col items-center justify-center gap-3"
+    >
+      <p-progress-spinner strokeWidth="3" [style]="{ width: '36px', height: '36px' }" />
+      <span class="text-[11px] text-slate-400">Carregando dados da solicitação...</span>
+    </div>
+  } @else if (lookupError()) {
+    <div
+      class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 min-h-96 flex flex-col items-center justify-center gap-3 p-6 text-center"
+    >
+      <i class="pi pi-exclamation-triangle text-amber-500 text-2xl"></i>
+      <span class="text-sm font-medium text-slate-800 dark:text-white">Não foi possível preparar o formulário</span>
+      <span class="text-[11px] text-slate-400 max-w-md">{{ lookupError() }}</span>
+      <p-button
+        label="Tentar novamente"
+        icon="pi pi-refresh"
+        (onClick)="loadLookups()"
+        styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2 !px-4 !font-bold !text-[10px]"
+      />
+    </div>
+  } @else {
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden max-w-4xl w-full mx-auto">
+      <div class="px-5 md:px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <i class="pi pi-shopping-bag text-primary-700 dark:text-primary-400 text-xs"></i>
+            <span class="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-widest">
+              Nova Solicitação Comercial
+            </span>
+          </div>
+          <h1 class="text-base font-medium text-slate-800 dark:text-white">
+            Movimentação e requisição de materiais entre estoques
+          </h1>
+          <p class="text-[11px] text-slate-400 mt-1">
+            Selecione o estoque físico de origem e a equipe de destino, componha os itens e revise antes de confirmar.
+          </p>
+        </div>
+        <p-button
+          icon="pi pi-question-circle"
+          [text]="true"
+          [rounded]="true"
+          (onClick)="onHelp()"
+          pTooltip="Guia de Preenchimento"
+          styleClass="!text-slate-400 hover:!text-primary-700 !w-8 !h-8 shrink-0"
+        />
+      </div>
+
+      <div class="px-5 md:px-8 py-6">
+        <p-stepper [(value)]="activeStep">
+          <p-step-list>
+            <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="goToStep(1)">
+                  <span
+                    class="step-circle"
+                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                  >
+                    <i class="pi pi-building text-[10px]"></i>
+                  </span>
+                  <span
+                    class="step-label"
+                    [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                  >
+                    Origem e Destino
+                  </span>
+                </button>
+              </ng-template>
+            </p-step>
+
+            <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="goToStep(2)">
+                  <span
+                    class="step-circle"
+                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                  >
+                    <i class="pi pi-box text-[10px]"></i>
+                  </span>
+                  <span
+                    class="step-label"
+                    [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                  >
+                    Materiais
+                  </span>
+                </button>
+              </ng-template>
+            </p-step>
+
+            <p-step [value]="3" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="goToStep(3)">
+                  <span
+                    class="step-circle"
+                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                  >
+                    <i class="pi pi-check text-[10px]"></i>
+                  </span>
+                  <span
+                    class="step-label"
+                    [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                  >
+                    Revisão
+                  </span>
+                </button>
+              </ng-template>
+            </p-step>
+          </p-step-list>
+
+          <p-step-panels>
+            <!-- 1. ORIGEM, DESTINO E TIPO -->
+            <p-step-panel [value]="1">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-5">
+                  <div class="section-marker">
+                    <span>1. Origem e Equipe</span>
+                  </div>
+
+                  <!-- Campos de Estoque e Saque -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="field sm:col-span-2">
+                      <label for="equipeSaque">Equipe de Saque *</label>
+                      <p-select
+                        inputId="equipeSaque"
+                        [options]="equipeOptions()"
+                        [ngModel]="idEquipe()"
+                        (ngModelChange)="onEquipeChange($event)"
+                        optionLabel="label"
+                        optionValue="value"
+                        [filter]="true"
+                        placeholder="Selecione a equipe responsável pelo saque..."
+                        class="custom-select w-full"
+                        size="small"
+                        appendTo="body"
+                      />
+                      @if (fieldError('idEquipe')) {
+                        <span class="form-error">{{ fieldError('idEquipe') }}</span>
+                      }
+                    </div>
+
+                    <div class="field">
+                      <label for="estoqueOrigem">Estoque Origem *</label>
+                      <div class="flex items-center gap-2">
+                        <p-select
+                          inputId="estoqueOrigem"
+                          [options]="stockOptions()"
+                          [ngModel]="idEstoqueOrigem()"
+                          (ngModelChange)="idEstoqueOrigem.set($event)"
+                          optionLabel="label"
+                          optionValue="value"
+                          [filter]="true"
+                          placeholder="Selecione o estoque de origem..."
+                          class="custom-select w-full"
+                          size="small"
+                          appendTo="body"
+                        />
+                        @if (idEstoqueOrigem()) {
+                          <p-button
+                            icon="pi pi-box"
+                            pTooltip="Ver Saldo do Estoque"
+                            (onClick)="abrirSaldo(idEstoqueOrigem())"
+                            styleClass="!w-9 !h-[34px] !bg-slate-100 dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-primary-700 dark:!text-primary-400 hover:!bg-primary-50 shrink-0"
+                          />
+                        }
+                      </div>
+                      @if (fieldError('idEstoqueOrigem')) {
+                        <span class="form-error">{{ fieldError('idEstoqueOrigem') }}</span>
+                      }
+                    </div>
+
+                    <div class="field">
+                      <label>Estoque Destino</label>
+                      <div class="flex items-center gap-2" aria-live="polite">
+                        <div
+                          class="min-h-[34px] flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-700 dark:text-slate-200"
+                        >
+                          @if (selectedEstoqueDestino(); as destino) {
+                            {{ destino.nomeIdentificador }} · CAMPO
+                          } @else if (idEquipe()) {
+                            Estoque de campo não disponível para esta equipe
+                          } @else {
+                            Selecione a equipe para identificar o estoque de campo
+                          }
+                        </div>
+                        @if (selectedEstoqueDestino(); as destino) {
+                          <p-button
+                            icon="pi pi-box"
+                            pTooltip="Ver saldo do estoque da equipe"
+                            (onClick)="abrirSaldo(destino.id)"
+                            styleClass="!w-9 !h-[34px] !bg-slate-100 dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-primary-700 dark:!text-primary-400 hover:!bg-primary-50 shrink-0"
+                          />
+                        }
+                      </div>
+                      <span class="text-[10px] text-slate-500 dark:text-slate-400">
+                        Definido automaticamente pelo cadastro da equipe.
+                      </span>
+                    </div>
+
+                    <div class="field">
+                      <div class="flex items-center justify-between gap-3">
+                        <label for="responsavelSaque">Responsável pelo Saque</label>
+                        <label class="inline-flex items-center gap-2 text-[11px] font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            [checked]="saqueForaEquipe()"
+                            (change)="onSaqueForaEquipeChange($any($event.target).checked)"
+                          />
+                          Fora da equipe
+                        </label>
+                      </div>
+                      @if (!saqueForaEquipe()) {
+                      <p-select
+                        inputId="responsavelSaque"
+                        [options]="colaboradorSaqueOptions()"
+                        [ngModel]="idColaboradorSaque()"
+                        (ngModelChange)="onColaboradorSaqueChange($event)"
+                        optionLabel="label"
+                        optionValue="value"
+                        [showClear]="true"
+                        [disabled]="!idEquipe()"
+                        placeholder="Selecione um membro da equipe..."
+                        class="custom-select w-full"
+                        size="small"
+                        appendTo="body"
+                      />
+                      } @else {
+                      <ces-autocomplete
+                        inputId="responsavelSaque"
+                        [label]="'Responsável pelo Saque'"
+                        [labelVisible]="false"
+                        [showSearchInstruction]="false"
+                        [options]="colaboradorSaqueOptions()"
+                        [ngModel]="idColaboradorSaque()"
+                        (ngModelChange)="onColaboradorSaqueChange($event)"
+                        [loading]="saqueForaEquipe() && collaboratorsLoading()"
+                        [status]="saqueForaEquipe() ? collaboratorsStatus() : 'idle'"
+                        [error]="saqueForaEquipe() ? collaboratorsError() : undefined"
+                        [minLength]="2"
+                        [forceSelection]="true"
+                        [virtualScroll]="true"
+                        [virtualScrollItemSize]="38"
+                        [disabled]="!idEquipe()"
+                        placeholder="Opcional; será confirmado pelo almoxarifado na entrega"
+                        class="w-full"
+                        appendTo="body"
+                        (search)="searchColaboradores($event)"
+                        (loadMore)="loadMoreColaboradores()"
+                        (retry)="retryColaboradores()"
+                      />
+                      }
+                      <span class="text-[10px] text-slate-500 dark:text-slate-400">
+                        Pode ser definido agora ou somente no momento da entrega.
+                      </span>
+                    </div>
+
+
+                    <div class="field">
+                      <label for="dataPrevista">Data Prevista de Saque *</label>
+                      <p-datepicker
+                        inputId="dataPrevista"
+                        [ngModel]="dataPrevista()"
+                        (ngModelChange)="dataPrevista.set($event)"
+                        dateFormat="dd/mm/yy"
+                        [showIcon]="true"
+                        iconDisplay="input"
+                        [showClear]="true"
+                        placeholder="DD/MM/AAAA"
+                        class="w-full"
+                        size="small"
+                        appendTo="body"
+                      />
+                      <span class="text-[10px] text-slate-500 dark:text-slate-400">
+                        Prazo recomendado: 48 horas. Solicitações com menor antecedência serão sinalizadas no atendimento.
+                      </span>
+                      @if (fieldError('dataPrevista')) {
+                        <span class="form-error">{{ fieldError('dataPrevista') }}</span>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Botões de Ação Etapa 1 -->
+                  <div class="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <p-button
+                      label="CONTINUAR"
+                      icon="pi pi-arrow-right"
+                      iconPos="right"
+                      (onClick)="nextStep()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]"
+                    />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 2. MATERIAIS -->
+            <p-step-panel [value]="2">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-5">
+                  <div class="section-marker">
+                    <span>2. Materiais e Quantidades</span>
+                  </div>
+
+                  <!-- Inclusão de Material (Campos alinhados e nivelados) -->
+                  <div
+                    class="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col gap-3.5"
+                  >
+                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Adicionar Material</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                      <div class="sm:col-span-8 field">
+                        <label for="materialInput">Material *</label>
+                        <ces-autocomplete
+                          inputId="materialInput"
+                          [label]="'Material'"
+                          [labelVisible]="false"
+                          [showSearchInstruction]="false"
+                          [options]="materials()"
+                          [ngModel]="selectedMaterialId()"
+                          (ngModelChange)="onMaterialChange($event)"
+                          [loading]="materialsLoading()"
+                          [status]="materialsStatus()"
+                          [error]="materialsError()"
+                          placeholder="Pesquise por código ou descrição..."
+                          [minLength]="2"
+                          class="w-full"
+                          (search)="searchMaterials($event)"
+                          (loadMore)="loadMoreMaterials()"
+                          (retry)="retryMaterials()"
+                        />
+                      </div>
+
+                      <div class="sm:col-span-3 field">
+                        <label for="quantidadeInput">Quantidade *</label>
+                        <p-inputNumber
+                          inputId="quantidadeInput"
+                          [ngModel]="quantidade()"
+                          (ngModelChange)="quantidade.set($event)"
+                          [min]="0.001"
+                          [step]="0.001"
+                          [minFractionDigits]="3"
+                          [maxFractionDigits]="3"
+                          placeholder="0,000"
+                          class="w-full"
+                          styleClass="w-full"
+                          [fluid]="true"
+                          size="small"
+                        />
+                      </div>
+
+                      <div class="sm:col-span-1 field flex flex-col justify-end">
+                        <label class="hidden sm:block select-none invisible" aria-hidden="true">&nbsp;</label>
+                        <p-button
+                          icon="pi pi-plus"
+                          [disabled]="!selectedMaterialId() || !quantidade()"
+                          (onClick)="addItem()"
+                          size="small"
+                          styleClass="!w-full !h-[34px] flex items-center justify-center !rounded-lg !bg-primary-700 !border-primary-700 !font-bold"
+                          severity="primary"
+                          pTooltip="Adicionar à lista"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  @if (fieldError('itens')) {
+                    <span class="form-error">{{ fieldError('itens') }}</span>
+                  }
+
+                  <!-- Tabela de Itens Adicionados -->
+                  <p-table
+                    [value]="items()"
+                    class="p-datatable-sm"
+                    [scrollable]="true"
+                    scrollHeight="300px"
+                  >
+                    <ng-template pTemplate="header">
+                      <tr>
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400">Material</th>
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400 text-right" style="width: 12rem; min-width: 12rem">
+                          Quantidade
+                        </th>
+                        <th class="text-center" style="width: 4rem; min-width: 4rem"></th>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-item let-ri="rowIndex">
+                      <tr>
+                        <td>
+                          <div class="flex flex-col">
+                            <span class="text-xs font-bold text-slate-800 dark:text-white">{{ item.material.codigo }}</span>
+                            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ item.material.descricao }}</span>
+                          </div>
+                        </td>
+                        <td class="text-right" style="width: 12rem; min-width: 12rem">
+                          <div class="flex items-center justify-end gap-2">
+                            <p-inputNumber
+                              [ngModel]="item.quantidade"
+                              (ngModelChange)="updateItemQuantidade(ri, $event)"
+                              [min]="0.001"
+                              [step]="0.001"
+                              [minFractionDigits]="3"
+                              [maxFractionDigits]="3"
+                              styleClass="!w-24"
+                              inputStyleClass="!w-24 !text-right !text-xs !py-1 !px-2"
+                              size="small"
+                            />
+                            <span class="text-[10px] text-slate-400 uppercase font-medium w-8 text-left shrink-0">
+                              {{ item.material.unidadeMedida || 'UN' }}
+                            </span>
+                          </div>
+                        </td>
+                        <td class="text-center" style="width: 4rem; min-width: 4rem">
+                          <button
+                            type="button"
+                            (click)="removeItem(ri)"
+                            pTooltip="Remover material"
+                            class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-colors cursor-pointer"
+                          >
+                            <i class="pi pi-trash text-xs"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="emptymessage">
+                      <tr>
+                        <td colspan="3" class="text-center py-8 text-slate-400 dark:text-slate-500 text-xs">
+                          Nenhum material adicionado ainda. Preencha os campos acima para incluir.
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+
+                  <!-- Botões de Ação Etapa 2 -->
+                  <div class="flex justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <p-button
+                      label="VOLTAR"
+                      icon="pi pi-arrow-left"
+                      [text]="true"
+                      (onClick)="previousStep()"
+                      styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]"
+                    />
+                    <p-button
+                      label="CONTINUAR"
+                      icon="pi pi-arrow-right"
+                      iconPos="right"
+                      (onClick)="nextStep()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]"
+                    />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <!-- 3. REVISÃO -->
+            <p-step-panel [value]="3">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-5">
+                  <div class="section-marker">
+                    <span>3. Resumo da Solicitação</span>
+                  </div>
+
+                  <!-- Cards de Resumo -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="review-card">
+                      <span>Origem e Destino</span>
+                      <p class="font-bold text-sm text-slate-800 dark:text-white mt-1">
+                        Modalidade: DIRETA (Backoffice)
+                      </p>
+                      <div class="text-slate-500 dark:text-slate-400 text-xs flex flex-col gap-0.5 mt-2 leading-relaxed">
+                        <span>Origem: <strong class="text-slate-700 dark:text-slate-200">{{ selectedEstoqueOrigem()?.nomeIdentificador }}</strong></span>
+                        <span>Destino da equipe: <strong class="text-slate-700 dark:text-slate-200">{{ selectedEstoqueDestino()?.nomeIdentificador }}</strong></span>
+                        <span>Equipe de saque: <strong class="text-slate-700 dark:text-slate-200">{{ selectedEquipe()?.codigo || 'Não informada' }}</strong></span>
+                        <span>Responsável previsto: <strong class="text-slate-700 dark:text-slate-200">{{ selectedColaboradorSaqueName() || 'Será definido na entrega' }}</strong></span>
+                        @if (saqueForaEquipe()) {
+                          <span class="font-semibold text-amber-700 dark:text-amber-300">Responsável externo à equipe</span>
+                        }
+                        <span>Data prevista de saque: <strong class="text-slate-700 dark:text-slate-200">{{ dataPrevista() | date: 'dd/MM/yyyy' }}</strong></span>
+                      </div>
+                    </div>
+
+                    <div class="review-card">
+                      <span>Composição dos Materiais</span>
+                      <p class="font-bold text-sm text-slate-800 dark:text-white mt-1">{{ items().length }} item(ns) na solicitação</p>
+                      <div class="text-slate-500 dark:text-slate-400 text-xs flex flex-col gap-1 mt-2">
+                        <span>Total de unidades solicitadas: <strong class="text-slate-700 dark:text-slate-200">{{ totalQuantidadeItens() | number: '1.3-3' }}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tabela Resumo -->
+                  <p-table
+                    [value]="items()"
+                    class="p-datatable-sm"
+                    [scrollable]="true"
+                    scrollHeight="200px"
+                  >
+                    <ng-template pTemplate="header">
+                      <tr>
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400">Material</th>
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400 text-right" style="width: 10rem; min-width: 10rem">
+                          Quantidade
+                        </th>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-item>
+                      <tr>
+                        <td class="text-xs font-bold text-slate-800 dark:text-white">
+                          {{ item.material.codigo }} ·
+                          <span class="font-normal text-slate-500 dark:text-slate-400">{{ item.material.descricao }}</span>
+                        </td>
+                        <td class="text-right font-bold text-xs text-slate-800 dark:text-white" style="width: 10rem; min-width: 10rem">
+                          {{ item.quantidade | number: '1.3-3' }} {{ item.material.unidadeMedida || 'UN' }}
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+
+                  <!-- Botões de Ação Etapa 3 -->
+                  <div class="flex justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <p-button
+                      label="VOLTAR"
+                      icon="pi pi-arrow-left"
+                      [text]="true"
+                      (onClick)="previousStep()"
+                      styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]"
+                    />
+                    <p-button
+                      label="CONFIRMAR E CRIAR"
+                      icon="pi pi-send"
+                      [loading]="saving()"
+                      (onClick)="onSave()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]"
+                    />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </div>
+  }
+</div>
+
+<app-saldo-estoque-dialog #saldoDialog></app-saldo-estoque-dialog>
+
+<!-- Help Dialog -->
+<app-help-dialog #helpDialog title="Guia: Solicitação Comercial de Material">
+  <div class="help-section">
+    <h4 class="help-section-title"><i class="pi pi-building"></i> 1. Origem e Equipe</h4>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-info-circle"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Solicitação Direta</span>
+        <span class="help-text-desc">
+          Selecione um estoque físico como origem e a equipe que receberá os materiais. O estoque de campo de destino é identificado automaticamente pelo cadastro da equipe. A data prevista é obrigatória; o colaborador pode ser indicado agora ou confirmado pelo almoxarifado na entrega.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="help-section">
+    <h4 class="help-section-title"><i class="pi pi-box"></i> 2. Inclusão de Materiais</h4>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-search"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Busca e Quantidades</span>
+        <span class="help-text-desc">
+          Pesquise os materiais pelo código ou descrição, defina a quantidade e adicione à lista.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="help-section">
+    <h4 class="help-section-title"><i class="pi pi-check"></i> 3. Revisão e Confirmação</h4>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-send"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Finalização</span>
+        <span class="help-text-desc">
+          Revise todos os dados e clique em "CONFIRMAR E CRIAR" para registrar a solicitação.
+        </span>
+      </div>
+    </div>
+  </div>
+</app-help-dialog>

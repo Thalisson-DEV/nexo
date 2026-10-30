@@ -1,0 +1,11 @@
+{
+  "name": "ces-code-interpreter-railway",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "railway": "^3.0.0"
+  }
+}

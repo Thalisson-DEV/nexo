@@ -1,0 +1,19 @@
+<section class="signature" [attr.aria-label]="label()">
+  <header><div><strong>{{ label() }}</strong><span>Desenhe com mouse ou toque, ou registre assinatura física.</span></div>@if (captured()) { <ces-status tone="success" icon="pi pi-check">Registrada</ces-status> }</header>
+  <canvas
+    #canvas
+    tabindex="0"
+    role="img"
+    [attr.aria-label]="'Área de assinatura digital de ' + label()"
+    [class.physical]="physical()"
+    (pointerdown)="pointerDown($event)"
+    (pointermove)="pointerMove($event)"
+    (pointerup)="pointerUp()"
+    (pointercancel)="pointerUp()"
+  ></canvas>
+  @if (physical()) { <p>Assinatura física será anexada ao comprovante impresso.</p> }
+  <footer>
+    @if (physical()) { <ces-button label="Usar assinatura digital" icon="pi pi-pencil" variant="ghost" size="sm" (pressed)="useDigital()" /> }
+    <ces-button label="Limpar" icon="pi pi-trash" variant="ghost" size="sm" [disabled]="!captured()" (pressed)="clear()" />
+  </footer>
+</section>

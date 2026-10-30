@@ -1,0 +1,834 @@
+<ces-dialog-shell
+  [title]="dialogTitle()"
+  size="xl"
+  [(visible)]="visible"
+  [loading]="submitting()"
+  loadingLabel="Salvando dados do planejamento..."
+  (closed)="close()"
+>
+  @if (loadingLookups()) {
+    <div class="py-12 flex flex-col items-center justify-center gap-3">
+      <p-progress-spinner strokeWidth="3" [style]="{ width: '36px', height: '36px' }" />
+      <span class="text-xs text-slate-500 dark:text-slate-400">Carregando dados para o planejamento...</span>
+    </div>
+  } @else if (lookupError()) {
+    <div class="py-8 px-4 flex flex-col items-center justify-center gap-3 text-center">
+      <i class="pi pi-exclamation-triangle text-amber-500 text-2xl"></i>
+      <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Não foi possível preparar o formulário</span>
+      <span class="text-[11px] text-slate-500 max-w-md">{{ lookupError() }}</span>
+      <ces-button label="Tentar novamente" icon="pi pi-refresh" (pressed)="retryLookups()" size="sm" variant="outline" />
+    </div>
+  } @else {
+    <div class="flex flex-col gap-4 py-2">
+      <!-- CABEÇALHO EXECUTIVO DE CONTEXTO -->
+      <div class="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40">
+        <div class="flex items-center gap-3 min-w-0">
+          <div
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 border"
+            [class]="tipoTecnicoContainerClass(fixedType())"
+          >
+            <i [class]="tipoTecnicoIcon(fixedType())" aria-hidden="true"></i>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide truncate">
+                {{ obraDisplay() }}
+              </span>
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border"
+                [class]="tipoTecnicoBadgeClass(fixedType())"
+              >
+                <i [class]="tipoTecnicoIcon(fixedType())" class="text-[10px]" aria-hidden="true"></i>
+                {{ tipoTecnicoDescricaoCompleta(fixedType()) }}
+              </span>
+            </div>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Etapa {{ activeStep() }} de 3 · Agende a data de saque para disparar a separação e componha os materiais da solicitação.
+            </span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="text-[11px] font-medium px-2.5 py-0.5 rounded border" [ngClass]="statusTagClass(detail()?.status)">
+            {{ statusLabel(detail()?.status) }}
+          </span>
+          <span class="text-[11px] font-medium px-2.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            {{ lines().length }} material(is)
+          </span>
+        </div>
+      </div>
+
+      <!-- BANNER DE BLOQUEIO CASO JÁ TENHA ENTREGA -->
+      @if (hasDeliveryMovement()) {
+        <div class="p-3 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2.5">
+          <i class="pi pi-ban text-rose-600 dark:text-rose-400 text-base shrink-0"></i>
+          <span class="font-bold">Replanejamento bloqueado: a solicitação já possui movimentação de entrega registrada.</span>
+        </div>
+      }
+
+      <!-- STEPPER WIZARD DE PLANEJAMENTO -->
+      <p-stepper [(value)]="activeStep">
+        <!-- BARRA DE PASSOS DO STEPPER -->
+        <p-step-list class="!border-b !border-slate-200 dark:!border-slate-800 !pb-2.5 !mb-3">
+          <!-- Passo 1 -->
+          <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" (click)="goToStep(1)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-calendar text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                >
+                  1. Agendamento & Atendimento
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+
+          <!-- Passo 2 -->
+          <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" (click)="goToStep(2)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-box text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                >
+                  2. Materiais da Solicitação
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+
+          <!-- Passo 3 -->
+          <p-step [value]="3" class="flex flex-row flex-auto gap-2">
+            <ng-template #content let-value="value">
+              <button type="button" class="step-button" (click)="goToStep(3)">
+                <span
+                  class="step-circle"
+                  [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
+                >
+                  <i class="pi pi-check text-[10px]"></i>
+                </span>
+                <span
+                  class="step-label"
+                  [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
+                >
+                  3. Revisão & Confirmação
+                </span>
+              </button>
+            </ng-template>
+          </p-step>
+        </p-step-list>
+
+        <!-- PAINÉIS DE CADA PASSO -->
+        <p-step-panels>
+          <!-- ============================================== -->
+          <!-- ETAPA 1: LOGÍSTICA & AGENDAMENTO DE SAQUE      -->
+          <!-- ============================================== -->
+          <p-step-panel [value]="1">
+            <ng-template #content>
+              <div class="flex flex-col gap-4">
+                
+                <!-- HERO CARD: DATA PREVISTA DE SAQUE (PONTO FOCAL ABSOLUTO) -->
+                <div class="p-4 rounded-xl border-2 transition-all bg-gradient-to-r from-sky-50/80 via-blue-50/40 to-slate-50/60 dark:from-sky-950/40 dark:via-blue-950/20 dark:to-slate-900/40 border-sky-300 dark:border-sky-700 shadow-sm flex flex-col gap-3">
+                  <div class="flex items-start justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-9 h-9 rounded-lg bg-sky-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                        <i class="pi pi-calendar text-base"></i>
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+                            Data Prevista de Saque
+                          </span>
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 dark:bg-sky-900/80 text-sky-800 dark:text-sky-200 border border-sky-200 dark:border-sky-700">
+                            <i class="pi pi-bolt text-[9px]"></i>
+                            Gatilho de Separação
+                          </span>
+                        </div>
+                        <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                          A data prevista é o gatilho que retira a solicitação de <strong>Planejamento</strong> e a move para <strong>Pronto para Separação</strong> na expedição.
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Atalhos rápidos de agendamento -->
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <span class="text-[10px] font-semibold text-slate-400 uppercase mr-1">Atalhos:</span>
+                      <button
+                        type="button"
+                        (click)="setQuickDate(0)"
+                        class="px-2 py-1 rounded-md text-[11px] font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-500 hover:text-sky-600 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        Hoje
+                      </button>
+                      <button
+                        type="button"
+                        (click)="setQuickDate(1)"
+                        class="px-2 py-1 rounded-md text-[11px] font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-500 hover:text-sky-600 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        Amanhã
+                      </button>
+                      <button
+                        type="button"
+                        (click)="setQuickDate(2)"
+                        class="px-2 py-1 rounded-md text-[11px] font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-500 hover:text-sky-600 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        +48h (Padrão)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center pt-1">
+                    <div class="md:col-span-6">
+                      <p-datepicker
+                        [ngModel]="expectedDate()"
+                        (ngModelChange)="expectedDate.set($event)"
+                        dateFormat="dd/mm/yy"
+                        [showIcon]="true"
+                        iconDisplay="input"
+                        [showClear]="true"
+                        placeholder="Selecione a data de saque (DD/MM/AAAA)..."
+                        class="w-full"
+                        styleClass="w-full"
+                        inputStyleClass="!py-2 !text-xs !font-bold"
+                        appendTo="body"
+                      />
+                    </div>
+                    
+                    <!-- Indicador de Status Operacional resultante -->
+                    <div class="md:col-span-6">
+                      @if (expectedDate()) {
+                        <div class="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-300 text-xs">
+                          <i class="pi pi-check-circle text-emerald-600 dark:text-emerald-400 text-sm shrink-0"></i>
+                          <span>
+                            Saque em <strong>{{ formattedExpectedDate() }}</strong>: avançará para <strong>Pronto para Separação</strong> na expedição.
+                          </span>
+                        </div>
+                      } @else {
+                        <div class="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs">
+                          <i class="pi pi-info-circle text-amber-600 dark:text-amber-400 text-sm shrink-0"></i>
+                          <span>
+                            Sem data definida: o pedido permanecerá em <strong>Aguardando Agendamento</strong> no planejamento.
+                          </span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <!-- DEMAIS CAMPOS DE LOGÍSTICA & ATENDIMENTO (2 COLUNAS) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <!-- Almoxarifado de Atendimento -->
+                  <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col gap-2">
+                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 uppercase tracking-wide">
+                      <i class="pi pi-building text-primary-600 text-xs"></i>
+                      Almoxarifado de Atendimento <span class="required-mark">*</span>
+                    </span>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                      Estoque físico ou de obra de onde sairão os materiais solicitados.
+                    </p>
+                    <ces-autocomplete
+                      label="Almoxarifado de atendimento"
+                      [labelVisible]="false"
+                      [showSearchInstruction]="false"
+                      [options]="warehouseOptions()"
+                      [ngModel]="warehouseId()"
+                      (ngModelChange)="warehouseId.set($event)"
+                      [loading]="warehousesLoading()"
+                      [status]="warehousesStatus()"
+                      [error]="warehousesError()"
+                      [minLength]="2"
+                      [forceSelection]="true"
+                      [virtualScroll]="true"
+                      [virtualScrollItemSize]="38"
+                      placeholder="Pesquise por nome do estoque..."
+                      emptyMessage="Nenhum almoxarifado encontrado."
+                      class="w-full"
+                      appendTo="body"
+                      (search)="searchWarehouses($event)"
+                      (loadMore)="loadMoreWarehouses()"
+                      (retry)="retryWarehouses()"
+                    />
+                    @if (fieldError('idAlmoxarifadoAtendimento')) {
+                      <span class="form-error">{{ fieldError('idAlmoxarifadoAtendimento') }}</span>
+                    }
+                  </div>
+
+                  <!-- Equipe & Responsável pelo Saque -->
+                  <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col gap-2.5">
+                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 uppercase tracking-wide">
+                      <i class="pi pi-users text-primary-600 text-xs"></i>
+                      Equipe & Responsável pelo Saque
+                    </span>
+
+                    <div class="field">
+                      <label>Equipe de Campo (Opcional)</label>
+                      <p-select
+                        [options]="teamOptions()"
+                        [ngModel]="teamId()"
+                        (ngModelChange)="onTeamChange($event)"
+                        optionLabel="label"
+                        optionValue="value"
+                        [filter]="true"
+                        [showClear]="true"
+                        placeholder="Selecione a equipe..."
+                        class="w-full"
+                        size="small"
+                        appendTo="body"
+                      />
+                    </div>
+
+                    <div class="field">
+                      <div class="flex items-center justify-between pb-0.5">
+                        <label for="planejamento-responsavel-saque" class="!mb-0">
+                          Responsável pelo Saque (Opcional)
+                        </label>
+                        <label class="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-600 dark:text-slate-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            [checked]="saqueForaEquipe()"
+                            (change)="onSaqueForaEquipeChange($any($event.target).checked)"
+                          />
+                          Fora da equipe
+                        </label>
+                      </div>
+
+                      @if (saqueForaEquipe()) {
+                        <ces-autocomplete
+                          label="Responsável pelo saque"
+                          [labelVisible]="false"
+                          inputId="planejamento-responsavel-saque"
+                          [options]="externalCollaborators()"
+                          [ngModel]="idColaboradorSaque()"
+                          (ngModelChange)="onColaboradorSaqueChange($event)"
+                          [loading]="externalCollaboratorsLoading()"
+                          [status]="externalCollaboratorsStatus()"
+                          placeholder="Pesquise o colaborador ativo..."
+                          emptyMessage="Nenhum colaborador encontrado."
+                          [minLength]="2"
+                          [clearable]="true"
+                          class="w-full"
+                          (search)="searchExternalCollaborators($event)"
+                          (loadMore)="loadMoreExternalCollaborators()"
+                          (retry)="retryExternalCollaborators()"
+                        />
+                      } @else {
+                        <p-select
+                          [options]="collaboratorSaqueOptions()"
+                          [ngModel]="idColaboradorSaque()"
+                          (ngModelChange)="onColaboradorSaqueChange($event)"
+                          optionLabel="label"
+                          optionValue="value"
+                          [filter]="true"
+                          [showClear]="true"
+                          [loading]="loadingTeamMembers()"
+                          [disabled]="!teamId() || loadingTeamMembers()"
+                          placeholder="Selecione o membro da equipe..."
+                          class="w-full"
+                          size="small"
+                          appendTo="body"
+                        />
+                      }
+                      @if (fieldError('idColaboradorSaque')) {
+                        <span class="form-error">{{ fieldError('idColaboradorSaque') }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <!-- OCORRÊNCIA SE OBRIGATÓRIA -->
+                @if (occurrenceRequired()) {
+                  <div class="p-3.5 rounded-xl border border-amber-200 dark:border-amber-800/80 bg-amber-50/40 dark:bg-amber-950/20 field">
+                    <label class="!text-amber-800 dark:text-amber-300">
+                      <i class="pi pi-ticket text-amber-600 text-xs"></i>
+                      Ocorrência (OC/OS) <span class="required-mark">*</span>
+                    </label>
+                    <input
+                      pInputText
+                      [ngModel]="occurrence()"
+                      (ngModelChange)="occurrence.set($event)"
+                      placeholder="Informe o código da OC/OS (ex: OC 123456)..."
+                      class="w-full"
+                      size="small"
+                      maxlength="100"
+                    />
+                    @if (fieldError('ocorrencia')) {
+                      <span class="form-error">{{ fieldError('ocorrencia') }}</span>
+                    }
+                  </div>
+                }
+
+                <!-- OPÇÕES ADICIONAIS (RESERVA SAP & OBSERVAÇÕES) -->
+                <div class="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    class="w-full flex items-center justify-between cursor-pointer select-none text-left bg-transparent border-0 p-0 text-slate-700 dark:text-slate-300"
+                    (click)="showAdditionalInfo.set(!showAdditionalInfo())"
+                  >
+                    <span class="text-xs font-bold flex items-center gap-1.5 uppercase tracking-wide">
+                      <i class="pi pi-sliders-h text-primary-600 text-xs"></i>
+                      Opções Adicionais (Reserva SAP & Observações)
+                    </span>
+                    <div class="flex items-center gap-1.5">
+                      @if (reserveNumber() || observation()) {
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300">
+                          Preenchido
+                        </span>
+                      }
+                      <i
+                        class="text-[10px] text-slate-400"
+                        [class]="showAdditionalInfo() ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                      ></i>
+                    </div>
+                  </button>
+
+                  @if (showAdditionalInfo()) {
+                    <div class="flex flex-col gap-3 pt-2 border-t border-slate-200 dark:border-slate-800 mt-1">
+                      <!-- Reserva SAP -->
+                      <div class="flex flex-col gap-1.5">
+                        <div class="flex items-center justify-between">
+                          <label class="text-[10px] font-bold uppercase text-slate-500">
+                            Reserva SAP (Opcional)
+                          </label>
+                          @if (technical().reserva) {
+                            <span class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                              Nº {{ technical().reserva?.numero }}
+                            </span>
+                          }
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            pInputText
+                            [ngModel]="reserveNumber()"
+                            (ngModelChange)="reserveNumber.set($event)"
+                            [disabled]="!!technical().reserva"
+                            placeholder="Nº da reserva SAP..."
+                            class="w-full"
+                            size="small"
+                            maxlength="20"
+                          />
+                          <p-datepicker
+                            [ngModel]="reserveDate()"
+                            (ngModelChange)="reserveDate.set($event)"
+                            [disabled]="!!technical().reserva"
+                            dateFormat="dd/mm/yy"
+                            [showIcon]="true"
+                            iconDisplay="input"
+                            placeholder="Data de emissão"
+                            class="w-full"
+                            size="small"
+                            appendTo="body"
+                          />
+                        </div>
+                        @if (fieldError('reservaNumero')) {
+                          <span class="form-error">{{ fieldError('reservaNumero') }}</span>
+                        }
+                      </div>
+
+                      <!-- Observações -->
+                      <div class="field">
+                        <label class="text-[10px] font-bold uppercase text-slate-500">
+                          Observações para o Almoxarifado
+                        </label>
+                        <textarea
+                          pTextarea
+                          [ngModel]="observation()"
+                          (ngModelChange)="observation.set($event)"
+                          placeholder="Instruções operacionais para separação e expedição..."
+                          class="w-full !text-xs min-h-[44px]"
+                          maxlength="1000"
+                          rows="2"
+                        ></textarea>
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- JUSTIFICATIVA DO REPLANEJAMENTO -->
+                @if (!isInitialPlanning()) {
+                  <div class="field p-3.5 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/20">
+                    <label class="!text-amber-800 dark:text-amber-300">
+                      <i class="pi pi-exclamation-circle text-amber-600 text-xs"></i>
+                      Justificativa do Replanejamento <span class="required-mark">*</span>
+                    </label>
+                    <textarea
+                      pTextarea
+                      [ngModel]="justification()"
+                      (ngModelChange)="justification.set($event)"
+                      placeholder="Informe o motivo da alteração das datas ou materiais..."
+                      class="w-full !text-xs min-h-[48px]"
+                      maxlength="500"
+                      rows="2"
+                    ></textarea>
+                    @if (fieldError('justificativa')) {
+                      <span class="form-error">{{ fieldError('justificativa') }}</span>
+                    }
+                  </div>
+                }
+
+                <!-- NAVEGAÇÃO DA ETAPA 1 -->
+                <div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800 mt-1">
+                  <ces-button
+                    label="Cancelar"
+                    variant="ghost"
+                    size="sm"
+                    [disabled]="submitting()"
+                    (pressed)="close()"
+                  />
+                  <ces-button
+                    label="Avançar para Materiais"
+                    icon="pi pi-arrow-right"
+                    variant="primary"
+                    size="sm"
+                    [disabled]="!warehouseId()"
+                    (pressed)="nextStep()"
+                  />
+                </div>
+
+              </div>
+            </ng-template>
+          </p-step-panel>
+
+          <!-- ============================================== -->
+          <!-- ETAPA 2: COMPOSIÇÃO DOS MATERIAIS              -->
+          <!-- ============================================== -->
+          <p-step-panel [value]="2">
+            <ng-template #content>
+              <div class="flex flex-col gap-4">
+                
+                <!-- Barra compacta de Inclusão de Material -->
+                <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 flex flex-col gap-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 uppercase tracking-wide">
+                      <i class="pi pi-plus-circle text-primary-600 text-xs"></i>
+                      Adicionar Material ao Pedido
+                    </span>
+                    <span class="text-[11px] text-slate-500">
+                      Tipo técnico fixo:
+                      <strong class="font-bold uppercase" [class]="tipoTecnicoColorClass(fixedType())">
+                        {{ tipoTecnicoDescricaoCompleta(fixedType()) }}
+                      </strong>
+                    </span>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 min-w-0">
+                      <ces-autocomplete
+                        label="Material"
+                        [labelVisible]="false"
+                        [showSearchInstruction]="false"
+                        [options]="materials()"
+                        [ngModel]="selectedMaterialId()"
+                        (ngModelChange)="onMaterialChange($event)"
+                        [loading]="materialsLoading()"
+                        [status]="materialsStatus()"
+                        [error]="materialsError()"
+                        placeholder="Buscar por código ou descrição do material..."
+                        emptyMessage="Nenhum material encontrado."
+                        [minLength]="2"
+                        class="w-full"
+                        (search)="searchMaterials($event)"
+                        (loadMore)="loadMoreMaterials()"
+                        (retry)="retryMaterials()"
+                      />
+                    </div>
+                    <div class="w-28 shrink-0">
+                      <p-inputNumber
+                        [ngModel]="itemQuantity()"
+                        (ngModelChange)="itemQuantity.set($event)"
+                        [min]="0.001"
+                        [step]="0.001"
+                        [minFractionDigits]="3"
+                        [maxFractionDigits]="3"
+                        placeholder="Qtd."
+                        class="w-full"
+                        styleClass="w-full"
+                        inputStyleClass="!w-full !text-center !text-xs !py-1.5"
+                        [fluid]="true"
+                        size="small"
+                      />
+                    </div>
+                    <div class="shrink-0">
+                      <ces-button
+                        icon="pi pi-plus"
+                        label="Adicionar"
+                        variant="primary"
+                        size="sm"
+                        [disabled]="!selectedMaterialId() || !itemQuantity()"
+                        (pressed)="addLine()"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                @if (fieldError('itens')) {
+                  <span class="form-error">{{ fieldError('itens') }}</span>
+                }
+
+                <!-- Tabela de Materiais -->
+                <div class="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-[#0e1726]">
+                  <p-table
+                    [value]="lines()"
+                    class="p-datatable-sm"
+                    [scrollable]="true"
+                    scrollHeight="300px"
+                  >
+                    <ng-template pTemplate="header">
+                      <tr class="bg-slate-50 dark:bg-slate-900/50">
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider">Código</th>
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider">Descrição</th>
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-right">Qtd.</th>
+                        <th style="width: 3.5rem"></th>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-item let-ri="rowIndex">
+                      <tr class="border-b border-slate-100 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
+                        <td>
+                          <span class="text-xs font-mono font-bold text-slate-800 dark:text-slate-200">{{ item.codigoMaterial }}</span>
+                        </td>
+                        <td>
+                          <span class="text-xs text-slate-600 dark:text-slate-400 line-clamp-1" [pTooltip]="item.descricaoMaterial">{{ item.descricaoMaterial }}</span>
+                        </td>
+                        <td class="text-right">
+                          <p-inputNumber
+                            [ngModel]="item.quantidade"
+                            (ngModelChange)="updateQuantity(ri, $event)"
+                            [min]="0.001"
+                            [step]="0.001"
+                            [minFractionDigits]="3"
+                            [maxFractionDigits]="3"
+                            size="small"
+                            inputStyleClass="!w-20 !text-right !text-xs !py-1 !font-semibold"
+                          />
+                        </td>
+                        <td class="text-center">
+                          <button
+                            type="button"
+                            (click)="removeLine(ri)"
+                            pTooltip="Remover este material"
+                            class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 transition-colors cursor-pointer"
+                          >
+                            <i class="pi pi-trash text-xs"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="emptymessage">
+                      <tr>
+                        <td colspan="4" class="text-center py-10 text-slate-400 text-xs">
+                          <div class="flex flex-col items-center justify-center gap-2">
+                            <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400">
+                              <i class="pi pi-box text-xl"></i>
+                            </div>
+                            <span class="font-semibold text-xs text-slate-700 dark:text-slate-300">Nenhum material adicionado</span>
+                            <span class="text-[11px] max-w-xs text-slate-400 dark:text-slate-500">Utilize o campo acima para buscar e compor a lista de materiais para atendimento.</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+                </div>
+
+                <!-- NAVEGAÇÃO DA ETAPA 2 -->
+                <div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800 mt-1">
+                  <ces-button
+                    label="Voltar para Agendamento"
+                    icon="pi pi-arrow-left"
+                    variant="ghost"
+                    size="sm"
+                    (pressed)="previousStep()"
+                  />
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-slate-500">
+                      <strong>{{ lines().length }}</strong> item(ns) · <strong>{{ totalMaterialQuantity() | number: '1.0-3' }}</strong> un.
+                    </span>
+                    <ces-button
+                      label="Avançar para Revisão"
+                      icon="pi pi-arrow-right"
+                      variant="primary"
+                      size="sm"
+                      [disabled]="lines().length === 0"
+                      (pressed)="nextStep()"
+                    />
+                  </div>
+                </div>
+
+              </div>
+            </ng-template>
+          </p-step-panel>
+
+          <!-- ============================================== -->
+          <!-- ETAPA 3: REVISÃO & CONFIRMAÇÃO                 -->
+          <!-- ============================================== -->
+          <p-step-panel [value]="3">
+            <ng-template #content>
+              <div class="flex flex-col gap-4">
+                
+                <!-- CARD HERO DE REVISÃO DO AGENDAMENTO (FOCO EM DATA DE SAQUE) -->
+                <div class="p-4 rounded-xl border border-sky-300 dark:border-sky-800 bg-sky-50/60 dark:bg-sky-950/30 flex items-center justify-between gap-4 flex-wrap">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+                      <i class="pi pi-calendar-clock"></i>
+                    </div>
+                    <div>
+                      <span class="text-[10px] font-bold text-sky-800 dark:text-sky-300 uppercase tracking-wider">
+                        Destino Operacional da Solicitação
+                      </span>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-sm font-bold text-slate-800 dark:text-slate-100">
+                          Previsão de Saque: {{ formattedExpectedDate() }}
+                        </span>
+                        @if (expectedDate()) {
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                            <i class="pi pi-arrow-circle-right text-[9px]"></i>
+                            Vai para Separação
+                          </span>
+                        } @else {
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                            <i class="pi pi-clock text-[9px]"></i>
+                            Aguardando Agendamento
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
+                    <div class="flex flex-col">
+                      <span class="text-[10px] font-semibold text-slate-400 uppercase">Almoxarifado</span>
+                      <strong class="text-slate-800 dark:text-slate-200 font-semibold">{{ selectedWarehouseName() }}</strong>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-[10px] font-semibold text-slate-400 uppercase">Equipe / Responsável</span>
+                      <strong class="text-slate-800 dark:text-slate-200 font-semibold">
+                        {{ selectedTeamName() }}
+                        @if (selectedColaboradorSaqueName() !== 'Não selecionado') {
+                          · {{ selectedColaboradorSaqueName() }}
+                        }
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CARDS DE REVISÃO (DETALHES) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <!-- Atendimento & Equipe -->
+                  <div class="review-card">
+                    <span>Logística e Equipe</span>
+                    <div class="mt-1 flex flex-col gap-1 text-xs">
+                      <div><span class="text-slate-400">Estoque:</span> <strong>{{ selectedWarehouseName() }}</strong></div>
+                      <div><span class="text-slate-400">Equipe de Campo:</span> <strong>{{ selectedTeamName() }}</strong></div>
+                      <div>
+                        <span class="text-slate-400">Responsável Saque:</span>
+                        <strong>{{ selectedColaboradorSaqueName() }}</strong>
+                        @if (saqueForaEquipe()) {
+                          <span class="text-[10px] text-amber-600 dark:text-amber-400 font-normal"> (Fora da equipe)</span>
+                        }
+                      </div>
+                      @if (occurrence()) {
+                        <div><span class="text-slate-400">Ocorrência (OC/OS):</span> <strong>{{ occurrence() }}</strong></div>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Informações Complementares -->
+                  <div class="review-card">
+                    <span>Governança & Materiais</span>
+                    <div class="mt-1 flex flex-col gap-1 text-xs">
+                      <div>
+                        <span class="text-slate-400">Composição:</span>
+                        <strong class="text-emerald-700 dark:text-emerald-400">
+                          {{ lines().length }} material(is) ({{ totalMaterialQuantity() | number: '1.0-3' }} un.)
+                        </strong>
+                      </div>
+                      @if (reserveNumber()) {
+                        <div><span class="text-slate-400">Reserva SAP:</span> <strong>Nº {{ reserveNumber() }}</strong></div>
+                      }
+                      @if (observation()) {
+                        <div class="line-clamp-2"><span class="text-slate-400">Observações:</span> {{ observation() }}</div>
+                      }
+                      @if (justification()) {
+                        <div class="line-clamp-2 text-amber-700 dark:text-amber-400"><span class="text-amber-500">Justificativa:</span> {{ justification() }}</div>
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tabela Resumo dos Materiais -->
+                <div class="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-[#0e1726]">
+                  <p-table
+                    [value]="lines()"
+                    class="p-datatable-sm"
+                    [scrollable]="true"
+                    scrollHeight="180px"
+                  >
+                    <ng-template pTemplate="header">
+                      <tr class="bg-slate-50 dark:bg-slate-900/50">
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider">Material</th>
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-right">Tipo Técnico</th>
+                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-right">Qtd.</th>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-item>
+                      <tr class="border-b border-slate-100 dark:border-slate-800/80">
+                        <td>
+                          <span class="font-mono font-bold text-xs text-slate-800 dark:text-slate-200">{{ item.codigoMaterial }}</span>
+                          <span class="text-slate-500 dark:text-slate-400 text-xs ml-1.5">· {{ item.descricaoMaterial }}</span>
+                        </td>
+                        <td class="text-right">
+                          <span
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border"
+                            [class]="tipoTecnicoBadgeClass(item.tipoMovimentacao)"
+                          >
+                            <i [class]="tipoTecnicoIcon(item.tipoMovimentacao)" class="text-[9px]" aria-hidden="true"></i>
+                            {{ tipoTecnicoDescricaoCompleta(item.tipoMovimentacao) }}
+                          </span>
+                        </td>
+                        <td class="text-right font-mono font-bold text-xs text-slate-800 dark:text-slate-200">
+                          {{ item.quantidade | number: '1.3-3' }}
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
+                </div>
+
+                <!-- NAVEGAÇÃO DA ETAPA 3 (FINAL) -->
+                <div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800 mt-1">
+                  <ces-button
+                    label="Voltar para Materiais"
+                    icon="pi pi-arrow-left"
+                    variant="ghost"
+                    size="sm"
+                    [disabled]="submitting()"
+                    (pressed)="previousStep()"
+                  />
+                  <ces-button
+                    [label]="isInitialPlanning() ? 'Confirmar e Salvar Planejamento' : 'Confirmar e Salvar Replanejamento'"
+                    icon="pi pi-check"
+                    variant="primary"
+                    size="sm"
+                    [loading]="submitting()"
+                    [disabled]="submitting() || !warehouseId() || lines().length === 0"
+                    (pressed)="submit()"
+                  />
+                </div>
+
+              </div>
+            </ng-template>
+          </p-step-panel>
+        </p-step-panels>
+      </p-stepper>
+    </div>
+  }
+</ces-dialog-shell>

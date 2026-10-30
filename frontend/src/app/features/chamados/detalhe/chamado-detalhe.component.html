@@ -1,0 +1,181 @@
+<div class="flex flex-col gap-4 pb-28">
+  <div class="flex justify-between items-center">
+    <p-breadcrumb [model]="breadcrumb" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button icon="pi pi-arrow-left" label="Voltar" [text]="true" severity="secondary"
+      (onClick)="voltar()" styleClass="!text-slate-400 !text-[10px] !font-medium" />
+  </div>
+
+  @if (loading()) {
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 min-h-96 flex flex-col items-center justify-center gap-3">
+      <p-progress-spinner strokeWidth="3" [style]="{ width: '36px', height: '36px' }" />
+      <span class="text-[11px] text-slate-400">Carregando o chamado...</span>
+    </div>
+  } @else if (chamado(); as item) {
+    <div class="max-w-6xl w-full mx-auto flex flex-col gap-4">
+      <section class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+        <div class="px-5 md:px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 mb-3">
+              <i class="pi pi-ticket text-primary-700 dark:text-primary-400 text-xs"></i>
+              <span class="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-widest">{{ modoCentral ? 'Central de atendimento' : 'Meus chamados' }}</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="text-base font-medium text-slate-800 dark:text-white">{{ item.assunto }}</h1>
+              <span class="text-[10px] font-medium px-2 py-1 rounded-md uppercase tracking-tight" [ngClass]="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
+              <span class="text-[10px] font-medium px-2 py-1 rounded-md uppercase tracking-tight" [ngClass]="prioridadeClass(item.prioridade)">{{ prioridadeLabel(item.prioridade) }}</span>
+            </div>
+            <p class="font-mono text-[10px] text-primary-700 dark:text-primary-400 mt-2">{{ item.protocolo }}</p>
+          </div>
+          <div class="flex flex-wrap gap-2 print:hidden">
+            @if (modoCentral && statusDisponiveis().length) {
+              <p-button label="ATUALIZAR ATENDIMENTO" icon="pi pi-sliders-h" (onClick)="abrirAtendimento()"
+                styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !font-bold !text-[10px]" />
+            }
+            @if (podeReabrirMeu()) { <p-button label="REABRIR" icon="pi pi-replay" (onClick)="dialogReabertura = true" styleClass="!font-bold !text-[10px]" /> }
+            @if (podeCancelarMeu()) { <p-button label="CANCELAR" icon="pi pi-times" severity="danger" [outlined]="true" (onClick)="confirmarCancelamento()" styleClass="!font-bold !text-[10px]" /> }
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 bg-slate-50/30 dark:bg-slate-800/30 p-5 md:px-8">
+          <div class="info-group">
+            <div class="group-title"><i class="pi pi-tag text-primary-700 dark:text-primary-400 text-xs"></i><span>Identificação</span></div>
+            <div class="info-row"><span>Tópico</span><b>{{ item.topico.nome }}</b></div>
+            <div class="info-row"><span>Abertura</span><b>{{ item.dataAbertura | date:'dd/MM/yy HH:mm' }}</b></div>
+            <div class="info-row"><span>Última interação</span><b>{{ item.dataUltimaInteracao | date:'dd/MM/yy HH:mm' }}</b></div>
+          </div>
+          <div class="info-group md:border-x md:border-slate-100 dark:md:border-slate-800 md:px-6">
+            <div class="group-title"><i class="pi pi-clock text-primary-700 dark:text-primary-400 text-xs"></i><span>Níveis de serviço</span></div>
+            <div class="info-row"><span>Primeira resposta</span><b [class.!text-red-600]="item.slaPrimeiraRespostaVencido" [class.dark:!text-red-400]="item.slaPrimeiraRespostaVencido" [pTooltip]="item.dataPrimeiraResposta ? ('Respondido em ' + (item.dataPrimeiraResposta | date:'dd/MM/yy HH:mm')) : undefined">{{ item.dataLimitePrimeiraResposta | date:'dd/MM/yy HH:mm' }}</b></div>
+            <div class="info-row"><span>Resolução</span><b [class.!text-red-600]="item.slaResolucaoVencido" [class.dark:!text-red-400]="item.slaResolucaoVencido" [pTooltip]="item.dataResolucao ? ('Resolvido em ' + (item.dataResolucao | date:'dd/MM/yy HH:mm')) : undefined">{{ item.dataLimiteResolucao | date:'dd/MM/yy HH:mm' }}</b></div>
+            <div class="info-row"><span>Contagem</span><b [ngClass]="contagemSlaClass(item)" [pTooltip]="item.dataResolucao ? ('Resolvido em ' + (item.dataResolucao | date:'dd/MM/yy HH:mm')) : undefined">{{ contagemSlaLabel(item) }}</b></div>
+          </div>
+          <div class="info-group">
+            <div class="group-title"><i class="pi pi-users text-primary-700 dark:text-primary-400 text-xs"></i><span>Atendimento</span></div>
+            <div class="info-row"><span>Equipe</span><b>{{ item.equipeAtendimento.nome }}</b></div>
+            @if (modoCentral) {
+              <div class="info-row"><span>Solicitante</span><b class="break-all">{{ nomeUsuario(item.usuarioSolicitanteId) }}</b></div>
+              <div class="info-row"><span>Responsável</span><b class="break-all">{{ nomeUsuario(item.usuarioResponsavelId) }}</b></div>
+            } @else {
+              <div class="info-row"><span>Responsável</span><b>{{ item.usuarioResponsavelId ? 'Definido' : 'Aguardando atribuição' }}</b></div>
+              <div class="info-row"><span>Pausa acumulada</span><b>{{ item.totalSegundosPausaSla / 3600 | number:'1.0-1' }}h</b></div>
+            }
+          </div>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
+        <main class="flex min-w-0 flex-col gap-4">
+          <section class="document-section">
+            <div class="section-header"><span>Descrição da solicitação</span></div>
+            <div class="section-body"><p class="whitespace-pre-wrap text-[11px] leading-5 text-slate-700 dark:text-slate-200">{{ item.descricao }}</p></div>
+          </section>
+
+          @if (item.solucao) {
+            <section class="document-section border-green-200 dark:border-green-900/60">
+              <div class="section-header !bg-green-50 dark:!bg-green-950/40 !border-green-100 dark:!border-green-900/40"><span class="!text-green-800 dark:!text-green-300">Solução registrada</span></div>
+              <div class="section-body"><p class="whitespace-pre-wrap text-[11px] leading-5 text-green-800 dark:text-green-300">{{ item.solucao }}</p></div>
+            </section>
+          }
+
+          <section class="document-section">
+            <div class="section-header"><span>Timeline do chamado</span><small>{{ interacoes().length }} eventos</small></div>
+            <div class="section-body">
+              <div class="timeline">
+                @for (interacao of interacoes(); track interacao.id) {
+                  <article class="timeline-item" [class.timeline-internal]="interacao.interno">
+                    <div class="timeline-icon"><i [class]="interacaoIcone(interacao)"></i></div>
+                    <div class="min-w-0 flex-1 border-b border-slate-100 dark:border-slate-800 pb-4">
+                      <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2"><span class="text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">{{ interacaoLabel(interacao) }}</span>@if (interacao.interno) { <span class="rounded bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 text-[8px] font-bold text-amber-700 dark:text-amber-300"><i class="pi pi-lock mr-1"></i>INTERNO</span> }</div>
+                        <time class="text-[9px] text-slate-400">{{ interacao.dataEvento | date:'dd/MM/yyyy HH:mm' }}</time>
+                      </div>
+                      @if (interacao.mensagem) { <p class="mt-2 whitespace-pre-wrap text-[11px] leading-5 text-slate-600 dark:text-slate-300"><app-texto-marcacoes [texto]="interacao.mensagem" /></p> }
+                      @if (modoCentral) { <p class="mt-2 text-[8px] text-slate-400">Autor: {{ nomeUsuario(interacao.usuarioAutorId) }}</p> }
+                    </div>
+                  </article>
+                } @empty { <div class="empty-state"><i class="pi pi-history"></i><span>Nenhum evento registrado.</span></div> }
+              </div>
+            </div>
+          </section>
+
+          @if (podeResponder()) {
+            <section class="document-section print:hidden">
+              <div class="section-header"><span>Nova interação</span></div>
+              <div class="section-body">
+                @if (modoCentral && item.status === 'RESOLVIDO') {
+                  <div class="mb-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 rounded-xl px-3 py-2 flex items-start gap-2"><i class="pi pi-lock text-amber-600 dark:text-amber-400 text-xs mt-0.5"></i><p class="text-[10px] text-amber-700 dark:text-amber-300">Chamados resolvidos aceitam apenas comentário interno. Reabra para enviar mensagem pública.</p></div>
+                }
+                <app-mencao-textarea [(texto)]="mensagem" [rows]="5" [maxlength]="5000"
+                  [visibilidadeRestrita]="modoInterno()" origem="CHAMADO_INTERACAO"
+                  [placeholder]="modoCentral ? 'Escreva uma atualização para o solicitante ou uma nota interna.' : 'Adicione informações para a equipe de atendimento.'" />
+                @if (erroMarcacao(); as erro) {
+                  <div class="mt-3 flex items-start gap-2 rounded-xl border border-red-100 dark:border-red-900/50 bg-red-50 dark:bg-red-950/40 px-3 py-2">
+                    <i class="pi pi-exclamation-circle mt-0.5 text-xs text-red-600 dark:text-red-400"></i>
+                    <div class="min-w-0">
+                      <p class="text-[10px] font-medium text-red-700 dark:text-red-300">{{ erro }}</p>
+                      <p class="mt-0.5 text-[9px] text-red-600 dark:text-red-400">Nada foi enviado. Ajuste a marcação no texto acima e tente de novo.</p>
+                    </div>
+                  </div>
+                }
+                <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  @if (modoCentral && item.status !== 'RESOLVIDO') {
+                    <div class="flex items-center gap-2"><p-checkbox inputId="interno" [ngModel]="interno()" (ngModelChange)="interno.set($event)" [binary]="true" size="small" /><label for="interno" class="text-[10px] text-slate-600 dark:text-slate-300">Comentário interno (invisível ao solicitante)</label></div>
+                  } @else { <span></span> }
+                  <p-button label="ENVIAR" icon="pi pi-send" [loading]="saving()" [disabled]="!mensagem().trim()" (onClick)="enviarMensagem()" styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !font-bold !text-[10px]" />
+                </div>
+              </div>
+            </section>
+          }
+        </main>
+
+        <aside class="flex flex-col gap-4">
+          <section class="document-section print:hidden">
+            <div class="section-header"><span>Evidências</span><small>{{ item.anexos.length }}/10</small></div>
+            <div class="section-body">
+              @if (podeAnexar()) {
+                <label class="upload-button" [class.pointer-events-none]="uploading()"><i [class]="uploading() ? 'pi pi-spin pi-spinner' : 'pi pi-upload'"></i><span>{{ uploading() ? 'Enviando...' : 'Adicionar evidência' }}</span><input type="file" hidden [disabled]="uploading()" (change)="selecionarAnexo($event)" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.log,.doc,.docx,.xls,.xlsx" /></label>
+                <p class="mt-2 text-[8px] text-slate-400">Máximo de 15 MB por arquivo.</p>
+              }
+              <div class="mt-3 flex flex-col gap-2">
+                @for (anexo of item.anexos; track anexo.id) {
+                  <button type="button" class="attachment" (click)="baixar(anexo)"><i class="pi pi-file text-primary-700 dark:text-primary-400"></i><span class="min-w-0 flex-1 text-left"><strong>{{ anexo.nomeArquivo }}</strong><small>{{ formatarBytes(anexo.tamanhoBytes) }} · {{ anexo.dataCriacao | date:'dd/MM/yy HH:mm' }}</small></span><i class="pi pi-download text-slate-400"></i></button>
+                } @empty { <div class="empty-state"><i class="pi pi-paperclip"></i><span>Nenhuma evidência anexada.</span></div> }
+              </div>
+            </div>
+          </section>
+
+          @if (modoCentral && statusDisponiveis().length) {
+            <section class="bg-primary-50/40 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/50 rounded-xl p-4 print:hidden">
+              <p class="text-[9px] font-bold text-primary-700 dark:text-primary-400 uppercase tracking-wider">Próximas ações</p>
+              <div class="mt-3 flex flex-col gap-2">
+                @for (status of statusDisponiveis(); track status.value) {
+                  <button type="button" class="quick-action" (click)="abrirAtendimento(status.value)"><span>{{ status.label }}</span><i class="pi pi-arrow-right"></i></button>
+                }
+              </div>
+            </section>
+          }
+        </aside>
+      </div>
+    </div>
+  }
+</div>
+
+<p-dialog [(visible)]="dialogAtendimento" header="Atualizar atendimento" [modal]="true" [draggable]="false" [resizable]="false"
+  [style]="{ width: '95vw', maxWidth: '560px' }" styleClass="custom-dialog" appendTo="body">
+  <div class="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
+    <div class="field"><label>Próximo status</label><p-select [options]="statusDisponiveis()" [(ngModel)]="statusAtendimento" optionLabel="label" optionValue="value" placeholder="Manter status" [showClear]="true" class="custom-select" size="small" appendTo="body" /></div>
+    <div class="field"><label>Prioridade</label><p-select [options]="prioridadeOptions" [(ngModel)]="prioridadeAtendimento" optionLabel="label" optionValue="value" class="custom-select" size="small" appendTo="body" /></div>
+    <div class="field"><label>Equipe</label><p-select [options]="equipes()" [(ngModel)]="equipeAtendimentoId" optionLabel="nome" optionValue="id" [filter]="true" [loading]="equipesLoading()" [virtualScroll]="true" [virtualScrollItemSize]="38" [lazy]="true" class="custom-select" size="small" appendTo="body" (onShow)="openEquipes()" (onFilter)="searchEquipes($event)" (onLazyLoad)="loadMoreEquipes()" (onChange)="onEquipeAtendimentoChange()" /></div>
+    <div class="field"><label>Responsável</label><p-select [options]="responsaveisDisponiveis()" [(ngModel)]="responsavelAtendimentoId" optionLabel="login" optionValue="id" placeholder="Atribuição automática" [showClear]="true" [filter]="true" [loading]="usuariosLoading()" [virtualScroll]="true" [virtualScrollItemSize]="38" [lazy]="true" class="custom-select" size="small" appendTo="body" (onShow)="openUsuarios()" (onFilter)="searchUsuarios($event)" (onLazyLoad)="loadMoreUsuarios()" /></div>
+    @if (statusAtendimento === 'RESOLVIDO') { <div class="field sm:col-span-2"><label>Solução *</label><textarea pTextarea [(ngModel)]="solucao" rows="5" maxlength="5000" class="w-full !text-[11px]" placeholder="Descreva a correção aplicada e como ela foi validada."></textarea></div> }
+  </div>
+  <ng-template #footer><p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="dialogAtendimento = false" styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]" /><p-button label="SALVAR ALTERAÇÕES" icon="pi pi-check" [loading]="saving()" (onClick)="salvarAtendimento()" styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]" /></ng-template>
+</p-dialog>
+
+<p-dialog [(visible)]="dialogReabertura" header="Reabrir chamado" [modal]="true" [draggable]="false" [resizable]="false"
+  [style]="{ width: '95vw', maxWidth: '480px' }" styleClass="custom-dialog" appendTo="body">
+  <div class="field pt-2"><label>Motivo *</label><textarea pTextarea [(ngModel)]="motivoReabertura" rows="5" maxlength="5000" class="w-full !text-[11px]" placeholder="Explique por que o problema voltou a ocorrer."></textarea></div>
+  <ng-template #footer><p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="dialogReabertura = false" styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]" /><p-button label="REABRIR" icon="pi pi-replay" [loading]="saving()" [disabled]="!motivoReabertura.trim()" (onClick)="reabrirMeu()" styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]" /></ng-template>
+</p-dialog>
+
+<p-confirmdialog />

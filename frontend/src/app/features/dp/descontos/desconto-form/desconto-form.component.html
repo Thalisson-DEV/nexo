@@ -1,0 +1,383 @@
+<div class="min-h-screen bg-white dark:bg-[var(--ces-canvas)] text-slate-900 dark:text-[var(--ces-foreground)] p-4 md:p-8 relative print:p-0 print:bg-white print:text-black">
+  <div class="max-w-5xl mx-auto pb-32 print:max-w-full print:animate-none print:pb-0">
+
+    <!-- DOCUMENTO/FORMULÁRIO PRINCIPAL -->
+    <form [formGroup]="form" class="flex flex-col gap-6 rise print:p-0">
+
+        <!-- Cabeçalho da empresa (Relatório) -->
+        <div class="grid grid-cols-3 items-center border-b border-gray-200 dark:border-slate-800 pb-6 mb-2">
+          <div class="flex justify-start">
+            <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14" onerror="this.style.display='none'">
+          </div>
+          <div class="text-center flex flex-col gap-1">
+            <h1 class="text-xs font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider">NOME DA EMPRESA</h1>
+            <p class="text-[9px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest">Departamento Pessoal (DP)</p>
+            <p class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Serviços prestados à Concessionária</p>
+          </div>
+          <div class="flex justify-end">
+            <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14 grayscale opacity-25" onerror="this.style.display='none'">
+          </div>
+        </div>
+
+        <!-- Título -->
+        <div class="py-4 text-center border-y border-gray-200 dark:border-slate-800 my-4 print:py-2 print:my-2">
+          <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight uppercase">Termo de Autorização de Desconto em Folha</h2>
+          <p class="text-[10px] text-slate-600 dark:text-slate-400 font-medium mt-1 uppercase tracking-widest">Preenchimento de Nova Solicitação</p>
+        </div>
+
+        <!-- 1. Dados do Desconto -->
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">1. Dados do Desconto</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="flex flex-col gap-1 md:col-span-1">
+              <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px] flex items-center gap-1">
+                <i class="pi pi-user text-primary-600"></i>Colaborador
+              </label>
+              <ces-autocomplete label="Colaborador" [labelVisible]="false" formControlName="colaboradorId" [options]="colaboradores()" [loading]="colaboradoresLoading()" [status]="colaboradoresStatus()" [virtualScroll]="true" [virtualScrollItemSize]="38" placeholder="Pesquisar por nome ou CPF..." [clearable]="true" appendTo="body" (search)="searchColaboradores($event)" (loadMore)="loadMoreColaboradores()" (retry)="retryColaboradores()"></ces-autocomplete>
+            </div>
+
+            <div class="flex flex-col gap-1 md:col-span-1">
+              <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px] flex items-center gap-1">
+                <i class="pi pi-tag text-primary-600"></i>Motivo do Desconto
+              </label>
+              <p-select [options]="motivos()" formControlName="motivoId" optionLabel="descricao" optionValue="id" [filter]="true" placeholder="Selecione o motivo..." class="w-full" size="small" appendTo="body"></p-select>
+            </div>
+
+            <div class="flex flex-col gap-1 md:col-span-1">
+              <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px] flex items-center gap-1">
+                <i class="pi pi-calendar text-primary-600"></i>Data da Ocorrência
+              </label>
+              <p-datepicker dateMask formControlName="dataOcorrencia" dateFormat="dd/mm/yy" placeholder="DD/MM/AAAA" class="w-full custom-input-sm" appendTo="body" [showIcon]="true" iconDisplay="input"></p-datepicker>
+            </div>
+          </div>
+
+          <!-- Card Rico de Identificação do Colaborador (Padrão Nexo) -->
+          @if (colaboradorSelecionado(); as colab) {
+            <div class="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col gap-3.5">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-slate-700/60 pb-3 gap-2">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-full bg-primary-100 dark:bg-primary-950/60 text-primary-700 dark:text-primary-300 flex items-center justify-center font-bold text-xs shrink-0 border border-primary-200 dark:border-primary-800/60">
+                    <i class="pi pi-user"></i>
+                  </div>
+                  <div class="flex flex-col min-w-0">
+                    <span class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate">{{ colab.nomeCompleto }}</span>
+                    <span class="text-[10px] font-semibold text-primary-700 dark:text-primary-400 uppercase tracking-widest">{{ colab.funcao.nome || 'Função não informada' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Grid com foco equilibrado: CPF, Processo, Base, Admissão, Motivo e Data da Ocorrência -->
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 pt-0.5">
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1"><i class="pi pi-id-card text-[9px] text-slate-400 dark:text-slate-500"></i>CPF</span>
+                  <span class="text-xs font-bold text-slate-800 dark:text-slate-200 font-mono">{{ formatCpf(colab.cpf) }}</span>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1"><i class="pi pi-briefcase text-[9px] text-slate-400 dark:text-slate-500"></i>Processo</span>
+                  <span class="text-xs font-medium text-slate-700 dark:text-slate-300 truncate" [title]="colab.processo.nome || '—'">{{ colab.processo.nome || '—' }}</span>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1"><i class="pi pi-building text-[9px] text-slate-400 dark:text-slate-500"></i>Base Operacional</span>
+                  <span class="text-xs font-medium text-slate-700 dark:text-slate-300 truncate" [title]="colab.baseOperacional.nome || '—'">{{ colab.baseOperacional.nome || '—' }}</span>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1"><i class="pi pi-calendar-plus text-[9px] text-slate-400 dark:text-slate-500"></i>Admissão</span>
+                  <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ (colab.dataContratacao | date:'dd/MM/yyyy') || '—' }}</span>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1"><i class="pi pi-tag text-[9px] text-slate-400 dark:text-slate-500"></i>Motivo</span>
+                  <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate" [title]="getMotivoNome(form.get('motivoId')?.value)">{{ getMotivoNome(form.get('motivoId')?.value) }}</span>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase flex items-center gap-1"><i class="pi pi-calendar text-[9px] text-slate-400 dark:text-slate-500"></i>Data Ocorrência</span>
+                  <span class="text-xs font-bold text-slate-900 dark:text-slate-100">{{ (form.get('dataOcorrencia')?.value | date:'dd/MM/yyyy') || '—' }}</span>
+                </div>
+              </div>
+            </div>
+          } @else {
+            <div class="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center justify-center">
+              <span class="text-xs text-slate-400 dark:text-slate-500 italic">Selecione um colaborador para exibir seus dados</span>
+            </div>
+          }
+
+          <div class="flex flex-col gap-1">
+            <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px] flex items-center gap-1">
+              <i class="pi pi-align-left text-primary-600"></i>Observações / Justificativa
+            </label>
+            <textarea pTextarea formControlName="observacoes" placeholder="Descreva de forma detalhada o motivo do desconto..." rows="3" class="w-full text-xs p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:outline-none resize-none"></textarea>
+          </div>
+        </div>
+
+        <!-- 2. Lista de Materiais -->
+        <div class="flex flex-col gap-4 mt-2">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">2. Itens a Descontar</span>
+            <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">({{ items().length }})</span>
+          </div>
+
+          <!-- Adicionar Item -->
+          <div class="bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <label class="filter-label !text-primary-700 dark:!text-primary-400 !text-[11px] block mb-2 font-bold uppercase tracking-wider">Adicionar Equipamento / Material</label>
+            <form [formGroup]="itemForm" class="grid grid-cols-1 md:grid-cols-12 gap-3" (ngSubmit)="addItem()">
+              <div class="md:col-span-4 flex flex-col gap-1">
+                <input pInputText formControlName="descricaoMaterial" placeholder="Ex: Multímetro, Bota..." class="custom-input !w-full" size="small" />
+              </div>
+              <div class="md:col-span-4 flex flex-col gap-1">
+                <p-select formControlName="tipoEquipamentoId" [options]="categorias()" optionLabel="descricao" optionValue="id" placeholder="Categoria..." class="w-full" size="small" appendTo="body"></p-select>
+              </div>
+              <div class="md:col-span-3 flex flex-col gap-1">
+                <p-inputNumber formControlName="valor" [min]="0" [maxFractionDigits]="2" [minFractionDigits]="2" mode="currency" currency="BRL" locale="pt-BR" class="w-full custom-input-number-sm" placeholder="R$ 0,00"></p-inputNumber>
+              </div>
+              <div class="md:col-span-1 flex items-end">
+                <p-button icon="pi pi-plus" type="submit" [disabled]="itemForm.invalid" styleClass="!bg-blue-600 hover:!bg-blue-500 !border-blue-600 !rounded-xl !w-full !text-white shadow-sm" pTooltip="Adicionar à lista"></p-button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Tabela de Itens -->
+          <p-table [value]="items()" class="p-datatable-sm minimalist-table" [scrollable]="true" scrollHeight="300px">
+            <ng-template pTemplate="header">
+              <tr>
+                <th class="!text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase border-b-2 border-slate-200 dark:border-slate-700 pb-2">Material</th>
+                <th class="!text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase border-b-2 border-slate-200 dark:border-slate-700 pb-2">Categoria</th>
+                <th class="!text-[9px] font-bold text-slate-400 dark:text-slate-400 uppercase text-right border-b-2 border-slate-200 dark:border-slate-700 pb-2">Valor Unit.</th>
+                <th style="width: 3rem" class="border-b-2 border-slate-200 dark:border-slate-700 pb-2"></th>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-item let-ri="rowIndex">
+              <tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                @if (editingItemIndex() === ri) {
+                  <td class="!py-2">
+                    <input pInputText [(ngModel)]="inlineEditDraft.descricaoMaterial" [ngModelOptions]="{standalone: true}" class="custom-input !w-full !text-[11px] !h-[34px] !box-border" />
+                  </td>
+                  <td class="!py-2">
+                    <p-select [(ngModel)]="inlineEditDraft.tipoEquipamentoId" [ngModelOptions]="{standalone: true}" [options]="categorias()" optionLabel="descricao" optionValue="id" appendTo="body" class="w-full !text-[11px]" styleClass="!h-[34px] !flex !items-center !box-border"></p-select>
+                  </td>
+                  <td class="!py-2">
+                    <p-inputNumber [(ngModel)]="inlineEditDraft.valor" [ngModelOptions]="{standalone: true}" [min]="0" [maxFractionDigits]="2" [minFractionDigits]="2" mode="currency" currency="BRL" locale="pt-BR" class="w-full custom-input-number-sm !text-[11px]" inputStyleClass="!h-[34px] !box-border"></p-inputNumber>
+                  </td>
+                  <td class="!py-0 !px-0 w-[80px]">
+                    <div class="flex h-full items-stretch min-h-[50px]">
+                      <p-button icon="pi pi-check" [text]="true" (onClick)="saveEditItem()" [disabled]="!inlineEditDraft.descricaoMaterial || !inlineEditDraft.tipoEquipamentoId || !inlineEditDraft.valor" styleClass="!text-green-600 hover:!bg-green-100 dark:hover:!bg-green-950/40 !h-full !w-full !rounded-none border-l border-slate-100 dark:border-slate-800" pTooltip="Salvar"></p-button>
+                      <p-button icon="pi pi-times" [text]="true" (onClick)="cancelEditItem()" styleClass="!text-red-500 hover:!bg-red-100 dark:hover:!bg-red-950/40 !h-full !w-full !rounded-none border-l border-slate-100 dark:border-slate-800" pTooltip="Cancelar"></p-button>
+                    </div>
+                  </td>
+                } @else {
+                  <td class="!py-3 text-[11px] font-bold text-slate-700 dark:text-slate-200">{{ item.descricaoMaterial }}</td>
+                  <td class="!py-3 text-[11px] text-slate-600 dark:text-slate-400">{{ item.categoriaNome }}</td>
+                  <td class="!py-3 text-[11px] font-medium text-right text-slate-800 dark:text-slate-100">
+                    {{ item.valor | currency:'BRL' }}
+                  </td>
+                  <td class="text-center !py-3 flex justify-end gap-1">
+                    <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" (onClick)="editItem(ri)" styleClass="!text-blue-500 !w-6 !h-6" pTooltip="Editar"></p-button>
+                    <p-button icon="pi pi-trash" [text]="true" [rounded]="true" (onClick)="removeItem(ri)" styleClass="!text-red-400 !w-6 !h-6" pTooltip="Remover"></p-button>
+                  </td>
+                }
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="footer">
+              @if (items().length > 0) {
+                <tr class="!bg-transparent">
+                  <td [attr.colspan]="2" class="!bg-transparent dark:!bg-transparent !py-2.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest border-t-2 border-slate-200 dark:border-slate-700">
+                    {{ items().length }} {{ items().length === 1 ? 'item' : 'itens' }}
+                  </td>
+                  <td class="!bg-transparent dark:!bg-transparent !py-2.5 text-[11px] font-black text-right text-slate-900 dark:text-slate-100 border-t-2 border-slate-200 dark:border-slate-700">
+                    {{ totalGeral() | currency:'BRL' }}
+                  </td>
+                  <td class="!bg-transparent dark:!bg-transparent border-t-2 border-slate-200 dark:border-slate-700"></td>
+                </tr>
+              }
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="4" class="text-center py-8 text-[11px] text-slate-400 dark:text-slate-500 italic">Nenhum item adicionado</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+
+        <!-- 3. Condições de Pagamento e Resumo -->
+        <div class="flex flex-col gap-4 mt-2">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">3. Pagamento e Resumo</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+            <!-- Parcelamento -->
+            <div class="flex flex-col gap-1 md:col-span-1 justify-center bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+              <label class="filter-label !text-slate-600 dark:!text-slate-300 !text-[11px] font-semibold">Qtd. de Parcelas</label>
+              <p-inputNumber formControlName="quantidadeParcelas" [min]="1" [max]="getMaxParcelas()" [showButtons]="true" class="w-full custom-input-number-sm mt-1"></p-inputNumber>
+              @if (form.get('motivoId')?.value) {
+                <span class="text-[9px] text-slate-400 dark:text-slate-500 italic mt-0.5">Teto: {{ getSelectedMotivoTeto() }} parcelas</span>
+              }
+            </div>
+
+            <!-- Totais -->
+            <div class="flex flex-col gap-1 md:col-span-1 text-right bg-slate-50/70 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 h-full justify-center">
+              <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Valor Sugerido</span>
+              <span class="text-xl font-black text-slate-800 dark:text-slate-100">{{ totalGeral() | currency:'BRL' }}</span>
+              <span class="text-[9px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Soma de todos os itens</span>
+            </div>
+
+            <div class="flex flex-col gap-1 md:col-span-1 text-right bg-blue-50/80 dark:bg-blue-950/40 p-4 rounded-xl border border-blue-200 dark:border-blue-800/60 h-full justify-center">
+              <span class="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-widest">Desconto Mensal</span>
+              <span class="text-xl font-black text-blue-700 dark:text-blue-300">{{ totalPorMes() | currency:'BRL' }}</span>
+              <span class="text-[9px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">Estimativa sobre o valor sugerido</span>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-2.5 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 rounded-xl px-4 py-3">
+            <i class="pi pi-info-circle text-blue-600 dark:text-blue-400 text-xs mt-0.5 shrink-0"></i>
+            <p class="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed">
+              O <strong>valor sugerido</strong> é a proposta desta solicitação. A aprovação final é confirmada pelo validador e pelo RH no momento da baixa.
+            </p>
+          </div>
+        </div>
+
+        <!-- 4. Anexos -->
+        <div class="flex flex-col gap-4 mt-2">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">4. Anexos &amp; Comprovantes</span>
+            @if (anexos().length > 0) {
+              <span class="text-[9px] text-slate-500 dark:text-slate-400 font-medium">({{ anexos().length }})</span>
+            }
+          </div>
+
+          <div class="flex flex-col gap-3">
+            @if (anexos().length === 0) {
+              <!-- Dropzone Grande (Vazio) -->
+              <label class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-slate-100/50 dark:hover:bg-slate-800/40 hover:border-primary-400 cursor-pointer bg-slate-50/70 dark:bg-slate-800/20 min-h-[140px] transition-colors">
+                <input type="file" multiple class="hidden" (change)="onFileSelect($event)" [accept]="anexoAccept">
+                <div class="w-12 h-12 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center mb-3 text-slate-400 dark:text-slate-500 shadow-sm border border-slate-200 dark:border-slate-700">
+                  <i class="pi pi-cloud-upload text-2xl"></i>
+                </div>
+                <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Clique para selecionar os arquivos</span>
+                <span class="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-1">Insira fotos, áudios (OGG, MP3), vídeos, PDFs ou documentos (Max 15MB)</span>
+              </label>
+            } @else {
+              <!-- Lista de Arquivos Compacta -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                @for (anexo of anexos(); track $index) {
+                  <div class="flex items-center justify-between bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg p-2 sm:p-2.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                    <div class="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
+                      <div class="w-8 h-8 rounded flex items-center justify-center shrink-0" [ngClass]="getAnexoContainerClass(anexo.file.name, anexo.file.type)">
+                        <i class="pi text-base" [ngClass]="getAnexoIcon(anexo.file.name, anexo.file.type)"></i>
+                      </div>
+                      <div class="flex flex-col min-w-0 pr-1 flex-1">
+                        <span class="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate block w-full" [title]="anexo.file.name">{{ anexo.file.name }}</span>
+                        <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium">{{ getAnexoLabel(anexo.file.name, anexo.file.type) }} • {{ formatSize(anexo.file.size) }}</span>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <button type="button" (click)="visualizarAnexo(anexo)" class="w-7 h-7 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors shrink-0 cursor-pointer" [pTooltip]="getAnexoCategoria(anexo.file.name, anexo.file.type) === 'audio' ? 'Ouvir Áudio' : (getAnexoCategoria(anexo.file.name, anexo.file.type) === 'video' ? 'Assistir Vídeo' : 'Visualizar')">
+                        <i class="pi text-xs" [ngClass]="getAnexoCategoria(anexo.file.name, anexo.file.type) === 'audio' || getAnexoCategoria(anexo.file.name, anexo.file.type) === 'video' ? 'pi-play' : 'pi-eye'"></i>
+                      </button>
+                      <button type="button" (click)="removeAnexo($index)" class="w-7 h-7 flex items-center justify-center rounded-full text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors shrink-0 cursor-pointer" pTooltip="Remover">
+                        <i class="pi pi-trash text-xs"></i>
+                      </button>
+                    </div>
+                  </div>
+                }
+
+                <!-- Botão Compacto para Mais Arquivos -->
+                <label class="flex items-center justify-center gap-2 bg-slate-50/70 dark:bg-slate-800/40 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-primary-400 cursor-pointer transition-colors shadow-2xs min-h-[48px] relative">
+                  <input type="file" multiple class="hidden" (change)="onFileSelect($event)" [accept]="anexoAccept">
+                  <i class="pi pi-plus-circle text-primary-600 dark:text-primary-400 text-base"></i>
+                  <span class="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-tight">Adicionar mais</span>
+                </label>
+              </div>
+            }
+          </div>
+        </div>
+
+    </form>
+
+    <!-- Ações Finais (Flutuantes) -->
+    <div class="fixed bottom-6 right-6 md:bottom-8 md:right-8 flex flex-col-reverse sm:flex-row items-end sm:items-center gap-3 z-30 print:hidden">
+      <div class="flex items-center gap-3 flex-wrap justify-end">
+        <p-button
+          label="Cancelar"
+          icon="pi pi-times"
+          [text]="true"
+          severity="secondary"
+          (onClick)="cancel()"
+          styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-[11px] !px-6 !py-3 shadow-sm md:flex hidden"
+        ></p-button>
+
+        <p-button
+          label="Salvar Solicitação"
+          icon="pi pi-check"
+          [loading]="saving()"
+          [disabled]="saving() || form.invalid || items().length === 0"
+          (onClick)="onSave()"
+          styleClass="!w-full md:!w-auto !justify-center !rounded-xl !bg-blue-600 !border-blue-600 hover:!bg-blue-500 !text-white !font-medium !text-[11px] !tracking-widest !uppercase !px-8 !py-3 shadow-lg transition-all"
+        ></p-button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Visualização de Anexo (PDF / Imagem / Áudio / Vídeo) -->
+<p-dialog
+  [(visible)]="showPreviewModal"
+  [modal]="true"
+  [dismissableMask]="true"
+  [closable]="true"
+  (onHide)="fecharPreviewModal()"
+  [style]="{ width: '90vw', maxWidth: '950px' }"
+  styleClass="custom-dialog"
+  [header]="previewNomeArquivo()">
+  <div class="flex flex-col items-center justify-center min-h-[350px] max-h-[75vh] w-full bg-slate-900/5 dark:bg-slate-900/40 rounded-lg overflow-hidden relative">
+    @if (previewUrl()) {
+      @if (previewTipo() === 'pdf') {
+        <iframe [src]="previewUrl()" class="w-full h-[70vh] border-0 rounded-b-lg"></iframe>
+      } @else if (previewTipo() === 'image') {
+        <div class="p-4 flex items-center justify-center max-h-[70vh] overflow-auto">
+          <img [src]="previewUrl()" [alt]="previewNomeArquivo()" class="max-w-full max-h-[65vh] object-contain rounded shadow-md" />
+        </div>
+      } @else if (previewTipo() === 'audio') {
+        <div class="p-8 flex flex-col items-center justify-center gap-4 w-full max-w-lg mx-auto text-center">
+          <div class="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-sm">
+            <i class="pi pi-volume-up text-2xl"></i>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 break-all">{{ previewNomeArquivo() }}</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Reprodução de Áudio</p>
+          </div>
+          <audio controls autoplay [src]="previewUrl()" class="w-full mt-2"></audio>
+        </div>
+      } @else if (previewTipo() === 'video') {
+        <div class="p-4 flex items-center justify-center max-h-[70vh] w-full bg-black/5 dark:bg-black/40">
+          <video controls autoplay playsinline [src]="previewUrl()" class="max-w-full max-h-[65vh] rounded-lg shadow-md"></video>
+        </div>
+      } @else {
+        <div class="flex flex-col items-center gap-3 p-8 text-center">
+          <i class="pi pi-file text-4xl text-slate-400 dark:text-slate-500"></i>
+          <p class="text-xs text-slate-600 dark:text-slate-300">Este formato não possui pré-visualização direta integrada.</p>
+          <p-button label="Abrir em Nova Aba" icon="pi pi-external-link" size="small" (onClick)="abrirPreviewNovaAba()"></p-button>
+        </div>
+      }
+    }
+  </div>
+  <ng-template pTemplate="footer">
+    <div class="flex items-center justify-between w-full pt-3">
+      <p-button label="Abrir em Nova Aba" icon="pi pi-external-link" [text]="true" size="small" (onClick)="abrirPreviewNovaAba()"></p-button>
+      <p-button label="Fechar" [outlined]="true" severity="secondary" size="small" (onClick)="fecharPreviewModal()"></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- Help Dialog -->
+<app-help-dialog #helpDialog title="Guia: Solicitação de Desconto">
+  <div class="help-section">
+    <h4 class="help-section-title"><i class="pi pi-cog"></i> 1. Dados e Itens</h4>
+    <div class="help-item">
+      <div class="help-icon"><i class="pi pi-info-circle"></i></div>
+      <div class="help-text">
+        <span class="help-text-title">Regras de Parcelamento</span>
+        <span class="help-text-desc">O número máximo de parcelas é determinado pelo <strong>Motivo do Desconto</strong>. O sistema não permitirá enviar uma quantidade maior do que o teto estabelecido.</span>
+      </div>
+    </div>
+  </div>
+</app-help-dialog>

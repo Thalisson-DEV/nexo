@@ -1,0 +1,10 @@
+:host { display: block; }
+.signature strong { font-weight: 600; }
+.signature { display: grid; gap: .55rem; }
+header, footer { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+header div { display: grid; gap: .15rem; }
+header span, p { margin: 0; color: var(--ces-foreground-muted); font-size: var(--ces-font-caption); }
+canvas { width: 100%; height: 9rem; border: 1px dashed var(--ces-border-strong); border-radius: var(--ces-radius-md); background: #fff; color: #111827; /* papel: a assinatura sai legível no comprovante impresso, em qualquer tema */ touch-action: none; cursor: crosshair; }
+canvas.physical { opacity: .45; cursor: not-allowed; }
+footer { justify-content: flex-start; flex-wrap: wrap; }
+@media (max-width: 40rem) { header { align-items: flex-start; flex-direction: column; } }

@@ -1,0 +1,422 @@
+<div
+  class="min-h-full min-h-screen bg-[var(--ces-surface)] text-[var(--ces-foreground)] relative transition-colors duration-200 p-4 md:p-8 print:p-0 print:min-h-0"
+>
+  @if (carregando() && !solicitacao()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state state="loading" title="Carregando a solicitação..."
+        description="Consultando dados, documentos e histórico de decisões..."></ces-async-state>
+    </div>
+  } @else if (erro()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <ces-async-state state="error" title="Solicitação indisponível" [description]="erro()!"
+        actionLabel="Tentar novamente" actionIcon="pi pi-refresh" (action)="carregar()"
+        secondaryActionLabel="Voltar" secondaryActionIcon="pi pi-arrow-left" (secondaryAction)="voltar()"></ces-async-state>
+    </div>
+  } @else if (solicitacao(); as item) {
+    <app-solicitacao-financeira-inspecao
+      [contexto]="inspecaoContexto()"
+      [aberta]="inspecaoAberta()"
+      [atual]="item"
+      (abertaChange)="inspecaoAberta.set($event)"
+      (selecionada)="abrirSolicitacao($event)"
+    />
+
+    <div class="max-w-6xl mx-auto print:max-w-full pb-32 print:pb-0 rise print:animate-none">
+
+      <!-- 1. CABEÇALHO CORPORATIVO -->
+      <div class="grid grid-cols-3 items-center border-b border-slate-200 dark:border-slate-800 pb-6 mb-6 print:border-slate-300 print:pb-3 print:mb-3" aria-label="Cabeçalho institucional">
+        <div class="flex justify-start">
+          <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14" onerror="this.style.display = 'none'" />
+        </div>
+        <div class="text-center flex flex-col gap-1">
+          <h1 class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100 print:text-black uppercase tracking-wider">NOME DA EMPRESA</h1>
+          <p class="text-[11px] text-slate-700 dark:text-slate-300 print:text-slate-700 font-bold uppercase tracking-widest">Módulo Financeiro</p>
+          <p class="text-[11px] text-slate-600 dark:text-slate-400 print:text-slate-600 font-medium">Compras e Pagamentos</p>
+        </div>
+        <div class="flex justify-end">
+          <img src="logo_vertical.svg" alt="Logo Cliente" class="h-16 print:h-14 grayscale opacity-25 print:opacity-20" onerror="this.style.display = 'none'" />
+        </div>
+      </div>
+
+      <!-- 2. TÍTULO -->
+      <div class="py-4 text-center border-y border-slate-200 dark:border-slate-800 print:border-slate-300 my-4 print:py-2 print:my-2">
+        <h2 class="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 print:text-black tracking-tight uppercase">
+          Solicitação de {{ tipo === 'COMPRA' ? 'Compra' : 'Pagamento' }} nº {{ item.numero }}
+        </h2>
+        <div class="flex items-center justify-center gap-2 mt-1.5 flex-wrap text-xs text-slate-600 dark:text-slate-400 print:text-slate-600 font-medium">
+          <span>{{ item.formulario.titulo }}</span>
+          <span>·</span>
+          <span>Aberta em: <strong class="text-slate-900 dark:text-slate-100 print:text-black font-semibold">{{ item.dataCriacao | date: 'dd/MM/yyyy HH:mm' }}</strong></span>
+          <span>·</span>
+          <ces-status [tone]="tomStatus[item.status]">{{ rotuloStatus[item.status] }}</ces-status>
+          @if (decisaoDesfeita()) {
+            <ces-status tone="warning" icon="pi-undo">Decisão desfeita</ces-status>
+          }
+        </div>
+        <div class="mt-3 print:hidden">
+          <app-analisar-com-copiloto
+            [origem]="tipo === 'COMPRA' ? 'Solicitação de compra' : 'Solicitação de pagamento'"
+            [tipo]="tipo === 'COMPRA' ? 'solicitacao_compra' : 'solicitacao_pagamento'"
+            [entidade]="item.id" [rotulo]="'Nº ' + item.numero" size="sm"
+            pergunta="Analise esta solicitação para apoiar a decisão: valores, fornecedor, prazos, documentos e histórico, comparando com solicitações semelhantes." />
+        </div>
+      </div>
+
+      <!-- FAIXA DA SITUAÇÃO: o que está acontecendo agora e o que se espera de quem lê. -->
+      @let faixa = faixaSituacao();
+      <div class="destaque rounded-xl border p-3.5 mb-6 flex items-start gap-3 print:mb-3 page-break-inside-avoid" [attr.data-tone]="faixa.tom" role="note">
+        <div class="destaque__icone w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border">
+          <i class="text-sm" [class]="faixa.icone" aria-hidden="true"></i>
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span class="text-xs font-bold uppercase tracking-wider">{{ faixa.titulo }}</span>
+          <span class="text-[11px] font-medium opacity-90">{{ faixa.texto }}</span>
+          @if (faixa.motivo) {
+            <span class="text-[11px] mt-1 whitespace-pre-line"><strong>{{ faixa.rotuloMotivo }}:</strong> {{ faixa.motivo }}</span>
+          }
+        </div>
+      </div>
+
+      <!-- 3. DADOS GERAIS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6 bg-slate-50/60 dark:bg-slate-900/40 p-4 md:p-5 rounded-xl border border-slate-200 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:mb-2 print:p-2">
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+            <i class="pi pi-tag text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">Identificação</span>
+          </div>
+          <div class="kv"><span class="kv-l">Número</span><span class="kv-v font-mono">nº {{ item.numero }}</span></div>
+          <div class="kv"><span class="kv-l">Solicitante</span><span class="kv-v uppercase" [title]="solicitante(item)">{{ solicitante(item) }}</span></div>
+          @for (linha of identificacao(); track linha.rotulo) {
+            <div class="kv">
+              <span class="kv-l">{{ linha.rotulo }}</span>
+              @if (linha.campo) {
+                <button type="button" class="kv-v kv-link" [title]="'Ver outras solicitações de ' + linha.valor"
+                  (click)="inspecionarCampo(linha.campo, item.valores[linha.campo.chave])">{{ linha.valor }}</button>
+              } @else {
+                <span class="kv-v" [title]="linha.valor">{{ linha.valor }}</span>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="flex flex-col gap-3 md:border-x md:border-slate-200 md:dark:border-slate-800 print:border-x print:border-slate-300 md:px-5 print:px-3">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+            <i class="pi pi-building text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">Fornecedor &amp; Pagamento</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Fornecedor</span>
+            @if (item.fornecedor; as f) {
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="kv-v" [title]="f.nome">{{ f.nome }}</span>
+                @if (!f.cadastrado) {
+                  <ces-status tone="warning">Não cadastrado</ces-status>
+                }
+                <ces-icon-button icon="pi pi-search" [label]="'Ver outras solicitações de ' + f.nome" tooltip="Outras solicitações deste fornecedor"
+                  size="icon-sm" class="print:hidden" (pressed)="inspecionarFornecedor(item)" />
+              </div>
+            } @else {
+              <span class="kv-v kv-v--muted">Não informado</span>
+            }
+          </div>
+          @for (linha of pagamento(); track linha.rotulo) {
+            <div class="kv"><span class="kv-l">{{ linha.rotulo }}</span><span class="kv-v" [class.kv-v--muted]="linha.apagado" [title]="linha.valor">{{ linha.valor }}</span></div>
+          }
+        </div>
+
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2">
+            <i class="pi pi-calendar-clock text-primary-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">Cronograma &amp; Decisão</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">Aberta por</span>
+            <button type="button" class="kv-v kv-link uppercase" title="Ver outras solicitações abertas por esta pessoa"
+              (click)="inspecionarSolicitante(item)">{{ nomeSolicitante(item) }}</button>
+          </div>
+          <div class="kv"><span class="kv-l">Enviada em</span><span class="kv-v" [class.kv-v--muted]="!item.dataSubmissao">{{ item.dataSubmissao ? (item.dataSubmissao | date: 'dd/MM/yyyy HH:mm') : 'Não enviada' }}</span></div>
+          <div class="kv">
+            <span class="kv-l">{{ item.status === 'REJEITADO' ? 'Rejeitada por' : item.status === 'CANCELADO' ? 'Cancelada por' : item.status === 'APROVADO' ? 'Aprovada por' : 'Decidida por' }}</span>
+            @if (item.desfecho.dataDecisao) {
+              <button type="button" class="kv-v kv-link uppercase" title="Ver outras decisões desta pessoa"
+                (click)="inspecionarDecisor(item)">{{ decididaPor(item) }}</button>
+            } @else if (item.desfecho.dataCancelamento) {
+              <span class="kv-v uppercase">{{ canceladaPor(item) }}</span>
+            } @else {
+              <span class="kv-v kv-v--muted">Aguardando</span>
+            }
+          </div>
+          <div class="kv">
+            <span class="kv-l">{{ item.status === 'CANCELADO' ? 'Cancelada em' : 'Decidida em' }}</span>
+            <span class="kv-v" [class.kv-v--muted]="!dataDesfecho(item)">{{ dataDesfecho(item) ? (dataDesfecho(item) | date: 'dd/MM/yyyy HH:mm') : '—' }}</span>
+          </div>
+          <div class="kv">
+            <span class="kv-l">{{ item.status === 'SOLICITADO' ? 'Na fila há' : 'Tempo até decidir' }}</span>
+            <span class="kv-v" [class.kv-v--muted]="tempoDecisao(item) === null">{{ tempoDecisao(item) ?? '—' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. CARDS DE RESUMO -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6 print:grid-cols-4 print:gap-2 print:mb-3">
+        <div class="resumo">
+          <div class="resumo__topo">
+            <span class="resumo__rotulo">Solicitado</span>
+            <span class="resumo__icone"><i class="pi pi-file-edit" aria-hidden="true"></i></span>
+          </div>
+          <div>
+            <span class="resumo__valor">{{ item.valor | currency: 'BRL' }}</span>
+            <span class="resumo__legenda">pedido na abertura</span>
+          </div>
+        </div>
+        <div class="resumo" [class.resumo--sucesso]="item.desfecho.valorAprovado != null">
+          <div class="resumo__topo">
+            <span class="resumo__rotulo">Autorizado</span>
+            <span class="resumo__icone"><i class="pi pi-check-square" aria-hidden="true"></i></span>
+          </div>
+          <div>
+            <span class="resumo__valor">{{ item.desfecho.valorAprovado != null ? (item.desfecho.valorAprovado | currency: 'BRL') : '—' }}</span>
+            <span class="resumo__legenda">{{ legendaAutorizado(item) }}</span>
+          </div>
+        </div>
+        <button type="button" class="resumo resumo--clicavel text-left" (click)="irPara('documentos')"
+          [attr.data-tone]="tomDocumentos(item)" aria-label="Ir para Documentos & Comprovantes">
+          <div class="resumo__topo">
+            <span class="resumo__rotulo">Documentos</span>
+            <span class="resumo__icone"><i class="pi pi-paperclip" aria-hidden="true"></i></span>
+          </div>
+          <div>
+            <span class="resumo__valor">{{ item.documentos.length }}</span>
+            <span class="resumo__legenda">{{ legendaDocumentos(item) }}</span>
+          </div>
+        </button>
+        <div class="resumo resumo--destaque">
+          <div class="resumo__topo">
+            <span class="resumo__rotulo">{{ prazo().rotulo }}</span>
+            <span class="resumo__icone"><i [class]="prazo().icone" aria-hidden="true"></i></span>
+          </div>
+          <div>
+            <span class="resumo__valor">{{ prazo().valor }}</span>
+            <span class="resumo__legenda">{{ prazo().legenda }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. PONTOS DE ATENÇÃO -->
+      @if (atencao().length) {
+        <div class="mb-8 print:mb-4 page-break-inside-avoid">
+          <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Pontos de Atenção</span>
+            @if (item.status === 'SOLICITADO') {
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">(confira antes de decidir)</span>
+            }
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 print:grid-cols-2 print:gap-2">
+            @for (ponto of atencao(); track ponto.titulo) {
+              <div class="destaque rounded-xl border p-3.5 flex items-start gap-3 print:p-2" [attr.data-tone]="ponto.tom">
+                <div class="destaque__icone w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border"><i class="text-sm" [class]="ponto.icone"></i></div>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-xs font-bold uppercase tracking-wider">{{ ponto.titulo }}</span>
+                  <span class="text-[11px] font-medium opacity-90">{{ ponto.texto }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- 6. COMPRA DE ORIGEM -->
+      @if (item.compraVinculada; as compra) {
+        <div class="mb-8 print:mb-4 page-break-inside-avoid">
+          <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Compra de Origem</span>
+          </div>
+          <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs bg-white dark:bg-slate-900/60 print:border-slate-300">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-50 dark:bg-slate-800/80 print:bg-slate-100 border-b border-slate-200 dark:border-slate-700 print:border-slate-300">
+                  <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider w-28">Compra</th>
+                  <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider">Descrição</th>
+                  <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-center">Situação</th>
+                  <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-right">Autorizado na compra</th>
+                  <th class="py-2.5 px-3 text-[10px] font-bold text-slate-700 dark:text-slate-200 print:text-slate-700 uppercase tracking-wider text-right">Este pagamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="py-2.5 px-3">
+                    <button type="button" (click)="abrirCompra(compra.id)" class="font-mono font-bold text-primary-600 dark:text-primary-400 print:text-black hover:underline cursor-pointer">nº {{ compra.numero }}</button>
+                  </td>
+                  <td class="py-2.5 px-3 text-slate-800 dark:text-slate-200 print:text-black font-medium">{{ compra.descricao || '—' }}</td>
+                  <td class="py-2.5 px-3 text-center"><ces-status [tone]="tomStatus[compra.status]">{{ rotuloStatus[compra.status] }}</ces-status></td>
+                  <td class="py-2.5 px-3 text-right font-mono text-slate-900 dark:text-slate-100 print:text-black">{{ compra.valorAprovado == null ? '—' : (compra.valorAprovado | currency: 'BRL') }}</td>
+                  <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100 print:text-black">{{ item.valor | currency: 'BRL' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- 7. DADOS DA SOLICITAÇÃO (blocos do formulário, na ordem em que foram preenchidos) -->
+      <div class="mb-8 print:mb-4">
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 print:text-black">Dados da Solicitação</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 print:text-slate-600 font-medium">(como foram preenchidos no formulário)</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 print:grid-cols-2 print:gap-2">
+          @for (grupo of blocos(); track grupo.grupo) {
+            <div class="bloco page-break-inside-avoid" [class.md:col-span-2]="grupo.largo" [class.print:col-span-2]="grupo.largo">
+              <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 print:border-slate-300 pb-2 mb-1">
+                <i class="text-primary-500 text-xs" [class]="icone(grupo.grupo)"></i>
+                <span class="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-black uppercase tracking-wider">{{ grupo.rotulo }}</span>
+              </div>
+              @for (campo of grupo.campos; track campo.id) {
+                @if (campo.tipoCampo === 'TEXTO_LONGO') {
+                  <div class="flex flex-col gap-1 py-1.5">
+                    <span class="kv-l">{{ campo.rotulo }}</span>
+                    <p class="texto-longo">{{ item.valores[campo.chave].exibicao }}</p>
+                  </div>
+                } @else {
+                  <div class="kv py-1.5">
+                    <span class="kv-l">{{ campo.rotulo }}</span>
+                    @if (podeInspecionarCampo(campo)) {
+                      <button type="button" class="kv-v kv-link" [title]="'Ver outras solicitações de ' + item.valores[campo.chave].exibicao"
+                        (click)="inspecionarCampo(campo, item.valores[campo.chave])">{{ item.valores[campo.chave].exibicao }}</button>
+                    } @else {
+                      <span class="kv-v kv-v--wrap">{{ item.valores[campo.chave].exibicao }}</span>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          } @empty {
+            <p class="text-[11px] text-slate-400 dark:text-slate-500 italic">Nenhum campo preenchido.</p>
+          }
+        </div>
+      </div>
+
+      <!-- 8. DOCUMENTOS & COMPROVANTES -->
+      <div id="documentos" class="mb-8 print:hidden scroll-mt-6">
+        <div class="flex items-center gap-2 mb-3 border-l-2 border-primary-500 pl-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">Documentos &amp; Comprovantes</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">(nota, boleto, orçamento e comprovantes; podem chegar depois da aprovação)</span>
+        </div>
+        <app-solicitacao-documentos [tipo]="tipo" [solicitacao]="item" [comTitulo]="false"
+          (atualizada)="documentosAtualizados($event)" />
+      </div>
+      <!-- No papel entra só a lista do que foi anexado. -->
+      @if (item.documentos.length) {
+        <div class="hidden print:block mb-4 page-break-inside-avoid">
+          <div class="flex items-center gap-2 mb-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-black">Documentos Anexados</span>
+          </div>
+          <table class="w-full text-left border-collapse text-[10px] border border-slate-300">
+            <thead>
+              <tr class="bg-slate-100 border-b border-slate-300">
+                <th class="py-1.5 px-2 uppercase">Arquivo</th>
+                <th class="py-1.5 px-2 uppercase">Tipo</th>
+                <th class="py-1.5 px-2 uppercase">Situação</th>
+                <th class="py-1.5 px-2 uppercase text-right">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (doc of item.documentos; track doc.id) {
+                <tr class="border-b border-slate-200">
+                  <td class="py-1.5 px-2">{{ doc.nomeArquivo }}</td>
+                  <td class="py-1.5 px-2">{{ doc.tipoRotulo || doc.tipo }}</td>
+                  <td class="py-1.5 px-2">{{ doc.situacaoRotulo || doc.situacao }}</td>
+                  <td class="py-1.5 px-2 text-right">{{ doc.valor != null ? (doc.valor | currency: 'BRL') : '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <!-- 9. HISTÓRICO DE DECISÕES (LINHA DO TEMPO) -->
+      <div class="mb-8 print:hidden">
+        <p-accordion [value]="historicoAberto()" (valueChange)="historicoAberto.set($event)">
+          <p-accordion-panel value="historico">
+            <p-accordion-header class="!box-border">
+              <div class="flex items-center justify-between w-full gap-3 min-w-0 pr-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                    <i class="pi pi-history text-slate-600 dark:text-slate-300 text-sm"></i>
+                  </div>
+                  <div class="flex flex-col gap-0.5 min-w-0 text-left">
+                    <span class="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100">Linha do tempo da solicitação</span>
+                    <span class="text-xs text-slate-600 dark:text-slate-300 font-normal">Abertura, envio, decisões e decisões desfeitas: quem, quando e por quê.</span>
+                  </div>
+                </div>
+                <ces-status [tone]="decisoesDesfeitas() ? 'warning' : 'neutral'" [icon]="decisoesDesfeitas() ? 'pi-undo' : undefined">{{ resumoHistorico() }}</ces-status>
+              </div>
+            </p-accordion-header>
+            <p-accordion-content>
+              <div class="pt-3">
+                <app-solicitacao-financeira-historico [eventos]="historico()" [carregando]="historicoCarregando()"
+                  [erro]="historicoErro()" (recarregar)="carregarHistorico()" />
+              </div>
+            </p-accordion-content>
+          </p-accordion-panel>
+        </p-accordion>
+      </div>
+      <!-- Na impressão a linha do tempo sai aberta: o papel precisa mostrar decisões desfeitas. -->
+      <div class="hidden print:block mb-4 page-break-inside-avoid">
+        <div class="flex items-center gap-2 mb-2 border-l-2 border-primary-500 pl-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-black">Linha do tempo</span>
+          <span class="text-[11px] text-slate-600 font-medium">({{ resumoHistorico().toLowerCase() }})</span>
+        </div>
+        <app-solicitacao-financeira-historico [eventos]="historico()" />
+      </div>
+
+      <!-- 10. RODAPÉ DE EMISSÃO -->
+      <footer class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-600 dark:text-slate-300 print:mt-4 print:pt-2">
+        <div class="flex flex-col gap-0.5">
+          <span>Aberta em: <strong class="text-slate-900 dark:text-slate-100">{{ item.dataCriacao | date: 'dd/MM/yyyy HH:mm' }}</strong></span>
+          <span>Emitido em: <strong class="text-slate-900 dark:text-slate-100">{{ emitidoEm | date: 'dd/MM/yyyy HH:mm' }}</strong></span>
+        </div>
+        <div class="text-right font-semibold text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Documento emitido eletronicamente via Sistema Nexo · Financeiro
+        </div>
+      </footer>
+    </div>
+
+    <!-- 11. AÇÕES FLUTUANTES: navegação e impressão à esquerda, a decisão por último. -->
+    <!-- No celular só ficam as ações sobre a solicitação; voltar e imprimir são do navegador. -->
+    <div class="barra-acoes fixed inset-x-0 bottom-0 px-4 pb-4 pt-6 md:inset-x-auto md:bottom-8 md:right-12 md:p-0 flex items-center justify-end flex-wrap gap-2.5 print:hidden animate-in slide-in-from-right-4 duration-500 z-50">
+      <p-button icon="pi pi-arrow-left" label="VOLTAR" (onClick)="voltar()"
+        styleClass="!hidden md:!inline-flex !rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></p-button>
+      <p-button icon="pi pi-print" label="IMPRIMIR" (onClick)="imprimir()"
+        styleClass="!hidden md:!inline-flex !rounded-lg !bg-[var(--report-action-strong-bg)] !border-[var(--report-action-strong-bg)] !text-white !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--report-action-strong-bg-hover)] cursor-pointer"></p-button>
+      @if (item.acoes.podeEditar) {
+        <p-button icon="pi pi-pencil" label="EDITAR" (onClick)="editar()"
+          styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></p-button>
+      }
+      @if (item.acoes.podeCancelar) {
+        <p-button icon="pi pi-ban" label="CANCELAR SOLICITAÇÃO" (onClick)="abrirAcao('CANCELAR')"
+          styleClass="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-danger)] !text-[var(--ces-danger-text)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-danger-soft)] cursor-pointer"></p-button>
+      }
+      @if (item.acoes.podeSubmeter) {
+        <p-button icon="pi pi-send" label="ENVIAR PARA APROVAÇÃO" [loading]="processando()" (onClick)="submeter()"
+          styleClass="!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-primary-700 cursor-pointer"></p-button>
+      }
+      @if (item.acoes.podeDesfazerDecisao && podeDecidir) {
+        <p-button icon="pi pi-undo" label="DESFAZER DECISÃO" (onClick)="abrirAcao('DESFAZER')"
+          styleClass="!rounded-lg !bg-[var(--ces-warning)] !border-[var(--ces-warning)] !text-white !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-warning-hover)] cursor-pointer"></p-button>
+      }
+      @if (item.acoes.podeDecidir && podeDecidir) {
+        <p-button icon="pi pi-times" label="REJEITAR" (onClick)="abrirAcao('REJEITAR')"
+          styleClass="!rounded-lg !bg-[var(--ces-danger)] !border-[var(--ces-danger)] !text-white !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-danger-hover)] cursor-pointer"></p-button>
+        <p-button icon="pi pi-check" label="APROVAR" (onClick)="abrirAcao('APROVAR')"
+          styleClass="!rounded-lg !bg-[var(--ces-success)] !border-[var(--ces-success)] !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-[var(--ces-success-hover)] cursor-pointer"></p-button>
+      }
+      @if (item.acoes.podeDecidir && !podeDecidir) {
+        <ces-status tone="warning" icon="pi-lock">Sem permissão para decidir</ces-status>
+      }
+    </div>
+
+    <app-solicitacao-decisao-drawer [(visivel)]="drawerAberto" [acao]="acao()" [solicitacao]="item"
+      [processando]="processando()" (confirmado)="confirmar($event)" />
+  }
+</div>

@@ -1,0 +1,373 @@
+<div class="flex flex-col gap-4 pb-28">
+  <div class="flex items-center justify-between">
+    <p-breadcrumb [model]="breadcrumb" styleClass="!bg-transparent !border-0 !p-0" />
+    <p-button
+      icon="pi pi-arrow-left"
+      label="Voltar para a lista"
+      [text]="true"
+      severity="secondary"
+      (onClick)="sair()"
+      styleClass="!text-slate-400 !text-[10px] !font-medium"
+    />
+  </div>
+
+  @if (carregando()) {
+    <div class="flex min-h-96 flex-col items-center justify-center gap-3 rounded-2xl border border-slate-100 bg-white">
+      <p-progress-spinner strokeWidth="3" [style]="{ width: '36px', height: '36px' }" />
+      <span class="text-[11px] text-slate-400">Carregando a política...</span>
+    </div>
+  } @else if (loadError()) {
+    <div class="form-shell mx-auto w-full max-w-4xl p-6">
+      <ces-async-state
+        state="error"
+        title="Não foi possível carregar a política"
+        [description]="loadError()"
+        actionLabel="Tentar novamente"
+        actionIcon="pi pi-refresh"
+        (action)="carregar()"
+      ></ces-async-state>
+    </div>
+  } @else {
+    <div class="form-shell mx-auto w-full max-w-4xl">
+      <div class="form-shell__header">
+        <div class="mb-3 flex items-center gap-2">
+          <i class="pi pi-sitemap text-xs text-primary-700"></i>
+          <span class="text-[10px] font-medium uppercase tracking-widest text-gray-500">
+            {{ edicao() ? 'Editar política' : 'Nova política' }}
+          </span>
+        </div>
+        <h1 class="text-base font-medium text-slate-800">Quem recebe em cada situação</h1>
+        <p class="mt-1 text-[11px] text-slate-400">
+          Escolha o evento, organize as rotas na ordem de avaliação e defina o usuário do caso contrário.
+        </p>
+      </div>
+
+      <div class="form-shell__body">
+        <p-stepper [(value)]="activeStep">
+          <p-step-list>
+            <p-step [value]="1" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(1)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'">
+                    <i class="pi pi-flag text-[10px]"></i>
+                  </span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Identificação</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="2" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(2)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'">
+                    <i class="pi pi-sitemap text-[10px]"></i>
+                  </span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Rotas</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="3" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" (click)="irPara(3)">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'">
+                    <i class="pi pi-eye text-[10px]"></i>
+                  </span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Revisão</span>
+                </button>
+              </ng-template>
+            </p-step>
+            <p-step [value]="4" class="flex flex-row flex-auto gap-2">
+              <ng-template #content let-value="value">
+                <button type="button" class="step-button" [disabled]="true">
+                  <span class="step-circle" [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'">
+                    <i class="pi pi-check text-[10px]"></i>
+                  </span>
+                  <span class="step-label" [ngClass]="value <= activeStep() ? 'text-primary-700' : 'text-slate-400'">Concluído</span>
+                </button>
+              </ng-template>
+            </p-step>
+          </p-step-list>
+
+          <p-step-panels>
+            <p-step-panel [value]="1">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-6">
+                  @if (edicao()) {
+                    <div class="policy-notice policy-notice--warning">
+                      <i class="pi pi-lock mt-0.5 text-xs"></i>
+                      <span>O gatilho não muda depois que a política existe. As rotas e condições continuam editáveis.</span>
+                    </div>
+                  } @else {
+                    <p class="text-[11px] text-slate-500">
+                      O gatilho define quais informações podem ser usadas nas condições. Somente eventos por ocorrência aceitam políticas de roteamento.
+                    </p>
+                  }
+
+                  <div>
+                    <div class="section-marker"><span>Gatilho</span></div>
+                    <div class="grid grid-cols-1 gap-2 md:grid-cols-2 md:pl-5">
+                      @for (gatilho of gatilhosPorOcorrencia(); track gatilho.chave) {
+                        <button
+                          type="button"
+                          class="choice-card"
+                          [class.choice-card--active]="gatilhoAtual()?.chave === gatilho.chave"
+                          [disabled]="edicao()"
+                          [class.opacity-40]="edicao() && gatilhoAtual()?.chave !== gatilho.chave"
+                          (click)="definirGatilho(gatilho.chave)"
+                        >
+                          <span class="choice-card__icon"><i class="pi pi-bolt text-xs"></i></span>
+                          <span class="min-w-0">
+                            <span class="choice-card__title">{{ gatilho.nome }}</span>
+                            <span class="choice-card__desc">{{ gatilho.descricao }}</span>
+                            <span class="mt-1.5 inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-slate-500">
+                              {{ gatilho.modoRotulo }}
+                            </span>
+                          </span>
+                        </button>
+                      } @empty {
+                        <div class="repeat-empty md:col-span-2">Nenhum gatilho por ocorrência disponível no catálogo do servidor.</div>
+                      }
+                    </div>
+                    @if (erro('chaveGatilho')) {
+                      <p class="form-error mt-2 md:pl-5">{{ erro('chaveGatilho') }}</p>
+                    }
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Identificação</span></div>
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:pl-5">
+                      <ces-text-input
+                        class="md:col-span-2"
+                        label="Nome"
+                        [required]="true"
+                        [maxlength]="120"
+                        placeholder="Ex.: Diretoria financeira por base e frota"
+                        [value]="nome()"
+                        [error]="erro('nome')"
+                        (valueChange)="nome.set($event)"
+                      ></ces-text-input>
+                      <ces-textarea
+                        class="md:col-span-2"
+                        label="Descrição"
+                        [showOptional]="true"
+                        [maxlength]="500"
+                        [rows]="3"
+                        placeholder="Explique quando esta política deve ser utilizada"
+                        [value]="descricao()"
+                        [error]="erro('descricao')"
+                        (valueChange)="descricao.set($event)"
+                      ></ces-textarea>
+                    </div>
+                  </div>
+
+                  <div class="mt-3 flex justify-end">
+                    <p-button label="ROTAS" icon="pi pi-arrow-right" iconPos="right" (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="2">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-5">
+                  <div class="policy-notice policy-notice--info">
+                    <i class="pi pi-info-circle mt-0.5 text-xs"></i>
+                    <span>
+                      As condições da mesma rota são combinadas com <strong>E</strong>. Entre as rotas, vence a primeira satisfeita em ordem crescente. O caso contrário é usado por último.
+                    </span>
+                  </div>
+
+                  @if (resumoErros().length) {
+                    <div class="policy-form-errors" role="alert">
+                      <strong>Revise as rotas</strong>
+                      <ul>
+                        @for (mensagem of resumoErros(); track mensagem) {
+                          <li>{{ mensagem }}</li>
+                        }
+                      </ul>
+                    </div>
+                  }
+
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="section-marker !mb-0"><span>Rotas e condições</span></div>
+                    <ces-button label="Adicionar rota condicional" icon="pi pi-plus" variant="outline" size="sm"
+                      [disabled]="!gatilhoAtual()" (pressed)="adicionarRota()"></ces-button>
+                  </div>
+
+                  @if (erro('rotas')) {
+                    <p class="policy-inline-error" role="alert">{{ erro('rotas') }}</p>
+                  }
+
+                  <div class="flex flex-col gap-3 md:pl-5">
+                    @for (rota of rotasExibidas(); track rota.localId; let exibida = $index) {
+                      <article class="route-card" [class.route-card--default]="rota.padrao">
+                        <header class="route-card__header">
+                          <div>
+                            <div class="flex flex-wrap items-center gap-2">
+                              <h2 class="text-[11px] font-bold text-slate-700">
+                                {{ rota.padrao ? 'Caso contrário' : 'Rota condicional ' + (exibida + 1) }}
+                              </h2>
+                              <ces-status [tone]="rota.padrao ? 'info' : 'brand'">
+                                {{ rota.padrao ? 'Padrão' : 'Ordem ' + rota.ordem }}
+                              </ces-status>
+                            </div>
+                            <p class="mt-1 text-[9px] text-slate-400">
+                              {{ rota.padrao ? 'Usada quando nenhuma rota condicional corresponde.' : 'Todas as condições abaixo precisam ser verdadeiras.' }}
+                            </p>
+                          </div>
+                          @if (!rota.padrao) {
+                            <ces-button label="Remover rota" icon="pi pi-trash" variant="ghost" size="sm"
+                              [disabled]="totalCondicionais() === 1" (pressed)="removerRota(rota.localId)"></ces-button>
+                          }
+                        </header>
+
+                        <div class="route-fields">
+                          <ces-number-input label="Ordem" description="Inteiro único, maior ou igual a zero."
+                            [required]="true" [min]="0" [maxFractionDigits]="0" [value]="rota.ordem"
+                            [error]="erroRota(rota, 'ordem')" (valueChange)="atualizarOrdem(rota.localId, $event)"></ces-number-input>
+                          <ces-text-input label="Pesquisar usuário ativo" description="Nome, login ou e-mail."
+                            placeholder="Digite para pesquisar" [value]="rota.usuarioBusca"
+                            (valueChange)="pesquisarUsuarios(rota.localId, $event)"></ces-text-input>
+                          <ces-select label="Usuário destinatário" [required]="true" [filter]="true"
+                            [options]="usuarioOptions(rota)" [loading]="rota.usuariosLoading" [value]="rota.usuarioId"
+                            [error]="erroRota(rota, 'usuarioId')" (valueChange)="definirUsuario(rota.localId, $event)"></ces-select>
+                        </div>
+
+                        @if (!rota.padrao) {
+                          <div class="conditions-block">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-600">Condições</h3>
+                                <p class="mt-0.5 text-[9px] text-slate-400">Use somente variáveis publicadas pelo gatilho.</p>
+                              </div>
+                              <ces-button label="Adicionar condição" icon="pi pi-plus" variant="ghost" size="sm"
+                                (pressed)="adicionarCondicao(rota.localId)"></ces-button>
+                            </div>
+                            @if (erroRota(rota, 'condicoes')) {
+                              <p class="policy-inline-error" role="alert">{{ erroRota(rota, 'condicoes') }}</p>
+                            }
+                            @for (condicao of rota.condicoes; track condicao.localId) {
+                              <div class="condition-row">
+                                <ces-select label="Campo" [required]="true" [options]="variaveisOptions()"
+                                  [value]="condicao.campo" [error]="erroCondicao(rota, condicao, 'campo')"
+                                  (valueChange)="atualizarCondicao(rota.localId, condicao.localId, { campo: $event || '' })"></ces-select>
+                                <ces-select label="Operador" [required]="true" [options]="operadorOptionsPara(condicao)"
+                                  [value]="condicao.operador"
+                                  (valueChange)="atualizarCondicao(rota.localId, condicao.localId, { operador: $event || 'IGUAL' })"></ces-select>
+                                <ces-text-input label="Valor" [required]="true"
+                                  [value]="condicao.valor" [error]="erroCondicao(rota, condicao, 'valor')"
+                                  (valueChange)="atualizarCondicao(rota.localId, condicao.localId, { valor: $event })"></ces-text-input>
+                                <ces-button label="Remover condição" icon="pi pi-trash" variant="ghost" size="sm"
+                                  [disabled]="rota.condicoes.length === 1"
+                                  (pressed)="removerCondicao(rota.localId, condicao.localId)"></ces-button>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </article>
+                    }
+                  </div>
+
+                  <div class="mt-2 flex justify-between">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button label="REVISAR" icon="pi pi-arrow-right" iconPos="right" (onClick)="proximaEtapa()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]" />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="3">
+              <ng-template #content>
+                <div class="mt-6 flex flex-col gap-6">
+                  <div>
+                    <div class="section-marker"><span>Revise antes de gravar</span></div>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 md:pl-5">
+                      <div class="review-card"><span>Política</span><p>{{ nome() }}</p></div>
+                      <div class="review-card"><span>Gatilho</span><p>{{ gatilhoAtual()?.nome }}</p></div>
+                      @if (descricao()) {
+                        <div class="review-card md:col-span-2"><span>Descrição</span><p>{{ descricao() }}</p></div>
+                      }
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="section-marker"><span>Sequência de roteamento</span></div>
+                    <div class="flex flex-col gap-2 md:pl-5">
+                      @for (rota of rotasExibidas(); track rota.localId; let exibida = $index) {
+                        <div class="review-route">
+                          <div class="review-route__order">{{ rota.padrao ? '↳' : rota.ordem }}</div>
+                          <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                              <strong>{{ rota.padrao ? 'Caso contrário' : 'Rota condicional ' + (exibida + 1) }}</strong>
+                              <span>{{ nomeUsuario(rota) }}</span>
+                            </div>
+                            @if (rota.padrao) {
+                              <p>Se nenhuma rota anterior corresponder.</p>
+                            } @else {
+                              <ul class="review-route__conditions">
+                                @for (condicao of rota.condicoes; track condicao.localId) {
+                                  <li>
+                                    <code>{{ condicao.campo }}</code>
+                                    {{ rotuloOperador(condicao) }}
+                                    <code>{{ condicao.valor }}</code>
+                                  </li>
+                                }
+                              </ul>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <div class="mt-2 flex justify-between">
+                    <p-button label="VOLTAR" icon="pi pi-arrow-left" [text]="true" (onClick)="etapaAnterior()"
+                      styleClass="!text-primary-700 !font-bold !text-[10px]" />
+                    <p-button [label]="edicao() ? 'SALVAR ALTERAÇÕES' : 'CRIAR POLÍTICA'" icon="pi pi-check"
+                      [loading]="salvando()" (onClick)="salvar()"
+                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]" />
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+
+            <p-step-panel [value]="4">
+              <ng-template #content>
+                @if (gravada(); as politica) {
+                  <div class="mt-6 flex flex-col gap-6">
+                    <div class="policy-success">
+                      <i class="pi pi-check-circle mt-0.5 text-primary-700"></i>
+                      <div>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-primary-700">
+                          {{ politica.ativo ? 'Política ativa' : 'Política desativada' }}
+                        </p>
+                        <p class="mt-1 text-sm font-bold text-primary-700">{{ politica.nome }}</p>
+                        <p class="mt-1 text-[10px] text-primary-700">
+                          @if (politica.ativo) {
+                            Ela já pode ser selecionada nas regras do gatilho "{{ politica.chaveGatilho }}".
+                          } @else {
+                            Ela está gravada, mas precisa ser ativada antes de ser associada a uma regra.
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-5">
+                      <p-button [label]="politica.ativo ? 'DESATIVAR' : 'ATIVAR'"
+                        [icon]="politica.ativo ? 'pi pi-times-circle' : 'pi pi-check-circle'" [text]="true"
+                        (onClick)="alternarAtivacao()" styleClass="!text-slate-500 !font-bold !text-[10px]" />
+                      <p-button label="VOLTAR PARA A LISTA" icon="pi pi-arrow-right" iconPos="right" (onClick)="sair()"
+                        styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]" />
+                    </div>
+                  </div>
+                }
+              </ng-template>
+            </p-step-panel>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </div>
+  }
+</div>

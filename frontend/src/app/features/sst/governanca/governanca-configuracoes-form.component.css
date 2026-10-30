@@ -1,0 +1,57 @@
+.form-shell{max-width:68rem;margin-inline:auto}.form-header{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.5rem 1.75rem;border-bottom:1px solid #f1f5f9}
+:host-context(.app-dark) .form-header,:host-context(.dark) .form-header{border-bottom-color:var(--ces-border,#334155)}
+.context-badge{display:flex;min-width:13rem;align-items:center;gap:.65rem;border:1px solid var(--p-primary-100);border-radius:.75rem;background:var(--p-primary-50);padding:.65rem .8rem;color:var(--p-primary-600)}
+:host-context(.app-dark) .context-badge,:host-context(.dark) .context-badge{border-color:#334155;background:#1e293b;color:var(--p-primary-400)}
+.context-badge.brigada{border-color:#fed7aa;background:#fff7ed;color:#c2410c}
+:host-context(.app-dark) .context-badge.brigada,:host-context(.dark) .context-badge.brigada{border-color:#7c2d12;background:rgba(194,65,12,0.2);color:#fb923c}
+.context-badge>i{display:grid;width:1.8rem;height:1.8rem;place-items:center;border-radius:.5rem;background:#fff}
+:host-context(.app-dark) .context-badge>i,:host-context(.dark) .context-badge>i{background:#0f172a}
+.context-badge small,.context-badge strong{display:block}.context-badge small{font-size:8px}.context-badge strong{margin-top:.1rem;font-size:10px}
+.form-body{display:flex;flex-direction:column;gap:1.5rem;padding:1.5rem 1.75rem 2rem}
+.form-intro{padding-left:.75rem;border-left:2px solid var(--p-primary-500)}
+:host-context(.app-dark) .form-intro,:host-context(.dark) .form-intro{border-left-color:var(--p-primary-500)}
+.form-intro>span{color:var(--p-primary-600);font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+:host-context(.app-dark) .form-intro>span,:host-context(.dark) .form-intro>span{color:var(--p-primary-400)}
+.form-intro h2{margin-top:.15rem;color:#334155;font-size:14px;font-weight:500}
+:host-context(.app-dark) .form-intro h2,:host-context(.dark) .form-intro h2{color:#ffffff}
+.form-intro p{margin-top:.2rem;color:#64748b;font-size:10px;line-height:1rem}
+:host-context(.app-dark) .form-intro p,:host-context(.dark) .form-intro p{color:#94a3b8}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.field{display:flex;min-width:0;flex-direction:column;gap:.375rem}.field.wide{grid-column:1/-1}
+.field>label{color:#64748b;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+:host-context(.app-dark) .field>label,:host-context(.dark) .field>label{color:var(--p-primary-400)}
+.field-help{color:#94a3b8;font-size:9px}
+.subsection{display:flex;flex-direction:column;gap:.8rem;padding-top:1.25rem;border-top:1px solid #f1f5f9}
+:host-context(.app-dark) .subsection,:host-context(.dark) .subsection{border-top-color:#334155}
+.subsection-head{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.subsection-head span{color:#475569;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+:host-context(.app-dark) .subsection-head span,:host-context(.dark) .subsection-head span{color:#ffffff}
+.subsection-head p{margin-top:.2rem;color:#94a3b8;font-size:9px}
+.section-list{display:flex;flex-direction:column;gap:.45rem}
+.section-item{display:grid;grid-template-columns:1.75rem minmax(10rem,.7fr) minmax(12rem,1fr) auto auto;align-items:end;gap:.6rem;padding:.7rem;border:1px solid #f1f5f9;border-radius:.65rem;background:#f8fafc40}
+:host-context(.app-dark) .section-item,:host-context(.dark) .section-item{border-color:#334155;background:#1e293b}
+.section-order{display:grid;width:1.75rem;height:1.75rem;place-items:center;align-self:center;border-radius:9999px;background:var(--p-primary-50);color:var(--p-primary-700);font-size:9px;font-weight:700}
+:host-context(.app-dark) .section-order,:host-context(.dark) .section-order{background:rgba(59,130,246,0.16);color:var(--p-primary-400)}
+.check-label{display:flex;align-items:center;gap:.35rem;min-height:30px;color:#64748b;font-size:9px;white-space:nowrap}
+.row-actions,.publish-actions{display:flex;align-items:center;gap:.25rem}
+.publish-panel{padding:1rem;border:1px solid #e2e8f0;border-radius:.75rem;background:#f8fafc}
+:host-context(.app-dark) .publish-panel,:host-context(.dark) .publish-panel{border-color:#334155;background:#1e293b}
+.publish-actions{flex-wrap:wrap}
+.preview{max-height:25rem;overflow:auto;white-space:pre-wrap;border:1px solid #e2e8f0;border-radius:.6rem;background:#fff;padding:1rem;color:#334155;font:10px/1.55 inherit}
+:host-context(.app-dark) .preview,:host-context(.dark) .preview{border-color:#334155;background:#0f172a;color:#ffffff}
+.form-footer{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:1rem 1.75rem;border-top:1px solid #f1f5f9;background:#fff}
+:host-context(.app-dark) .form-footer,:host-context(.dark) .form-footer{border-top-color:#334155;background:#0f172a}
+:host ::ng-deep .field .p-inputtext,:host ::ng-deep .field .p-select,:host ::ng-deep .field .p-datepicker{width:100%;border-color:#e2e8f0}
+:host-context(.app-dark) ::ng-deep .field .p-inputtext,:host-context(.dark) ::ng-deep .field .p-inputtext,:host-context(.app-dark) ::ng-deep .field .p-select,:host-context(.dark) ::ng-deep .field .p-select,:host-context(.app-dark) ::ng-deep .field .p-datepicker,:host-context(.dark) ::ng-deep .field .p-datepicker{border-color:#334155!important}
+:host ::ng-deep .field input.p-inputtext,:host ::ng-deep .custom-select .p-select,:host ::ng-deep .custom-select .p-select-label,:host ::ng-deep .custom-date .p-inputtext{height:30px!important;border-radius:8px!important;font-size:10px!important}
+:host ::ng-deep .custom-select .p-select-label{display:flex;align-items:center;padding-block:0}
+:host ::ng-deep .custom-date.p-datepicker,:host ::ng-deep .custom-date .p-datepicker{width:100%;border-radius:8px!important}
+:host ::ng-deep .custom-date .p-inputtext{padding:0 .75rem!important}
+:host ::ng-deep .p-datepicker-button-icon{font-size:10px!important}
+:host ::ng-deep textarea.p-inputtext{width:100%;min-height:4.5rem;border-color:#e2e8f0;border-radius:8px;font-size:10px;line-height:1rem}
+:host-context(.app-dark) ::ng-deep textarea.p-inputtext,:host-context(.dark) ::ng-deep textarea.p-inputtext{border-color:#334155}
+:host ::ng-deep .footer-back{color:var(--p-primary-600)!important;font-size:10px!important;font-weight:700!important}
+:host-context(.app-dark) ::ng-deep .footer-back,:host-context(.dark) ::ng-deep .footer-back{color:var(--p-primary-400)!important}
+:host ::ng-deep .footer-save{justify-content:center;border-color:var(--p-primary-600)!important;border-radius:.5rem!important;background:var(--p-primary-600)!important;padding:.625rem 2rem!important;color:#fff!important;font-size:10px!important;font-weight:700!important}
+:host-context(.app-dark) ::ng-deep .footer-save,:host-context(.dark) ::ng-deep .footer-save{border-color:var(--p-primary-600)!important;background:var(--p-primary-600)!important}
+@media(max-width:640px){.form-footer{padding:1rem 1.15rem}:host ::ng-deep .footer-save{min-width:0;flex:1}}

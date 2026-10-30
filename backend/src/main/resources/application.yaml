@@ -1,0 +1,314 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  max-http-request-header-size: 26KB
+
+spring:
+  application:
+    name: nexo-core
+
+  # Facilita o desenvolvimento local. O arquivo e opcional, nao e empacotado
+  # e variaveis reais do ambiente continuam tendo precedencia sobre seus valores.
+  config:
+    import:
+      - "classpath:navigation-actions.yaml"
+      - "optional:file:./.env[.properties]"
+
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: false
+      jdbc:
+        schema-initialization:
+          enabled: false
+
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    # Em deploy, DB_* tem precedencia. No desenvolvimento local, reutiliza as
+    # mesmas POSTGRES_* carregadas do .env pelo Docker Compose.
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/${POSTGRES_DB:ces-db}}
+    username: ${DB_USER:${POSTGRES_USER:postgres}}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        # Relações e coleções lazy carregam em lotes (IN com até 50 ids) em vez de uma
+        # consulta por linha: listas de notas, turnos e equipes deixam de fazer N+1.
+        default_batch_fetch_size: 50
+    #properties:
+      #hibernate:
+        #format_sql: true
+        #jdbc:
+          #time_zone: UTC
+        #type:
+          #json_format: Jackson
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: true
+    fail-on-missing-locations: true
+
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+  jackson:
+    default-property-inclusion: non_null
+
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      # O intake durável recebe snapshots JSON com anexos em Base64. Um arquivo de
+      # 15 MB ocupa aproximadamente 20 MB no JSON, além de envelope e metadados.
+      max-request-size: 32MB
+
+  # O provider permanece desligado no baseline; a configuracao Nexo abaixo e o kill switch efetivo.
+  ai:
+    model:
+      chat: ${AI_CHAT_PROVIDER:none}
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+    openai:
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      api-key: ${DEEPSEEK_API_KEY:disabled}
+      timeout: ${AI_TIMEOUT_SECONDS:45}s
+      max-retries: ${AI_MAX_RETRIES:2}
+      chat:
+        options:
+          model: ${DEEPSEEK_MODEL:deepseek-chat}
+          temperature: ${DEEPSEEK_TEMPERATURE:0.1}
+          parallel-tool-calls: false
+
+# CONFIGURACOES DE SEGURANCA E NEGOCIO
+ces:
+  turno:
+    # Turno esquecido aberto no horario de corte e encerrado pelo servidor; o fim vira o do ultimo lancamento.
+    encerramento-automatico:
+      habilitado: ${CES_TURNO_ENCERRAMENTO_AUTOMATICO_HABILITADO:true}
+      horario-corte: ${CES_TURNO_HORARIO_CORTE:22:00}
+      zona: ${CES_TURNO_ZONA:America/Sao_Paulo}
+      cron: ${CES_TURNO_ENCERRAMENTO_CRON:0 */10 * * * *}
+  lookup:
+    rate-limit:
+      enabled: ${CES_LOOKUP_RATE_LIMIT_ENABLED:true}
+      requests-per-minute: ${CES_LOOKUP_RATE_LIMIT_REQUESTS_PER_MINUTE:300}
+      window: ${CES_LOOKUP_RATE_LIMIT_WINDOW:PT1M}
+  auditoria-solicitacao:
+    versao-ativa: ${CES_AUDITORIA_SOLICITACAO_VERSAO_ATIVA}
+    chaves:
+      v1: ${CES_AUDITORIA_SOLICITACAO_CHAVE_V1}
+  estoque:
+    solicitacoes-tecnicas:
+      enabled: ${CES_ESTOQUE_SOLICITACOES_TECNICAS_ENABLED:false}
+  assistente:
+    enabled: ${AI_ENABLED:false}
+    max-history-messages: ${AI_MAX_HISTORY_MESSAGES:40}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:45}
+    discount-min-sample: ${AI_DISCOUNT_MIN_SAMPLE:10}
+    # Provedor de modelo do Copiloto: qualquer API compativel com OpenAI Chat Completions.
+    # O ambiente atual usa Fireworks (DeepSeek V4 Flash hospedado). As variaveis DEEPSEEK_* sao
+    # reaproveitadas apenas por compatibilidade com o .env existente; AI_LLM_* tem precedencia e
+    # permite trocar de provedor/modelo (OpenAI, Azure, OpenRouter, Groq, Ollama...) sem mudar codigo.
+    llm:
+      base-url: ${AI_LLM_BASE_URL:${DEEPSEEK_BASE_URL:https://api.fireworks.ai/inference/v1}}
+      api-key: ${AI_LLM_API_KEY:${DEEPSEEK_API_KEY:}}
+      model: ${AI_LLM_MODEL:${DEEPSEEK_MODEL:accounts/fireworks/models/deepseek-v4-flash-0731}}
+      # Opcional: modelo usado automaticamente quando o provedor responde que o principal saiu do ar
+      # (ex.: accounts/fireworks/models/deepseek-v4p1-flash). Vazio = sem troca automatica.
+      fallback-model: ${AI_LLM_FALLBACK_MODEL:}
+      title-model: ${AI_LLM_TITLE_MODEL:}
+      # Vazio = padrao do provedor (DeepSeek V4 na Fireworks: raciocinio ligado no nivel low).
+      # O raciocinio nunca e exibido nem persistido; so e devolvido ao modelo dentro do mesmo turno.
+      reasoning-effort: ${AI_LLM_REASONING_EFFORT:}
+      title-reasoning-effort: ${AI_LLM_TITLE_REASONING_EFFORT:none}
+      temperature: ${AI_LLM_TEMPERATURE:${DEEPSEEK_TEMPERATURE:0.1}}
+      max-output-tokens: ${AI_LLM_MAX_OUTPUT_TOKENS:6000}
+      max-input-tokens: ${AI_LLM_MAX_INPUT_TOKENS:120000}
+      connect-timeout-seconds: ${AI_LLM_CONNECT_TIMEOUT_SECONDS:15}
+      first-token-timeout-seconds: ${AI_TIMEOUT_SECONDS:45}
+      stream-idle-timeout-seconds: ${AI_LLM_STREAM_IDLE_TIMEOUT_SECONDS:90}
+      max-retries: ${AI_MAX_RETRIES:2}
+      parallel-tool-calls: ${AI_LLM_PARALLEL_TOOL_CALLS:true}
+      supports-vision: ${AI_LLM_SUPPORTS_VISION:false}
+      input-cost-per-million-tokens: ${AI_LLM_INPUT_COST_PER_MTOK:0}
+      output-cost-per-million-tokens: ${AI_LLM_OUTPUT_COST_PER_MTOK:0}
+    agent:
+      max-cycles: ${AI_AGENT_MAX_CYCLES:16}
+      max-tool-calls: ${AI_AGENT_MAX_TOOL_CALLS:60}
+      max-run-seconds: ${AI_AGENT_MAX_RUN_SECONDS:900}
+      tool-result-max-chars: ${AI_AGENT_TOOL_RESULT_MAX_CHARS:24000}
+      max-consecutive-tool-failures: ${AI_AGENT_MAX_CONSECUTIVE_TOOL_FAILURES:3}
+      max-concurrent-runs: ${AI_AGENT_MAX_CONCURRENT_RUNS:24}
+    sql:
+      enabled: ${AI_SQL_ENABLED:true}
+      schema: copiloto
+      statement-timeout-ms: ${AI_SQL_TIMEOUT_MS:15000}
+      max-rows: ${AI_SQL_MAX_ROWS:5000}
+      max-concurrent-queries: ${AI_SQL_MAX_CONCURRENT_QUERIES:3}
+      # Opcional: role PostgreSQL com SELECT apenas no schema copiloto (defesa em profundidade).
+      role: ${AI_SQL_ROLE:}
+    code-interpreter:
+      # Servico de sandbox Python do Onyx (imagem onyxdotapp/code-interpreter). Vazio = Python indisponivel.
+      base-url: ${CODE_INTERPRETER_BASE_URL:}
+      timeout-ms: ${CODE_INTERPRETER_TIMEOUT_MS:60000}
+      max-output-chars: ${CODE_INTERPRETER_MAX_OUTPUT_LENGTH:50000}
+      max-staged-files: ${CODE_INTERPRETER_MAX_STAGED_FILES:25}
+      max-staged-bytes: ${CODE_INTERPRETER_MAX_STAGED_BYTES:104857600}
+    web-search:
+      # serper | brave | tavily | google_pse | exa | searxng. Vazio = pesquisa web indisponivel.
+      provider: ${AI_WEB_SEARCH_PROVIDER:}
+      api-key: ${AI_WEB_SEARCH_API_KEY:}
+      google-cx: ${AI_WEB_SEARCH_GOOGLE_CX:}
+      searxng-url: ${AI_WEB_SEARCH_SEARXNG_URL:}
+      max-results: ${AI_WEB_SEARCH_MAX_RESULTS:10}
+      open-url-enabled: ${AI_OPEN_URL_ENABLED:true}
+    arquivos:
+      # banco (padrao, sem dependencia externa) | r2 (ObjectStorageService / Cloudflare R2)
+      armazenamento: ${AI_FILES_STORAGE:banco}
+      max-bytes: ${AI_FILES_MAX_BYTES:15728640}
+      texto-max-chars: ${AI_FILES_TEXT_MAX_CHARS:400000}
+      planilha-max-linhas: ${AI_FILES_SHEET_MAX_ROWS:20000}
+  sst:
+    ata-ai:
+      enabled: ${SST_ATA_AI_ENABLED:true}
+      timeout-seconds: ${SST_ATA_AI_TIMEOUT_SECONDS:60}
+      normalizacao:
+        enabled: ${SST_ATA_NORMALIZATION_ENABLED:true}
+        timeout-seconds: ${SST_ATA_NORMALIZATION_TIMEOUT_SECONDS:60}
+        # Opcional: permite escolher um modelo menor/mais barato sem acoplar o domínio ao fornecedor.
+        model-name: ${SST_ATA_NORMALIZATION_MODEL:}
+        model-version: ${SST_ATA_NORMALIZATION_VERSION:normalizacao-v1}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+
+  # Conexões de IA (servidor MCP em /api/mcp). A URL pública é o endereço que a pessoa
+  # cola no Claude/ChatGPT (o mesmo do app, que encaminha /api e /.well-known ao backend).
+  # Vazio: deduzida da requisição (Host e X-Forwarded-*).
+  conexoes-ia:
+    url-publica: ${CES_URL_PUBLICA:}
+    chamadas-por-minuto: ${CES_MCP_CHAMADAS_POR_MINUTO:120}
+
+  # Execução única de escritas carimbadas com o header Idempotency-Key.
+  idempotencia:
+    # Por quanto tempo a promessa de "não executo de novo" vale. Depois disso, apertar
+    # salvar volta a significar "quero outro registro" — intenção legítima de quem lança
+    # dois descontos parecidos em dias diferentes. 24h cobrem a retentativa de usuário e
+    # a fila offline esperando a rede voltar.
+    janela-horas: ${IDEMPOTENCIA_JANELA_HORAS:24}
+    # Expurgo das reservas vencidas. De madrugada porque não há pressa: reserva vencida
+    # já não bloqueia nada (o ON CONFLICT a retoma na hora); isto só evita a tabela
+    # crescer para sempre.
+    cron-expurgo: ${IDEMPOTENCIA_EXPURGO_CRON:0 20 3 * * *}
+
+  notificacao:
+    # Notificações já resolvidas pelo usuário (lidas ou arquivadas) saem de circulação
+    # depois deste prazo. As não lidas nunca são expurgadas por idade.
+    retencao-dias: ${NOTIFICACAO_RETENCAO_DIAS:90}
+    expurgo-cron: ${NOTIFICACAO_EXPURGO_CRON:0 30 3 * * *}
+    # Varredura das regras por limiar. Situações ("há N pendentes") não emitem evento,
+    # então só uma varredura as detecta; o cooldown de cada regra evita o spam.
+    limiares-cron: ${NOTIFICACAO_LIMIARES_CRON:0 */15 * * * *}
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      # Minutos de vida do token de acesso. Curto de propósito: o aparelho renova sozinho
+      # pela sessão (abaixo) e uma revogação passa a valer em no máximo este tempo.
+      expiration: ${JWT_EXPIRATION:60}
+    sessao:
+      # Sessão do aparelho renovável sem senha. Desliza a cada uso; sem uso por
+      # `inatividade-dias` ela expira, e nunca passa de `duracao-maxima-dias`.
+      inatividade-dias: ${SESSAO_INATIVIDADE_DIAS:30}
+      duracao-maxima-dias: ${SESSAO_DURACAO_MAXIMA_DIAS:90}
+      # false só em desenvolvimento sem HTTPS fora de localhost.
+      cookie-seguro: ${SESSAO_COOKIE_SEGURO:true}
+      expurgo-cron: ${SESSAO_EXPURGO_CRON:0 15 4 * * *}
+    crypto:
+      secret-key: ${CRYPTO_KEY}
+
+  observability:
+    # Dedicated technical credential for private health probes. It is never a
+    # fallback for the user JWT and is intentionally empty by default.
+    technical-token: ${CES_OBSERVABILITY_TECHNICAL_TOKEN:}
+
+  storage:
+    type: local
+    path: ./uploads/assinaturas
+
+  # Cloudflare R2 (S3-compatível) — armazenamento de anexos/evidências (ex.: fotos de desvios SST)
+  r2:
+    account-id: ${R2_ACCOUNT_ID:}
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+    bucket: ${R2_BUCKET:}
+    # Opcional: se vazio, é derivado de account-id (https://<account-id>.r2.cloudflarestorage.com)
+    endpoint: ${R2_ENDPOINT:}
+
+  # ── E-mail ────────────────────────────────────────────────────────────────────
+  # Um provedor por vez, escolhido aqui. NENHUM é o padrão de propósito: ambiente sem
+  # credencial registra o envio no log em vez de disparar e-mail real para a lista de
+  # aprovadores de produção.
+  #
+  #   SMTP   → e-mail corporativo da empresa na GoDaddy (ou Google Workspace, M365, relay)
+  #            GoDaddy: smtpout.secureserver.net, porta 587 com STARTTLS
+  #                     ou porta 465 com ssl=true — as duas funcionam, não juntas.
+  #   RESEND → API HTTP. Exige domínio verificado (SPF e DKIM) no painel do Resend.
+  email:
+    provedor: ${EMAIL_PROVEDOR:NENHUM}
+    remetente: ${EMAIL_REMETENTE:nao-responda@exemplo.com.br}
+    remetente-nome: ${EMAIL_REMETENTE_NOME:Nexo — Gestão Operacional}
+    responder-para: ${EMAIL_RESPONDER_PARA:}
+    # Raiz do frontend: é o que transforma o deeplink da notificação no botão do
+    # e-mail. Sem ela o e-mail sai sem link rápido.
+    url-base: ${CES_URL_BASE:}
+    # Opcional: URL pública e absoluta de um logo. Vazio usa a marca em texto, que é
+    # o padrão — imagem em e-mail depende de o cliente aceitar carregar remoto.
+    logo-url: ${EMAIL_LOGO_URL:}
+    # Teto somado dos anexos. Acima disso o arquivo é citado no corpo com o aviso de
+    # que está no sistema, em vez de a mensagem inteira ser recusada pelo servidor.
+    limite-anexos-bytes: ${EMAIL_LIMITE_ANEXOS_BYTES:8388608}
+    reenvio-cron: ${EMAIL_REENVIO_CRON:0 */10 * * * *}
+    smtp:
+      host: ${EMAIL_SMTP_HOST:smtpout.secureserver.net}
+      porta: ${EMAIL_SMTP_PORTA:587}
+      usuario: ${EMAIL_SMTP_USUARIO:}
+      senha: ${EMAIL_SMTP_SENHA:}
+      ssl: ${EMAIL_SMTP_SSL:false}
+      start-tls: ${EMAIL_SMTP_STARTTLS:true}
+    resend:
+      api-key: ${RESEND_API_KEY:}
+
+logging:
+  level:
+    root: INFO
+    org.flywaydb: DEBUG
+    org.springframework.modulith: DEBUG
+    # org.hibernate.SQL: DEBUG
+    # org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,redis

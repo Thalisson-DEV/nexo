@@ -1,0 +1,391 @@
+<app-copiloto-area [contexto]="contextoCopiloto()">
+<main class="dash-page">
+  <div class="dash-shell">
+    <ces-page-header title="Dashboard de turnos" icon="pi pi-clock"
+      [breadcrumb]="[{ label: 'Execução' }, { label: 'Dashboard de turnos' }]"
+      description="Quem está em campo, com qual composição, quanto já lançou no dia e quem está há muito tempo sem lançar uma nota.">
+      <app-copiloto-gatilho actions></app-copiloto-gatilho>
+      @if (data(); as d) {
+        <span actions class="dash-updated" [title]="d.hoje ? 'Atualiza sozinho a cada 2 minutos' : ''">Atualizado às {{ d.geradoEm | date: 'HH:mm' }}</span>
+      }
+      <ces-button actions label="Hoje" icon="pi pi-calendar" variant="outline" (pressed)="hoje()"></ces-button>
+      <ces-button actions label="Produção do mês" icon="pi pi-chart-line" variant="secondary" (pressed)="abrirOperacional()"></ces-button>
+      <ces-button actions label="Atualizar" icon="pi pi-refresh" [loading]="loading()" (pressed)="aplicar()"></ces-button>
+    </ces-page-header>
+
+    <ces-filter-panel storageKey="dash-turnos" [activeCount]="chips().length" [summary]="chips()" [loading]="loading()"
+      (applied)="aplicar()" (cleared)="limpar()" (chipRemoved)="removerFiltro($event)">
+      <div class="ces-filter-grid">
+        <ces-datepicker label="Dia" inputId="turnos-dia" [value]="dia()" (valueChange)="dia.set($event)" [maxDate]="hojeLocal"></ces-datepicker>
+        <ces-multiselect label="Base operacional" inputId="turnos-base" placeholder="Todas" [clearable]="true"
+          selectedItemsLabel="{0} bases" [maxSelectedLabels]="2"
+          [options]="recorte.opcoesBases()" [loading]="recorte.carregando()" [value]="idsBase()" (valueChange)="idsBase.set($event)"></ces-multiselect>
+        <ces-multiselect label="Processo" inputId="turnos-processo" placeholder="Todos" [clearable]="true"
+          selectedItemsLabel="{0} processos" [maxSelectedLabels]="2"
+          [options]="recorte.opcoesProcessos()" [loading]="recorte.carregando()" [value]="idsProcesso()" (valueChange)="idsProcesso.set($event)"></ces-multiselect>
+      </div>
+    </ces-filter-panel>
+
+    @if (loading() && !data()) {
+      <ces-async-state state="loading" title="Lendo os turnos das equipes" description="Abertura, composição e lançamentos do dia."></ces-async-state>
+    } @else if (erro() && !data()) {
+      <ces-async-state state="error" title="Não foi possível carregar os turnos" [description]="erro()!"
+        actionLabel="Tentar novamente" actionIcon="pi pi-refresh" (action)="aplicar()"></ces-async-state>
+    } @else if (data(); as d) {
+      @if (visaoGerencial(); as vg) {
+        <app-dashboard-visao-gerencial [veredito]="vg.veredito" [leituras]="vg.leituras" [copiloto]="copilotoDisponivel"
+          (abrir)="analisar($event.dimension, $event.value)" (perguntar)="perguntarVisao(vg.pergunta)" />
+      }
+
+      <section class="dash-metrics" aria-label="Resumo do dia" [attr.aria-busy]="loading()">
+        <app-dashboard-metric-card [label]="d.hoje ? 'Em turno agora' : 'Equipes com turno'" icon="pi-users" tone="primary"
+          [value]="(d.hoje ? d.resumo.emTurno : d.resumo.emTurno + d.resumo.encerrados) + ' de ' + d.resumo.equipesAtivas"
+          [progress]="d.resumo.equipesAtivas ? ((d.resumo.emTurno + d.resumo.encerrados) / d.resumo.equipesAtivas) * 100 : null"
+          [detail]="detalheTurnos(d)" actionLabel="Analisar turnos" (activate)="analisar('kpi', 'turnos')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'emTurno', rotulo: 'Turnos do dia' }" />
+        </app-dashboard-metric-card>
+
+        <app-dashboard-metric-card label="Produção do dia" icon="pi-wallet" [tone]="tomProducao(d)"
+          [value]="moedaCompacta(d.resumo.producao)" [progress]="d.resumo.percentualMetaDiaria" [detail]="detalheProducao(d)"
+          actionLabel="Analisar produção" (activate)="analisar('kpi', 'producao')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'producao', rotulo: 'Produção do dia' }" />
+        </app-dashboard-metric-card>
+
+        @if (d.hoje) {
+          <app-dashboard-metric-card label="Sem lançar há 2h ou mais" icon="pi-hourglass"
+            [tone]="d.resumo.semLancamentoRecente > 0 ? 'amber' : 'green'" [value]="d.resumo.semLancamentoRecente"
+            [detail]="d.resumo.semLancamentoRecente > 0 ? 'Equipes em turno sem nota recente' : 'Todas as equipes em turno lançaram nas últimas 2h'"
+            actionLabel="Ver tempo sem lançar" (activate)="analisar('kpi', 'sem-lancamento')">
+            <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'semLancamentoRecente', rotulo: 'Equipes sem lançar' }" />
+          </app-dashboard-metric-card>
+        } @else {
+          <app-dashboard-metric-card label="Valor médio por nota" icon="pi-file-check" tone="slate"
+            [value]="d.resumo.notas ? moedaCompacta(d.resumo.producao / d.resumo.notas) : '—'"
+            [detail]="d.resumo.notas + ' notas lançadas no dia'" actionLabel="Analisar valor das notas" (activate)="analisar('kpi', 'ticket')">
+            <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'valorMedioNota', rotulo: 'Valor médio por nota' }" />
+          </app-dashboard-metric-card>
+        }
+
+        <app-dashboard-metric-card label="Sem turno" icon="pi-user-minus"
+          [tone]="d.resumo.semTurno > 0 && d.diaUtil ? 'amber' : 'slate'" [value]="d.resumo.semTurno"
+          [detail]="d.resumo.turnosAbertosDeOutroDia > 0
+            ? d.resumo.turnosAbertosDeOutroDia + ' turno(s) aberto(s) desde outro dia'
+            : (d.diaUtil ? 'Equipes ativas que não abriram turno' : 'Dia não útil')"
+          actionLabel="Ver equipes sem turno" (activate)="analisar('kpi', 'sem-turno')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'semTurno', rotulo: 'Equipes sem turno' }" />
+        </app-dashboard-metric-card>
+      </section>
+
+      @if (serieDoDia().rotulos.length) {
+        <section class="dash-grid" aria-label="Gráfico de produção do dia">
+          <article class="dash-panel dash-col-12">
+            <header class="dash-panel__header">
+              <div>
+                <h2><i class="pi pi-chart-bar ed-panel-icon" aria-hidden="true"></i> Produção do dia × meta diária por equipe</h2>
+                <p>Equipes que abriram turno ou lançaram nota, da maior produção para a menor. Clique numa equipe para ver o turno dela em detalhe.</p>
+              </div>
+              <app-copiloto-perguntar [foco]="{ tipo: 'grafico', id: 'producaoDoDia', rotulo: 'Produção do dia × meta diária por equipe' }" />
+            </header>
+            <ces-chart kind="bar" title="Produção do dia e meta diária por equipe" [showTitle]="false"
+              [labels]="serieDoDia().rotulos" [series]="serieDoDia().series" valueFormat="currency" [height]="280"
+              [selectable]="true" selectLabel="Analisar equipe" (pointSelect)="selecionarEquipe($event)"></ces-chart>
+          </article>
+        </section>
+      }
+
+      <section class="dash-grid" aria-label="Tipos de serviço">
+        <article class="dash-panel dash-col-12">
+          <header class="dash-panel__header">
+            <div>
+              <h2><i class="pi pi-tags ed-panel-icon" aria-hidden="true"></i> Tipos de serviço</h2>
+              <p>Notas do dia pelo tipo de serviço informado no lançamento. Clique num tipo para analisá-lo.</p>
+            </div>
+            <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'tiposServico', rotulo: 'Tipos de serviço' }" />
+          </header>
+          @if (d.tiposServico.length) {
+            <div class="dash-table-wrap">
+              <table class="ed-tipos">
+                <caption class="ed-sr-only">Notas e produção do dia por tipo de serviço</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Tipo</th>
+                    <th scope="col" class="ed-num">Notas</th>
+                    <th scope="col" class="ed-tipos__fatia">Fatia das notas</th>
+                    <th scope="col" class="ed-num">Produção</th>
+                    <th scope="col" class="ed-num">Por nota</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (tipo of d.tiposServico; track tipo.idTipoServico) {
+                    <tr [class.ed-tipos__sem-tipo]="!tipo.idTipoServico">
+                      <th scope="row">
+                        <button type="button" class="ed-tipos__abrir" (click)="analisar('tipo', chaveTipo(tipo))"
+                          [attr.aria-label]="'Analisar o tipo de serviço ' + tipo.descricao">
+                          @if (tipo.codigo) { <span class="ed-tipos__codigo">{{ tipo.codigo }}</span> }
+                          {{ tipo.descricao }}
+                          <i class="pi pi-angle-right" aria-hidden="true"></i>
+                        </button>
+                      </th>
+                      <td class="ed-num">{{ tipo.notas }}</td>
+                      <td class="ed-tipos__fatia">
+                        <div class="dash-progress">
+                          <div class="dash-progress__track" aria-hidden="true"><span [style.width.%]="tipo.percentualNotas"></span></div>
+                          <strong>{{ percentual(tipo.percentualNotas) }}</strong>
+                        </div>
+                      </td>
+                      <td class="ed-num">{{ moedaCompacta(tipo.producao) }}</td>
+                      <td class="ed-num">{{ moedaCompacta(tipo.valorMedioNota) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="ed-empty"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhuma nota lançada {{ d.hoje ? 'até agora' : 'no dia' }}.</p>
+          }
+        </article>
+      </section>
+
+      <section class="ed-section" aria-labelledby="turnos-equipes-titulo">
+        <header class="ed-section__header">
+          <div>
+            <h2 id="turnos-equipes-titulo"><i class="pi pi-users ed-panel-icon" aria-hidden="true"></i> Equipes · {{ diaPorExtenso(d.data) }}</h2>
+            <p>Composição confirmada pelo encarregado na abertura do turno. Cada ponto da linha do tempo é uma nota lançada.</p>
+          </div>
+          <div class="dash-tabs" role="group" aria-label="Mostrar equipes">
+            @for (f of filtros(); track f.valor) {
+              <button type="button" class="dash-tab" [class.is-active]="filtro() === f.valor" [attr.aria-pressed]="filtro() === f.valor"
+                (click)="filtro.set(f.valor)">{{ f.rotulo }} ({{ f.total }})</button>
+            }
+          </div>
+        </header>
+
+        <div class="ed-equipes-toolbar">
+          <div class="ed-equipes-toolbar__grupo">
+            <span class="ed-equipes-toolbar__rotulo" id="turnos-agrupar">Agrupar por</span>
+            <div class="dash-tabs" role="group" aria-labelledby="turnos-agrupar">
+              @for (a of agrupamentos; track a.valor) {
+                <button type="button" class="dash-tab" [class.is-active]="agrupamento() === a.valor" [attr.aria-pressed]="agrupamento() === a.valor"
+                  (click)="agrupar(a.valor)">{{ a.rotulo }}</button>
+              }
+            </div>
+          </div>
+          <div class="dash-tabs" role="group" aria-label="Visualização das equipes">
+            <button type="button" class="dash-tab" [class.is-active]="visao() === 'cartoes'" [attr.aria-pressed]="visao() === 'cartoes'"
+              (click)="mudarVisao('cartoes')"><i class="pi pi-id-card" aria-hidden="true"></i> Cartões</button>
+            <button type="button" class="dash-tab" [class.is-active]="visao() === 'miniaturas'" [attr.aria-pressed]="visao() === 'miniaturas'"
+              (click)="mudarVisao('miniaturas')"><i class="pi pi-th-large" aria-hidden="true"></i> Miniaturas</button>
+          </div>
+        </div>
+
+        @if (grupos().length) {
+          @for (grupo of grupos(); track grupo.chave) {
+            <section class="ed-grupo" [attr.aria-label]="agrupamento() === 'nenhum' ? 'Equipes' : grupo.rotulo">
+              @if (agrupamento() !== 'nenhum') {
+                <header class="ed-grupo__head">
+                  <h3><i [class]="grupo.icone" aria-hidden="true"></i> {{ grupo.rotulo }}</h3>
+                  <ul class="ed-grupo__numeros">
+                    <li>{{ grupo.equipes.length }} {{ grupo.equipes.length === 1 ? 'equipe' : 'equipes' }}</li>
+                    <li>{{ grupo.emTurno }} em turno</li>
+                    <li><strong>{{ moedaCompacta(grupo.producao) }}</strong></li>
+                    @if (grupo.percentualMeta !== null) {
+                      <li [attr.data-tone]="tomDaMeta(grupo.percentualMeta)"><strong>{{ percentual(grupo.percentualMeta) }}</strong> da meta</li>
+                    }
+                  </ul>
+                </header>
+              }
+              @if (visao() === 'miniaturas') {
+                <ul class="ed-minis">
+                  @for (equipe of grupo.equipes; track equipe.idEquipe) {
+                    <li>
+                      <button type="button" class="ed-mini" (click)="analisar('equipe', equipe.idEquipe)" [attr.aria-label]="resumoMiniatura(equipe, d)"
+                        [attr.data-situacao]="equipe.situacao" [attr.data-atencao]="equipe.semLancamentoRecente || equipe.abertoDesdeOutroDia">
+                        <span class="ed-mini__topo">
+                          <span class="ed-team__avatar ed-mini__avatar" [attr.data-situacao]="equipe.situacao" aria-hidden="true"><i class="pi pi-users"></i></span>
+                          <span class="ed-mini__titulo">
+                            <strong class="ed-mini__codigo">{{ equipe.codigo }}</strong>
+                            <span class="ed-mini__situacao"><i [class]="situacaoTurno[equipe.situacao].icone" aria-hidden="true"></i>{{ situacaoCurta(equipe) }}</span>
+                          </span>
+                          @if (equipe.semLancamentoRecente || equipe.abertoDesdeOutroDia) {
+                            <i class="pi pi-exclamation-triangle ed-mini__alerta" aria-hidden="true"></i>
+                          }
+                        </span>
+                        <span class="ed-mini__numeros">
+                          <span class="ed-mini__valor">{{ moedaCompacta(equipe.producao) }}</span>
+                          <span class="ed-mini__notas">{{ equipe.notas }} {{ equipe.notas === 1 ? 'nota' : 'notas' }}</span>
+                        </span>
+                        <span class="ed-mini__meta" [attr.data-tone]="tomDaMeta(equipe.percentualMetaDiaria)">
+                          <span class="ed-mini__barra" aria-hidden="true"><span [style.width.%]="equipe.percentualMetaDiaria ?? 0"></span></span>
+                          <span>{{ equipe.percentualMetaDiaria == null ? 'Sem meta' : percentual(equipe.percentualMetaDiaria) + ' da meta' }}</span>
+                        </span>
+                        <span class="ed-mini__integrantes" [title]="membrosResumo(equipe)">
+                          <i class="pi pi-user" aria-hidden="true"></i>
+                          <span>{{ equipe.membros.length ? membrosResumo(equipe) : (equipe.situacao === 'SEM_TURNO' ? 'Sem turno aberto' : 'Composição não registrada') }}</span>
+                        </span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <div class="ed-grid">
+                  @for (equipe of grupo.equipes; track equipe.idEquipe) {
+                    <article class="ed-team" [attr.aria-labelledby]="'tu-equipe-' + equipe.idEquipe"
+                      [attr.data-atencao]="equipe.semLancamentoRecente || equipe.abertoDesdeOutroDia"
+                      [attr.data-apagada]="equipe.situacao === 'SEM_TURNO'">
+                      <header class="ed-team__head">
+                        <span class="ed-team__avatar" [attr.data-situacao]="equipe.situacao" aria-hidden="true"><i class="pi pi-users"></i></span>
+                        <div class="ed-team__title">
+                          <span class="ed-team__eyebrow">Equipe</span>
+                          <h3 [id]="'tu-equipe-' + equipe.idEquipe">{{ equipe.codigo }}</h3>
+                        </div>
+                        <ces-status [tone]="situacaoTurno[equipe.situacao].tom" [icon]="situacaoTurno[equipe.situacao].icone">
+                          {{ rotuloSituacao(equipe, d) }}
+                        </ces-status>
+                      </header>
+
+                      <ul class="ed-team__tags" aria-label="Dados da equipe">
+                        @if (equipe.baseOperacional) { <li title="Base operacional"><i class="pi pi-building" aria-hidden="true"></i>{{ equipe.baseOperacional }}</li> }
+                        @if (equipe.processo) { <li title="Processo"><i class="pi pi-sitemap" aria-hidden="true"></i>{{ equipe.processo }}</li> }
+                        @if (equipe.placa) { <li title="Veículo"><i class="pi pi-car" aria-hidden="true"></i>{{ equipe.placa }}</li> }
+                      </ul>
+
+                      @if (equipe.semLancamentoRecente) {
+                        <p class="ed-alert" role="status">
+                          <i class="pi pi-hourglass" aria-hidden="true"></i>
+                          <span>
+                            Sem lançar há {{ duracao(equipe.minutosSemLancamento) }}
+                            {{ equipe.ultimoLancamento ? '(último às ' + horaCurta(equipe.ultimoLancamento) + ')' : '(nenhuma nota desde a abertura)' }}
+                          </span>
+                        </p>
+                      }
+                      @if (equipe.abertoDesdeOutroDia) {
+                        <p class="ed-alert" role="status">
+                          <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                          <span>Turno aberto desde {{ equipe.abertura | date: 'dd/MM HH:mm' }} e ainda não fechado</span>
+                        </p>
+                      }
+
+                      @if (equipe.situacao === 'SEM_TURNO') {
+                        <p class="ed-team__note ed-team__note--icon">
+                          <i class="pi pi-moon" aria-hidden="true"></i>
+                          <span>{{ d.hoje ? 'A equipe ainda não abriu turno hoje.' : 'A equipe não abriu turno neste dia.' }}</span>
+                        </p>
+                      } @else {
+                        @if (equipe.metaDiaria !== null) {
+                          <section class="ed-goal" [attr.data-tone]="tomDaMeta(equipe.percentualMetaDiaria)" [attr.aria-label]="'Meta do dia da equipe ' + equipe.codigo">
+                            <div class="ed-goal__head">
+                              <span class="ed-goal__label"><i class="pi pi-flag" aria-hidden="true"></i> Meta do dia</span>
+                              <strong class="ed-goal__pct">{{ percentual(equipe.percentualMetaDiaria) }}</strong>
+                            </div>
+                            <ces-meter [value]="equipe.percentualMetaDiaria ?? 0" [label]="'Meta diária da equipe ' + equipe.codigo"
+                              [detail]="moedaCompacta(equipe.producao) + ' de ' + moedaCompacta(equipe.metaDiaria)"></ces-meter>
+                            <ul class="ed-goal__rows">
+                              @if (equipe.metaDiaria - equipe.producao > 0) {
+                                <li><i class="pi pi-arrow-up" aria-hidden="true"></i>Faltam <strong>{{ moedaCompacta(equipe.metaDiaria - equipe.producao) }}</strong> hoje</li>
+                              } @else {
+                                <li><i class="pi pi-check" aria-hidden="true"></i>Meta do dia batida</li>
+                              }
+                            </ul>
+                          </section>
+                        } @else {
+                          <section class="ed-goal" data-tone="neutral">
+                            <div class="ed-goal__head">
+                              <span class="ed-goal__label"><i class="pi pi-flag" aria-hidden="true"></i> Meta do dia</span>
+                            </div>
+                            <p class="ed-goal__empty">{{ d.diaUtil ? 'Sem meta mensal cadastrada para a equipe.' : 'Dia não útil: não há meta diária.' }}</p>
+                          </section>
+                        }
+
+                        <div class="ed-figures">
+                          <div class="ed-figure">
+                            <span class="ed-figure__label"><i class="pi pi-wallet" aria-hidden="true"></i> Produção</span>
+                            <strong>{{ moedaCompacta(equipe.producao) }}</strong>
+                          </div>
+                          <div class="ed-figure">
+                            <span class="ed-figure__label"><i class="pi pi-file" aria-hidden="true"></i> Notas</span>
+                            <strong>{{ equipe.notas }}</strong>
+                          </div>
+                          <div class="ed-figure">
+                            <span class="ed-figure__label"><i class="pi pi-stopwatch" aria-hidden="true"></i> Em turno</span>
+                            <strong>{{ duracao(equipe.minutosEmTurno) }}</strong>
+                          </div>
+                        </div>
+
+                        @if (equipe.tiposServico.length) {
+                          <div>
+                            <span class="ed-subtitle"><i class="pi pi-tags" aria-hidden="true"></i> Tipos de serviço</span>
+                            <ul class="ed-team__tags" [attr.aria-label]="'Notas por tipo de serviço da equipe ' + equipe.codigo">
+                              @for (tipo of tiposEmDestaque(equipe.tiposServico); track tipo.rotulo) {
+                                <li [title]="tipo.titulo">{{ tipo.rotulo }} · {{ tipo.notas }}</li>
+                              }
+                            </ul>
+                          </div>
+                        }
+
+                        @if (linhasDoTempo().get(equipe.idEquipe); as linha) {
+                          <div>
+                            <span class="ed-subtitle"><i class="pi pi-history" aria-hidden="true"></i> Lançamentos do dia</span>
+                            <div class="ed-timeline">
+                              <span class="ed-timeline__track" [attr.data-aberto]="linha.aberto"></span>
+                              @for (marca of linha.marcas; track marca.idExecucao) {
+                                <a class="ed-timeline__mark" [style.left.%]="marca.posicao" [routerLink]="['/execucao/comercial', marca.idExecucao]"
+                                  [attr.aria-label]="marca.rotulo" [title]="marca.rotulo"></a>
+                              }
+                            </div>
+                            <div class="ed-timeline__axis" aria-hidden="true">
+                              <span>{{ linha.inicio }}</span><span>{{ linha.fim }}</span>
+                            </div>
+                            @if (!linha.marcas.length) {
+                              <p class="ed-timeline__empty">Nenhuma nota lançada {{ d.hoje ? 'até agora' : 'no dia' }}.</p>
+                            }
+                          </div>
+                        }
+
+                        <dl class="ed-team__facts">
+                          <div><dt><i class="pi pi-user" aria-hidden="true"></i> Encarregado</dt><dd [title]="equipe.abertoPor ?? ''">{{ equipe.abertoPor ? nomeCurto(equipe.abertoPor) : '—' }}</dd></div>
+                          <div><dt><i class="pi pi-car" aria-hidden="true"></i> Veículo</dt><dd>{{ equipe.placa ?? '—' }}</dd></div>
+                          <div><dt><i class="pi pi-users" aria-hidden="true"></i> Equipe</dt><dd [title]="membrosResumo(equipe)">{{ composicao(equipe) }}</dd></div>
+                        </dl>
+                        @if (equipe.membros.length) {
+                          <p class="ed-team__note">{{ membrosResumo(equipe) }}</p>
+                        }
+                        @if (equipe.quantidadeTurnos > 1) {
+                          <p class="ed-team__note">{{ equipe.quantidadeTurnos }} turnos no dia; a composição é a do mais recente.</p>
+                        }
+
+                        <div class="ed-team__actions">
+                          <button type="button" class="ed-analisar" (click)="analisar('equipe', equipe.idEquipe)">
+                            <i class="pi pi-chart-line" aria-hidden="true"></i> Analisar turno
+                          </button>
+                          @if (equipe.idTurno) {
+                            <a class="ed-link" [routerLink]="['/execucao/turnos', equipe.idTurno, 'detalhamento']">
+                              <i class="pi pi-file-pdf" aria-hidden="true"></i> Relatório <i class="pi pi-arrow-right" aria-hidden="true"></i>
+                            </a>
+                          }
+                        </div>
+                      }
+                    </article>
+                  }
+                </div>
+              }
+            </section>
+          }
+        } @else {
+          <p class="ed-empty">
+            <i class="pi pi-inbox" aria-hidden="true"></i>
+            @if (d.equipes.length) {
+              Nenhuma equipe nesta visão. Escolha "Todas" para ver o recorte completo.
+            } @else {
+              Nenhuma equipe ativa no recorte. Ajuste a base operacional ou o processo.
+            }
+          </p>
+        }
+      </section>
+    }
+  </div>
+</main>
+</app-copiloto-area>
+
+<app-dashboard-analise [vista]="vistaAnalise()" [trilha]="analise.trilha()" [copiloto]="copilotoDisponivel"
+  (fechar)="analise.fechar()" (navegar)="aprofundar($event)" (trocar)="analise.trocar($event)"
+  (voltar)="analise.voltar($event)" (perguntar)="perguntarAnalise($event)" />

@@ -1,0 +1,64 @@
+@import '../../notificacoes-form.shared.css';
+
+.upload-button {
+  display: flex;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px dashed var(--p-primary-300);
+  border-radius: 0.625rem;
+  padding: 0.65rem;
+  color: var(--p-primary-600);
+  font-size: 10px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+.upload-button:hover { background: var(--p-primary-50); }
+
+:host-context(.app-dark) .upload-button,
+:host-context(.dark) .upload-button {
+  border-color: var(--p-primary-700) !important;
+  color: var(--p-primary-700) !important;
+  background: color-mix(in srgb, var(--p-primary-700) 6%, transparent) !important;
+}
+:host-context(.app-dark) .upload-button:hover,
+:host-context(.dark) .upload-button:hover {
+  background: color-mix(in srgb, var(--p-primary-700) 14%, transparent) !important;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid var(--p-surface-100);
+  border-radius: 0.625rem;
+  padding: 0.65rem 0.75rem;
+  transition: all 0.2s ease;
+}
+:host-context(.app-dark) .file-row,
+:host-context(.dark) .file-row {
+  border-color: var(--p-surface-700) !important;
+  background: color-mix(in srgb, var(--p-surface-900) 80%, transparent) !important;
+}
+
+.file-row p {
+  overflow: hidden;
+  color: var(--p-surface-600);
+  font-size: 10px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:host-context(.app-dark) .file-row p,
+:host-context(.dark) .file-row p { color: var(--p-surface-0) !important; }
+
+.file-row span {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--p-surface-400);
+  font-size: 9px;
+}
+:host-context(.app-dark) .file-row span,
+:host-context(.dark) .file-row span { color: var(--p-surface-500) !important; }
+

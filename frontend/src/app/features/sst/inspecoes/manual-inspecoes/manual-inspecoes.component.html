@@ -1,0 +1,235 @@
+<style>
+  @media print {
+    body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      background: white !important;
+      color: black !important;
+    }
+    .min-h-screen { background: white !important; }
+
+    .print\:hidden { display: none !important; }
+    .print\:break-inside-avoid { page-break-inside: avoid !important; break-inside: avoid !important; }
+    .print\:shadow-none { box-shadow: none !important; }
+    .print\:border { border: 1px solid #e2e8f0 !important; }
+    .print\:text-black { color: black !important; }
+    .print\:bg-white { background: white !important; }
+
+    /* Fix para tabelas do PrimeNG não cortarem na impressão */
+    .p-datatable, .p-datatable-wrapper, .p-datatable-table,
+    .overflow-hidden, .overflow-y-auto, .overflow-x-hidden, .custom-scrollbar {
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+
+    section { margin-bottom: 2rem !important; page-break-inside: avoid; }
+    .bg-teal-900 { background: white !important; color: black !important; border-bottom: 2px solid #0f766e; padding: 2rem 0 !important; }
+    .bg-teal-900 h1, .bg-teal-900 h2, .bg-teal-900 p { color: black !important; }
+    .bg-teal-900 .pi-shield { display: none; }
+
+    .shadow-md, .shadow-xl, .shadow-sm { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
+  }
+</style>
+
+<div class="min-h-screen bg-slate-50 text-slate-800 font-sans pb-16 print:pb-0">
+
+    <!-- ==============================================
+         CABEÇALHO HERO
+    =============================================== -->
+    <div class="bg-teal-900 text-white py-16 px-6 shadow-md relative overflow-hidden print:shadow-none print:py-8">
+      <div class="absolute -right-20 -top-20 opacity-5 print:hidden">
+        <i class="pi pi-shield" style="font-size: 20rem"></i>
+      </div>
+
+      <div class="max-w-5xl mx-auto relative z-10 flex flex-col gap-3">
+        <div class="flex items-center gap-2 print:hidden">
+            <span class="text-xs font-bold px-3 py-1 bg-teal-700 text-teal-100 rounded uppercase tracking-widest border border-teal-600">Manual do Usuário</span>
+        </div>
+        <h1 class="text-4xl md:text-5xl font-bold mt-2 print:text-3xl">Inspeções de Segurança (SST)</h1>
+        <h2 class="text-xl md:text-2xl font-light text-teal-200 mt-1 print:text-black print:font-medium">Gestão de Checklists, Desvios e Planos de Ação</h2>
+        <p class="text-base text-teal-100 mt-4 max-w-3xl leading-relaxed print:text-black">
+          Bem-vindo ao material de treinamento oficial do sistema Nexo. para Segurança do Trabalho. Aprenda a auditar equipes, validar formulários e tratar não-conformidades críticas no campo.
+        </p>
+      </div>
+    </div>
+
+    <!-- ==============================================
+         CONTEÚDO PRINCIPAL
+    =============================================== -->
+    <div class="max-w-5xl mx-auto px-6 py-10 flex flex-col gap-20 print:gap-10 print:py-6">
+
+      <!-- ==============================================
+           SEÇÃO 1: COMO ACESSAR E O GUIA DE TELA
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-compass mr-3 text-teal-600"></i>1. Acesso ao Módulo</h2>
+            <p class="text-slate-600 text-lg">Veja o caminho no sistema para acessar a auditoria e as tratativas de segurança.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+
+            <!-- Imagem Guia Lateral -->
+            <div class="w-full flex justify-center items-center">
+                <img src="assets/manual/guia lateral inspeção.png" alt="Guia Lateral Inspeção" class="w-full max-w-sm rounded-lg border border-slate-300 shadow-sm print:shadow-none print:max-w-full">
+            </div>
+
+            <!-- Explicação do Caminho -->
+            <div class="flex flex-col gap-6">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">Onde Encontrar</h3>
+                    <p class="text-slate-600 leading-relaxed">
+                        No menu lateral esquerdo, expanda <b>Saúde e Segurança (SST)</b> e clique em <b>Inspeções de Segurança</b>. A tela exibirá a listagem completa de todas as auditorias preenchidas via celular e tablet.
+                    </p>
+                </div>
+
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-6 shadow-sm relative overflow-hidden print:border print:bg-indigo-50 print:shadow-none">
+                    <div class="absolute -right-6 -bottom-6 text-indigo-100"><i class="pi pi-wifi text-8xl opacity-30"></i></div>
+                    <div class="relative z-10 flex flex-col gap-3">
+                        <div class="flex items-center gap-2 text-indigo-700 font-bold text-lg print:text-black">
+                            <i class="pi pi-sync text-xl"></i> Fluxo Offline-First
+                        </div>
+                        <p class="text-indigo-900 text-sm leading-relaxed print:text-black">
+                            Sabia que as inspeções são realizadas <strong>sem internet</strong>? Os técnicos preenchem no aplicativo de campo. Quando recuperam sinal (3G/Wi-Fi), a inspeção sincroniza automaticamente e o status muda de <span class="bg-amber-200 text-amber-900 px-1 py-0.5 rounded text-[9px] font-bold">PENDENTE</span> para <span class="bg-green-200 text-green-900 px-1 py-0.5 rounded text-[9px] font-bold">REALIZADA</span> no painel web.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SEÇÃO 2: TELA DE LISTAGEM DE INSPEÇÕES
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-list mr-3 text-teal-600"></i>2. Caixa de Entrada e Consulta</h2>
+            <p class="text-slate-600 text-lg">Painel geral das auditorias e monitoramento de equipes em tempo real.</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-md border border-slate-200 p-6 flex flex-col gap-6 print:shadow-none print:border">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-700 mb-3 border-b border-slate-100 pb-2">Funil de Filtros</h3>
+                    <ul class="flex flex-col gap-3 text-slate-600 text-sm">
+                        <li><i class="pi pi-sitemap mr-2 text-teal-600"></i><b>Processo Operacional:</b> Encontre apenas as inspeções de "Corte e Ligação" ou "Linha Viva".</li>
+                        <li><i class="pi pi-calendar mr-2 text-teal-600"></i><b>Período:</b> Estabeleça a data (de/até) para gerar consolidados mensais de SST.</li>
+                        <li><i class="pi pi-exclamation-triangle mr-2 text-red-500"></i><b>Com desvios?:</b> O filtro de ouro. Selecione "Sim" para achar rapidamente os relatórios em que os técnicos registraram algum desvio (EPI faltando, carro quebrado, etc.).</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 p-4 rounded-lg print:bg-white print:border">
+                    <h3 class="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Tipos de Status</h3>
+                    <div class="flex flex-col gap-2.5 mt-3">
+                        <div class="flex items-center gap-3">
+                            <span class="w-24 text-center text-[9px] font-bold px-2 py-1 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded uppercase">Realizada</span>
+                            <span class="text-xs text-slate-600">Sincronizada. Dados em nuvem.</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="w-24 text-center text-[9px] font-bold px-2 py-1 bg-amber-100 text-amber-700 border border-amber-200 rounded uppercase">Pendente Sinc.</span>
+                            <span class="text-xs text-slate-600">App offline aguardando internet.</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="w-24 text-center text-[9px] font-bold px-2 py-1 bg-slate-200 text-slate-700 border border-slate-300 rounded uppercase">Cancelada</span>
+                            <span class="text-xs text-slate-600">Anulada por erro ou teste.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-4">
+                <div class="print:hidden bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-2">Caixa de Entrada e Pesquisa (Vídeo)</h4>
+                    <video controls class="w-full rounded-lg border border-slate-200">
+                        <source src="assets/videos/guia de inspeção com pesquisa  e filtragem.mp4" type="video/mp4">
+                    </video>
+                </div>
+                
+                <div class="hidden print:flex flex-col gap-6 w-full">
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2">Tela Principal de Inspeções</h4>
+                        <img src="assets/manual/tela de inspeção.png" alt="Tela de Inspeção" class="w-full rounded-lg border border-slate-300">
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-700 mb-2">Pesquisa e Filtragem Avançada</h4>
+                        <img src="assets/manual/tela de pesquisa de inspeção.png" alt="Pesquisa Inspeção" class="w-full rounded-lg border border-slate-300">
+                    </div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SEÇÃO 3: O RELATÓRIO DO FORMULÁRIO PREENCHIDO
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-file-check mr-3 text-teal-600"></i>3. Visão do Relatório (Checklist Preenchido)</h2>
+            <p class="text-slate-600 text-lg">Entenda como interpretar as marcações, fotos e o medidor de conformidade.</p>
+        </div>
+
+        <div class="flex flex-col gap-4">
+            <div class="print:hidden bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                <h4 class="font-bold text-slate-700 text-sm mb-2">Preenchimento de Inspeção Conforme (Vídeo)</h4>
+                <video controls class="w-full rounded-lg border border-slate-200">
+                    <source src="assets/videos/nova inspeção.mp4" type="video/mp4">
+                </video>
+            </div>
+            
+            <div class="hidden print:block w-full">
+                <h4 class="font-bold text-slate-700 text-sm mb-2">Relatório de Inspeção (Exemplo Realizado)</h4>
+                <img src="assets/manual/nova inspeção.png" alt="Nova Inspeção" class="w-full rounded-lg border border-slate-300 shadow-sm">
+            </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           SEÇÃO 4: TRATAMENTO DE DESVIOS
+      =============================================== -->
+      <section class="flex flex-col gap-6 print:break-inside-avoid">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 print:text-2xl"><i class="pi pi-wrench mr-3 text-teal-600"></i>4. Tratamento (Planos de Ação)</h2>
+            <p class="text-slate-600 text-lg">Encontramos um problema. Como o backoffice documenta a resolução?</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-4">
+            <div class="flex flex-col gap-4">
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Dentro do relatório, há uma seção específica de <b>Desvios (Não-Conformidades)</b>. Para cada problema detectado em campo, o gestor SST deve clicar em "Tratar" e definir a ação corretiva e um prazo.
+                </p>
+                <div class="flex flex-col gap-3 p-5 bg-teal-50 border border-teal-200 rounded-lg print:border-slate-300 print:bg-white">
+                    <h4 class="font-bold text-teal-900 text-sm print:text-black">Estados do Tratamento:</h4>
+                    <ul class="text-xs text-teal-800 flex flex-col gap-3 print:text-black">
+                        <li class="flex items-center gap-2"><span class="w-20 text-center font-bold px-1 py-1 rounded bg-red-100 text-red-700 uppercase print:border print:border-red-300 text-[9px]">Aberto</span> Aguardando intervenção humana.</li>
+                        <li class="flex items-center gap-2"><span class="w-20 text-center font-bold px-1 py-1 rounded bg-amber-100 text-amber-700 uppercase print:border print:border-amber-300 text-[9px]">Andamento</span> O plano de ação foi criado (tem prazo) mas ainda não concluído.</li>
+                        <li class="flex items-center gap-2"><span class="w-20 text-center font-bold px-1 py-1 rounded bg-emerald-100 text-emerald-700 uppercase print:border print:border-emerald-300 text-[9px]">Resolvido</span> Falha corrigida, ciclo encerrado.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-4 w-full">
+                <div class="print:hidden bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-2">Registro de Desvios / Não Conformidade (Vídeo)</h4>
+                    <video controls class="w-full rounded-lg border border-slate-200">
+                        <source src="assets/videos/preenchimento não conforme inspeção.mp4" type="video/mp4">
+                    </video>
+                </div>
+                
+                <div class="hidden print:block w-full">
+                    <h4 class="font-bold text-slate-700 text-sm mb-2">Tratamento de Não Conformidades</h4>
+                    <img src="assets/manual/não conforme inspeção.png" alt="Não Conforme Inspeção" class="w-full rounded-lg border border-slate-300 shadow-sm">
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <div class="text-center pt-8 text-slate-500 text-sm flex flex-col items-center gap-2 print:hidden">
+        <i class="pi pi-check-circle text-2xl text-slate-300"></i>
+        <p>Você chegou ao fim do manual.<br>Sinta-se à vontade para manter esta página nos seus favoritos ou pressionar Ctrl+P para imprimir/salvar em PDF.</p>
+      </div>
+
+    </div>
+  </div>

@@ -1,0 +1,669 @@
+<div class="min-h-screen bg-white dark:bg-[var(--ces-canvas)] text-slate-900 dark:text-[var(--ces-foreground)] p-4 md:p-8 relative print:p-0 print:bg-white print:text-black">
+
+  @if (carregando()) {
+    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
+      <p-progressSpinner strokeWidth="4" fill="transparent" animationDuration=".5s"></p-progressSpinner>
+      <span class="text-sm font-medium text-slate-500 animate-pulse">Carregando relatório do evento...</span>
+    </div>
+  }
+
+  @if (!carregando() && evento(); as e) {
+    <div class="max-w-5xl mx-auto pb-32 rise print:max-w-full print:animate-none print:pb-0">
+      <div class="flex flex-col gap-6">
+
+        <!-- Cabeçalho Institucional Oficial (Padrão Relatório) -->
+        <div class="grid grid-cols-3 items-center border-b border-gray-200 dark:border-slate-800 pb-6 mb-2">
+          <div class="flex justify-start">
+            <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14" onerror="this.style.display='none'">
+          </div>
+          <div class="text-center flex flex-col gap-1">
+            <h1 class="text-xs font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider">NOME DA EMPRESA</h1>
+            <p class="text-[9px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest">Saúde e Segurança do Trabalho (SST)</p>
+            <p class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Serviços prestados à Concessionária</p>
+          </div>
+          <div class="flex justify-end">
+            <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14 grayscale opacity-25" onerror="this.style.display='none'">
+          </div>
+        </div>
+
+        <!-- Título Centralizado do Relatório -->
+        <div class="py-4 text-center border-y border-gray-200 dark:border-slate-800 my-4 print:py-2 print:my-2">
+          <h2 class="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight uppercase">Relatório de Investigação de Evento / Acidente</h2>
+          <p class="text-[10px] text-slate-600 dark:text-slate-400 font-medium mt-1 uppercase tracking-widest">Registro #{{ e.numeroRegistro }} · {{ e.dataOcorrencia | date:'dd/MM/yyyy HH:mm' }}</p>
+        </div>
+
+        <!-- Faixa de Situação Atual (Status + Explicação da Etapa + SLA Legal) -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border px-5 py-4 print:hidden"
+             [ngClass]="{
+               'bg-orange-50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800/60': e.status === 'REGISTRADO',
+               'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800/60': e.status === 'EM_TRATATIVA',
+               'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60': e.status === 'CONCLUIDO',
+               'bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700': e.status === 'CANCELADO'
+             }">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-widest border"
+                  [ngClass]="statusBadgeClass(e.status)">
+              {{ statusLabel(e) }}
+            </span>
+            <span class="text-[10px] font-semibold"
+                  [ngClass]="{
+                    'text-orange-950 dark:text-orange-200': e.status === 'REGISTRADO',
+                    'text-blue-950 dark:text-blue-200': e.status === 'EM_TRATATIVA',
+                    'text-emerald-950 dark:text-emerald-200': e.status === 'CONCLUIDO',
+                    'text-slate-700 dark:text-slate-300': e.status === 'CANCELADO'
+                  }">
+              @switch (e.status) {
+                @case ('REGISTRADO') { Evento registrado. Aguardando início formal da tratativa e investigação técnica. }
+                @case ('EM_TRATATIVA') { Em investigação técnica de causas e definição das ações corretivas. }
+                @case ('CONCLUIDO') { Investigação e tratativa concluídas com sucesso. Registro finalizado e selado. }
+                @case ('CANCELADO') { Registro cancelado formalmente com justificativa arquivada. }
+              }
+            </span>
+          </div>
+
+          <div class="flex items-baseline gap-2 sm:text-right">
+            <span class="text-[9px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+              Comunicação Legal:
+            </span>
+            @if (e.comunicacaoAtrasada) {
+              <span class="text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-1">
+                <i class="pi pi-clock text-xs"></i> {{ e.horasAteComunicacao }}h (Fora do prazo legal de {{ prazoHoras(e) }}h)
+              </span>
+            } @else {
+              <span class="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                <i class="pi pi-check-circle text-xs"></i> No prazo ({{ e.horasAteComunicacao }}h de {{ prazoHoras(e) }}h)
+              </span>
+            }
+          </div>
+        </div>
+
+        <!-- Rastreabilidade e Linha do Ciclo de Vida -->
+        <div class="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col gap-4 print:hidden">
+          <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-2.5">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-history text-primary-500 text-xs"></i>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">Linha de Rastreabilidade do Ciclo de Vida</span>
+            </div>
+            <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              Criado em {{ e.dataCriacao | date:'dd/MM/yyyy HH:mm' }} por {{ e.usuarioCriacao || 'Sistema' }}
+            </span>
+          </div>
+
+          <div class="flex items-start justify-center overflow-x-auto py-2">
+            <!-- 1. Registro -->
+            <div class="flex flex-col items-center text-center">
+              <div class="status-step" [ngClass]="estadoEtapa(e, 'registro') === 'done' ? 'step-done' : (estadoEtapa(e, 'registro') === 'active' ? 'step-current' : 'step-pending')">
+                <i class="pi" [ngClass]="estadoEtapa(e, 'registro') === 'done' ? 'pi-check' : 'pi-file-edit'"></i>
+              </div>
+              <span class="step-title mt-2">1. Registro</span>
+              <span class="step-date">{{ e.dataCriacao | date:'dd/MM/yy HH:mm' }}</span>
+            </div>
+
+            <div class="step-line" [class.!bg-green-500]="estadoEtapa(e, 'tratativa') !== 'pending'"></div>
+
+            <!-- 2. Tratativa -->
+            <div class="flex flex-col items-center text-center">
+              <div class="status-step" [ngClass]="estadoEtapa(e, 'tratativa') === 'done' ? 'step-done' : (estadoEtapa(e, 'tratativa') === 'active' ? 'step-current' : 'step-pending')">
+                <i class="pi" [ngClass]="estadoEtapa(e, 'tratativa') === 'done' ? 'pi-check' : 'pi-cog'"></i>
+              </div>
+              <span class="step-title mt-2">2. Tratativa</span>
+              <span class="step-date">
+                @if (e.status === 'REGISTRADO') { Aguardando } @else { Em andamento }
+              </span>
+            </div>
+
+            <div class="step-line" [class.!bg-green-500]="estadoEtapa(e, 'desfecho') === 'done'" [class.!bg-red-500]="estadoEtapa(e, 'desfecho') === 'cancelled'"></div>
+
+            <!-- 3. Desfecho -->
+            <div class="flex flex-col items-center text-center">
+              <div class="status-step" [ngClass]="estadoEtapa(e, 'desfecho') === 'done' ? 'step-done' : (estadoEtapa(e, 'desfecho') === 'cancelled' ? 'step-cancelled' : 'step-pending')">
+                <i class="pi" [ngClass]="estadoEtapa(e, 'desfecho') === 'done' ? 'pi-check-circle' : (estadoEtapa(e, 'desfecho') === 'cancelled' ? 'pi-times' : 'pi-flag')"></i>
+              </div>
+              <span class="step-title mt-2">
+                {{ e.status === 'CANCELADO' ? 'Cancelado' : '3. Conclusão' }}
+              </span>
+              <span class="step-date">
+                {{ (e.dataConclusao || e.dataCancelamento | date:'dd/MM/yy HH:mm') || 'Pendente' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. Dados da Ocorrência -->
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">1. Dados da Ocorrência</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5 bg-slate-50/40 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:p-2">
+            <!-- Coluna 1: Classificação e Tipo -->
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                <i class="pi pi-shield text-primary-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Classificação</span>
+              </div>
+              <div class="kv"><span class="kv-l">Tipo do Evento</span><span class="kv-v"><ces-status [tone]="tipoTone(e.tipo)">{{ tipoLabel(e) }}</ces-status></span></div>
+              <div class="kv"><span class="kv-l">Classificação</span><span class="kv-v kv-v--wrap">{{ e.classificacaoNome || '—' }}</span></div>
+              <div class="kv"><span class="kv-l">Processo / Causa</span><span class="kv-v kv-v--wrap">{{ e.processoNome || '—' }}</span></div>
+            </div>
+
+            <!-- Coluna 2: Cronologia e Prazos -->
+            <div class="flex flex-col gap-3 md:border-x md:border-slate-200 dark:md:border-slate-700 md:px-6">
+              <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                <i class="pi pi-calendar text-primary-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Cronologia</span>
+              </div>
+              <div class="kv"><span class="kv-l">Data da Ocorrência</span><span class="kv-v font-bold">{{ e.dataOcorrencia | date:'dd/MM/yyyy HH:mm' }}</span></div>
+              <div class="kv"><span class="kv-l">Data da Comunicação</span><span class="kv-v">{{ e.dataComunicacao | date:'dd/MM/yyyy HH:mm' }}</span></div>
+              <div class="kv">
+                <span class="kv-l">Tempo de Resposta</span>
+                <span class="kv-v" [ngClass]="e.comunicacaoAtrasada ? 'text-red-600 dark:text-red-400 font-bold' : 'text-emerald-600 dark:text-emerald-400'">
+                  {{ e.horasAteComunicacao }}h (Limite: {{ prazoHoras(e) }}h)
+                </span>
+              </div>
+            </div>
+
+            <!-- Coluna 3: Localização Geográfica -->
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                <i class="pi pi-map-marker text-primary-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Localização</span>
+              </div>
+              <div class="kv"><span class="kv-l">Local Informado</span><span class="kv-v kv-v--wrap">{{ e.localOcorrencia || 'Não informado' }}</span></div>
+              @if (e.latitude != null && e.longitude != null) {
+                <div class="kv"><span class="kv-l">Coordenadas</span><span class="kv-v font-mono text-[10px]">{{ e.latitude | number:'1.5-5' }}, {{ e.longitude | number:'1.5-5' }}</span></div>
+                <div class="pt-1 flex justify-end print:hidden">
+                  <a [href]="'https://www.google.com/maps?q=' + e.latitude + ',' + e.longitude" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline">
+                    <i class="pi pi-external-link text-[10px]"></i> Abrir no Google Maps
+                  </a>
+                </div>
+              } @else {
+                <div class="kv"><span class="kv-l">GPS</span><span class="kv-v text-slate-400 italic">Sem GPS</span></div>
+              }
+            </div>
+          </div>
+
+          <!-- Descrição Detalhada da Ocorrência -->
+          <div class="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col gap-2">
+            <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700/60 pb-2">
+              <i class="pi pi-align-left text-primary-500 text-xs"></i>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">Descrição Detalhada do Fato</span>
+            </div>
+            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed text-justify whitespace-pre-line">
+              {{ e.descricao }}
+            </p>
+          </div>
+        </div>
+
+        <!-- 2. Contexto Operacional & Recursos -->
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">2. Contexto Operacional & Recursos</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5 bg-slate-50/40 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:p-2">
+            <!-- Coluna 1: Atividade & Lotação -->
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                <i class="pi pi-wrench text-primary-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Atividade & Base</span>
+              </div>
+              <div class="kv"><span class="kv-l">Atividade Realizada</span><span class="kv-v kv-v--wrap font-bold">{{ e.atividadeNome }}</span></div>
+              <div class="kv"><span class="kv-l">Base Operacional</span><span class="kv-v kv-v--wrap">{{ e.baseNome }}</span></div>
+              <div class="kv"><span class="kv-l">Equipe em Campo</span><span class="kv-v font-mono">{{ e.equipeCodigo || 'Atuação Individual' }}</span></div>
+            </div>
+
+            <!-- Coluna 2: Liderança & Supervisão -->
+            <div class="flex flex-col gap-3 md:border-x md:border-slate-200 dark:md:border-slate-700 md:px-6">
+              <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                <i class="pi pi-user-check text-primary-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Liderança Direta</span>
+              </div>
+              <div class="kv"><span class="kv-l">Gestor Imediato</span><span class="kv-v kv-v--wrap font-bold">{{ e.gestorNome }}</span></div>
+              <div class="kv"><span class="kv-l">Função do Gestor</span><span class="kv-v">{{ e.gestorFuncao || '—' }}</span></div>
+              <div class="kv">
+                <span class="kv-l">Condição do Gestor</span>
+                <span class="kv-v">
+                  <ces-status [tone]="e.gestorSubstituto ? 'warning' : 'neutral'">
+                    {{ e.gestorSubstituto ? 'Substituto em Exercício' : 'Titular' }}
+                  </ces-status>
+                </span>
+              </div>
+            </div>
+
+            <!-- Coluna 3: Veículo e Telemetria de Bordo -->
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                <i class="pi pi-car text-primary-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Recursos & Veículo</span>
+              </div>
+              <div class="kv"><span class="kv-l">Placa do Veículo</span><span class="kv-v font-mono font-bold">{{ e.veiculoPlaca || 'Sem veículo envolvido' }}</span></div>
+              <div class="kv"><span class="kv-l">Telemetria</span><span class="kv-v"><ces-status [tone]="evidenciaTone(e.telemetria)">{{ evidenciaLabel(e.telemetria) }}</ces-status></span></div>
+              <div class="kv"><span class="kv-l">Filmagem</span><span class="kv-v"><ces-status [tone]="evidenciaTone(e.filmagem)">{{ evidenciaLabel(e.filmagem) }}</ces-status></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Pessoas Envolvidas & Impacto -->
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">3. Pessoas Envolvidas & Impacto da Ocorrência</span>
+          </div>
+
+          <!-- Painel Executivo de Lesão e Afastamento -->
+          @if (e.comLesao) {
+            <div class="bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-2xs">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-red-200/80 dark:border-red-900/50 pb-2.5 gap-2">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 flex items-center justify-center">
+                    <i class="pi pi-heart text-sm"></i>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-xs font-bold text-red-800 dark:text-red-300 uppercase tracking-wider">
+                      Detalhes da Lesão e Afastamento do Trabalho
+                    </span>
+                    <span class="text-[10px] text-red-600 dark:text-red-400 font-medium">
+                      Caracterização anatômica, agente causador e perda de capacidade laborativa
+                    </span>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-red-100 text-red-800 border border-red-200 dark:bg-red-950/70 dark:text-red-300 dark:border-red-800 flex items-center gap-1.5">
+                    <i class="pi pi-users text-[10px]"></i> {{ acidentadosCount(e) }} acidentado(s)
+                  </span>
+                  <span class="text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-red-100 text-red-800 border border-red-200 dark:bg-red-950/70 dark:text-red-300 dark:border-red-800 flex items-center gap-1.5">
+                    <i class="pi pi-clock text-[10px]"></i> {{ e.diasPerdidos != null && e.diasPerdidos > 0 ? e.diasPerdidos + ' dia(s) afastado(s)' : 'Sem afastamento' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- 4 Cartões de Métricas Clínicas -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                <!-- 1. Local da Lesão -->
+                <div class="bg-white/90 dark:bg-slate-900/80 rounded-lg p-3 border border-red-200/80 dark:border-red-900/60 flex items-start gap-2.5 shadow-2xs">
+                  <div class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-100 dark:border-red-900/40">
+                    <i class="pi pi-heart text-sm"></i>
+                  </div>
+                  <div class="flex flex-col min-w-0">
+                    <span class="text-[9px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Local da Lesão</span>
+                    <span class="text-xs font-bold text-slate-800 dark:text-slate-100 break-words mt-0.5">{{ e.localLesaoNome || 'Não informado' }}</span>
+                  </div>
+                </div>
+
+                <!-- 2. Natureza da Lesão -->
+                <div class="bg-white/90 dark:bg-slate-900/80 rounded-lg p-3 border border-red-200/80 dark:border-red-900/60 flex items-start gap-2.5 shadow-2xs">
+                  <div class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-100 dark:border-red-900/40">
+                    <i class="pi pi-tag text-sm"></i>
+                  </div>
+                  <div class="flex flex-col min-w-0">
+                    <span class="text-[9px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Natureza da Lesão</span>
+                    <span class="text-xs font-bold text-slate-800 dark:text-slate-100 break-words mt-0.5">{{ e.naturezaLesaoNome || 'Não informada' }}</span>
+                  </div>
+                </div>
+
+                <!-- 3. Agente Causador -->
+                <div class="bg-white/90 dark:bg-slate-900/80 rounded-lg p-3 border border-red-200/80 dark:border-red-900/60 flex items-start gap-2.5 shadow-2xs">
+                  <div class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-100 dark:border-red-900/40">
+                    <i class="pi pi-exclamation-triangle text-sm"></i>
+                  </div>
+                  <div class="flex flex-col min-w-0">
+                    <span class="text-[9px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Agente Causador</span>
+                    <span class="text-xs font-bold text-slate-800 dark:text-slate-100 break-words mt-0.5">{{ e.agenteCausadorNome || 'Não informado' }}</span>
+                  </div>
+                </div>
+
+                <!-- 4. Afastamento / Dias Perdidos -->
+                <div class="bg-white/90 dark:bg-slate-900/80 rounded-lg p-3 border border-red-200/80 dark:border-red-900/60 flex items-start gap-2.5 shadow-2xs">
+                  <div class="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-100 dark:border-red-900/40">
+                    <i class="pi pi-calendar-times text-sm"></i>
+                  </div>
+                  <div class="flex flex-col min-w-0">
+                    <span class="text-[9px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Dias de Afastamento</span>
+                    <span class="text-xs font-black text-slate-800 dark:text-slate-100 mt-0.5">
+                      {{ e.diasPerdidos != null && e.diasPerdidos > 0 ? e.diasPerdidos + ' dia(s) perdidos' : '0 dia (Sem afastamento)' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          } @else {
+            <div class="bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <i class="pi pi-check text-xs"></i>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Sem Lesão Corporal ou Vítimas</span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Ocorrência classificada sem danos físicos aos colaboradores ou terceiros (incidente sem lesão ou dano puramente patrimonial).</span>
+                </div>
+              </div>
+              <ces-status tone="success">Sem Lesão</ces-status>
+            </div>
+          }
+
+          <!-- Grid: Técnicos da Equipe vs Envolvidos -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- Técnicos da Equipe -->
+            <div class="bg-slate-50/40 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-3">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-users text-primary-500 text-xs"></i>
+                  <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                    Técnicos da Equipe em Campo ({{ e.tecnicos.length }})
+                  </span>
+                </div>
+                <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium">Equipe {{ e.equipeCodigo || '—' }}</span>
+              </div>
+              @if (e.tecnicos.length === 0) {
+                <span class="text-xs text-slate-400 italic py-2">Nenhum técnico vinculado.</span>
+              } @else {
+                <div class="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/80">
+                  @for (t of e.tecnicos; track t.id) {
+                    <div class="py-2 flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/60 text-primary-700 dark:text-primary-300 flex items-center justify-center text-[10px] font-bold">
+                          {{ t.nome.charAt(0) }}
+                        </div>
+                        <span class="text-xs font-semibold text-slate-800 dark:text-slate-100">{{ t.nome }}</span>
+                      </div>
+                      <span class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{{ t.funcao || 'Técnico' }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Envolvidos com Papel na Ocorrência -->
+            <div class="bg-slate-50/40 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-3">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-id-card text-primary-500 text-xs"></i>
+                  <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                    Pessoas Envolvidas & Papéis ({{ e.envolvidos.length }})
+                  </span>
+                </div>
+                <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium">Classificação individual</span>
+              </div>
+              @if (e.envolvidos.length === 0) {
+                <span class="text-xs text-slate-400 italic py-2">Nenhum envolvido registrado.</span>
+              } @else {
+                <div class="flex flex-col divide-y divide-slate-100 dark:divide-slate-800/80">
+                  @for (env of e.envolvidos; track env.id) {
+                    <div class="py-2 flex items-center justify-between">
+                      <div class="flex flex-col">
+                        <span class="text-xs font-semibold text-slate-800 dark:text-slate-100">{{ env.nome }}</span>
+                        <span class="text-[9px] text-slate-500 dark:text-slate-400">{{ tipoEnvolvidoLabel(env) }} · {{ env.funcao || env.empresa || 'Sem função' }}</span>
+                      </div>
+                      <ces-status [tone]="papelTone(env.papel)">{{ papelLabel(env) }}</ces-status>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Comunicação Legal (CAT) e Evidências Documentais -->
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">4. Comunicação Legal (CAT) e Evidências Documentais</span>
+          </div>
+
+          <!-- Informações da CAT -->
+          <div class="bg-slate-50/40 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2.5 mb-3">
+              <div class="flex items-center gap-2">
+                <i class="pi pi-file-check text-primary-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Comunicação de Acidente de Trabalho (CAT)</span>
+              </div>
+              <ces-status [tone]="e.possuiCat ? 'success' : 'neutral'">
+                {{ e.possuiCat ? 'CAT Emitida' : 'Sem Emissão de CAT' }}
+              </ces-status>
+            </div>
+
+            @if (e.possuiCat) {
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="kv"><span class="kv-l">Tipo de CAT</span><span class="kv-v font-bold">{{ catLabel(e) }}</span></div>
+                <div class="kv"><span class="kv-l">Número do Registro</span><span class="kv-v font-mono font-bold">{{ e.numeroCat || '—' }}</span></div>
+                <div class="kv"><span class="kv-l">Data de Emissão</span><span class="kv-v">{{ (e.dataEmissaoCat | date:'dd/MM/yyyy') || '—' }}</span></div>
+              </div>
+            } @else {
+              <div class="text-xs text-slate-500 dark:text-slate-400 italic">
+                Não há registro de emissão de CAT associado a este evento (não exigido para incidentes sem lesão ou em processo de avaliação).
+              </div>
+            }
+          </div>
+
+          <!-- Anexos e Evidências -->
+          <div class="print:hidden">
+            <app-evento-anexos
+              [idEvento]="e.id"
+              [canWrite]="editavel(e) && canWrite()"
+              (anexosChange)="onAnexosAlterados($event)"
+            ></app-evento-anexos>
+          </div>
+        </div>
+
+        <!-- 5. Tratativa e Desfecho da Ocorrência -->
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2 border-l-2 border-primary-500 pl-3">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100">5. Tratativa e Desfecho da Ocorrência</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- Parecer da Tratativa / Investigação -->
+            <div class="bg-slate-50/40 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col gap-3">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-comments text-primary-500 text-xs"></i>
+                  <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Parecer Técnico e Ações Corretivas</span>
+                </div>
+                @if (e.dataConclusao) {
+                  <span class="text-[9px] font-medium text-emerald-600 dark:text-emerald-400">Concluído em {{ e.dataConclusao | date:'dd/MM/yy HH:mm' }}</span>
+                }
+              </div>
+              <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed text-justify whitespace-pre-line">
+                {{ e.tratativa || 'Nenhuma tratativa ou parecer foi registrado até o momento.' }}
+              </p>
+            </div>
+
+            <!-- Motivos de Encerramento / Cancelamento / Reabertura -->
+            <div class="bg-slate-50/40 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 flex flex-col gap-3">
+              <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                <i class="pi pi-info-circle text-primary-500 text-xs"></i>
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">Histórico de Ocorrência</span>
+              </div>
+              @if (e.status === 'CANCELADO') {
+                <div class="kv"><span class="kv-l text-red-600 dark:text-red-400">Data Cancelamento</span><span class="kv-v font-bold">{{ e.dataCancelamento | date:'dd/MM/yyyy HH:mm' }}</span></div>
+                <div class="flex flex-col gap-1 mt-1">
+                  <span class="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase">Motivo do Cancelamento:</span>
+                  <p class="text-xs text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-900/60 p-2.5 rounded-lg border border-red-200 dark:border-red-900/40">
+                    {{ e.motivoCancelamento || 'Não informado' }}
+                  </p>
+                </div>
+              } @else if (e.motivoReabertura) {
+                <div class="flex flex-col gap-1">
+                  <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">Motivo da Última Reabertura:</span>
+                  <p class="text-xs text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-900/60 p-2.5 rounded-lg border border-amber-200 dark:border-amber-900/40">
+                    {{ e.motivoReabertura }}
+                  </p>
+                </div>
+              } @else {
+                <div class="flex items-center justify-center py-6 text-xs text-slate-400 italic">
+                  Ocorrência em fluxo regular de tratativa sem registros de cancelamento.
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Auditoria e Registro Sistêmico (Rodapé da Seção) -->
+          <div class="bg-slate-50/60 dark:bg-slate-800/30 border border-slate-200/80 dark:border-slate-800 rounded-lg px-4 py-2.5 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+            <span class="flex items-center gap-1.5">
+              <i class="pi pi-user text-[10px]"></i>
+              Registrado originalmente por <strong class="text-slate-700 dark:text-slate-300">{{ e.usuarioCriacao || 'Sistema' }}</strong> em {{ e.dataCriacao | date:'dd/MM/yyyy HH:mm' }}
+            </span>
+            <span class="font-medium">
+              Situação cadastral: <strong class="text-slate-700 dark:text-slate-300">{{ e.ativo ? 'Ativo' : 'Inativo' }}</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- 6. Termo de Ciência e Assinaturas (Formal para Impressão/Relatório) -->
+        <div class="flex flex-col gap-6 mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 print:mt-4 print:pt-2">
+          <div class="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-4 print:border-none print:p-0 print:bg-transparent">
+            <p class="text-[10px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-1">Declaração de Apuração e Investigação</p>
+            <p class="text-[10px] text-slate-700 dark:text-slate-300 leading-relaxed text-justify">
+              Atestamos para os devidos fins que as informações constantes neste <strong>Relatório de Investigação de Evento / Acidente</strong> foram apuradas conforme os procedimentos operacionais e regulamentações de Saúde e Segurança do Trabalho (SST) da <strong>NOME DA EMPRESA</strong> e da contratante <strong>Concessionária</strong>.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 print:grid-cols-3 gap-8 mt-4 print:gap-4">
+            <div class="flex flex-col items-center text-center">
+              <div class="w-full border-b border-slate-400 dark:border-slate-600 mb-1.5 h-10"></div>
+              <span class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase">{{ e.gestorNome || 'Gestor Responsável' }}</span>
+              <span class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">{{ e.gestorFuncao || 'Gestor da Ocorrência' }}</span>
+              <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">Assinatura / Visto</span>
+            </div>
+            <div class="flex flex-col items-center text-center">
+              <div class="w-full border-b border-slate-400 dark:border-slate-600 mb-1.5 h-10"></div>
+              <span class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase">Técnico / SESMT (SST)</span>
+              <span class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Investigação e Parecer</span>
+              <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">Assinatura / Visto</span>
+            </div>
+            <div class="flex flex-col items-center text-center">
+              <div class="w-full border-b border-slate-400 dark:border-slate-600 mb-1.5 h-10"></div>
+              <span class="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase">Coordenação / Gerência</span>
+              <span class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Ciência e Validação</span>
+              <span class="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">Data: ____/____/________</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Ações Finais Flutuantes (Padrão Relatório de Desconto) -->
+    <div class="fixed bottom-6 right-6 md:bottom-8 md:right-8 flex flex-col-reverse sm:flex-row items-end sm:items-center gap-3 z-30 print:hidden">
+      <div class="flex items-center gap-3 flex-wrap justify-end">
+        <p-button
+          label="Imprimir"
+          icon="pi pi-print"
+          (onClick)="print()"
+          styleClass="!rounded-xl !bg-slate-700 dark:!bg-slate-800 !border-slate-700 dark:!border-slate-700 hover:!bg-slate-600 hover:!border-slate-600 !text-white !font-medium !text-[11px] !px-6 !py-3 shadow-sm md:flex hidden"
+        ></p-button>
+
+        <p-button
+          label="Voltar"
+          icon="pi pi-arrow-left"
+          [text]="true"
+          severity="secondary"
+          (onClick)="voltar()"
+          styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-[11px] !px-6 !py-3 shadow-sm md:flex hidden"
+        ></p-button>
+
+        @if (e.status !== 'CANCELADO' && editavel(e)) {
+          <p-button
+            label="Editar"
+            icon="pi pi-pencil"
+            [text]="true"
+            severity="secondary"
+            (onClick)="editar()"
+            styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-[11px] !px-6 !py-3 shadow-sm"
+          ></p-button>
+
+          <p-button
+            label="Cancelar Registro"
+            icon="pi pi-times-circle"
+            severity="danger"
+            (onClick)="abrir('cancelamento')"
+            styleClass="!w-full md:!w-auto !justify-center !rounded-xl !bg-red-600 !border-red-600 !text-white !font-medium !text-[11px] !tracking-widest !uppercase !px-6 !py-3 shadow-lg transition-all"
+          ></p-button>
+        }
+
+        @if (e.status === 'REGISTRADO') {
+          <p-button
+            label="Assumir Tratativa"
+            icon="pi pi-play"
+            (onClick)="abrir('tratativa')"
+            styleClass="!w-full md:!w-auto !justify-center !rounded-xl !bg-blue-600 !border-blue-600 !text-white !font-medium !text-[11px] !tracking-widest !uppercase !px-6 !py-3 shadow-lg transition-all"
+          ></p-button>
+        }
+
+        @if (e.status === 'EM_TRATATIVA') {
+          <p-button
+            label="Concluir Evento"
+            icon="pi pi-check-circle"
+            (onClick)="abrir('conclusao')"
+            styleClass="!w-full md:!w-auto !justify-center !rounded-xl !bg-green-600 !border-green-600 !text-white !font-medium !text-[11px] !tracking-widest !uppercase !px-8 !py-3 shadow-lg transition-all"
+          ></p-button>
+        }
+
+        @if (e.status === 'CONCLUIDO') {
+          <p-button
+            label="Reabrir Evento"
+            icon="pi pi-refresh"
+            severity="secondary"
+            (onClick)="abrir('reabertura')"
+            styleClass="!rounded-xl !bg-white dark:!bg-slate-800 !border-slate-200 dark:!border-slate-700 !text-slate-600 dark:!text-slate-300 !font-medium !text-[11px] !px-6 !py-3 shadow-sm"
+          ></p-button>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Modal de Ação do Ciclo de Vida -->
+<p-dialog
+  [(visible)]="dialogAberto"
+  [modal]="true"
+  [header]="tituloDialog()"
+  [style]="{ width: '90vw', maxWidth: '500px' }"
+  [draggable]="false"
+  [resizable]="false"
+  class="custom-dialog"
+>
+  <div class="flex flex-col gap-4 mt-2">
+    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+      {{ descricaoDialog() }}
+    </p>
+
+    <div class="flex flex-col gap-1">
+      <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+        {{ labelCampo() }}
+        @if (campoObrigatorio()) {
+          <span class="text-red-500">*</span>
+        }
+      </label>
+      <textarea
+        pTextarea
+        [(ngModel)]="textoAcao"
+        [placeholder]="placeholderCampo()"
+        rows="4"
+        class="w-full text-xs p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary-500 focus:outline-none resize-none"
+      ></textarea>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 pt-4">
+      <p-button
+        label="Cancelar"
+        icon="pi pi-times"
+        [text]="true"
+        severity="secondary"
+        (onClick)="dialogAberto = false"
+        [disabled]="salvando()"
+      ></p-button>
+
+      <p-button
+        [label]="rotuloConfirmar()"
+        icon="pi pi-check"
+        [severity]="acao === 'cancelamento' ? 'danger' : 'primary'"
+        (onClick)="confirmar()"
+        [loading]="salvando()"
+        [disabled]="campoObrigatorio() && !textoAcao.trim()"
+      ></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
