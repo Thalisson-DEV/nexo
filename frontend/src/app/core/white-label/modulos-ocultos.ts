@@ -39,7 +39,12 @@ export function removerModulosOcultos(items: MenuItem[]): MenuItem[] {
 const moduloVisivel: CanMatchFn = (_route: Route, segmentos: UrlSegment[]) =>
   rotaOculta(segmentos.map((s) => s.path).join('/')) ? inject(Router).parseUrl('/') : true;
 
-/** Aplica o bloqueio nas rotas de primeiro nível, onde o caminho chega inteiro. */
+/**
+ * Aplica o bloqueio nas rotas de primeiro nível, onde o caminho chega inteiro. Rota de
+ * redirecionamento não aceita guard; o destino dela é que fica bloqueado.
+ */
 export function comModulosOcultos(rotas: Route[]): Route[] {
-  return rotas.map((rota) => ({ ...rota, canMatch: [moduloVisivel, ...(rota.canMatch ?? [])] }));
+  return rotas.map((rota) =>
+    rota.redirectTo !== undefined ? rota : { ...rota, canMatch: [moduloVisivel, ...(rota.canMatch ?? [])] }
+  );
 }

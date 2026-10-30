@@ -1,6 +1,9 @@
 import '@angular/compiler';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { describe, expect, it } from 'vitest';
-import { removerModulosOcultos, rotaOculta } from './modulos-ocultos';
+import { routes } from '../../app.routes';
+import { comModulosOcultos, removerModulosOcultos, rotaOculta } from './modulos-ocultos';
 
 describe('módulos ocultos da distribuição white label', () => {
   it('tira do menu os grupos ocultos em qualquer nível', () => {
@@ -30,5 +33,13 @@ describe('módulos ocultos da distribuição white label', () => {
     expect(rotaOculta('/sst/inspecoes')).toBe(false);
     expect(rotaOculta('/notificacoes')).toBe(false);
     expect(rotaOculta('/manuais-extra')).toBe(false);
+  });
+
+  it('o router aceita as rotas do app com o bloqueio aplicado', () => {
+    // Rota com redirectTo não pode ter guard: o Angular recusa a configuração inteira e o
+    // app abre em branco.
+    TestBed.configureTestingModule({ providers: [provideRouter(comModulosOcultos(routes))] });
+
+    expect(() => TestBed.inject(Router)).not.toThrow();
   });
 });
