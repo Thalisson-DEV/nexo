@@ -1,5 +1,6 @@
 package com.nexo.app.modules.obras.application.mappers;
 
+import com.nexo.app.modules.obras.application.dto.CarteiraObraResponse;
 import com.nexo.app.modules.obras.application.dto.AnexoObraResponse;
 import com.nexo.app.modules.obras.application.dto.ObraResponse;
 import com.nexo.app.modules.obras.application.dto.ObraResumoResponse;
@@ -42,6 +43,7 @@ public interface ObraMapper {
     @Mapping(target = "subprojetos", expression = "java(toLegacySubprojetos(projetosRelacionados))")
     @Mapping(target = "anexos", source = "obra.anexos")
     @Mapping(target = "projetosRelacionados", source = "projetosRelacionados")
+    @Mapping(target = "carteira", expression = "java(toCarteira(obra))")
     ObraResponse toResponse(Obra obra, String processoNome, String baseOperacionalNome,
                             String municipioNome, String centroCustoNome,
                             String supervisorNome, String coordenadorNome,
@@ -70,10 +72,35 @@ public interface ObraMapper {
     @Mapping(target = "totalProjetosRelacionados", source = "totalProjetosRelacionados")
     @Mapping(target = "totalSubprojetos", source = "totalProjetosRelacionados")
     @Mapping(target = "totalAnexos", expression = "java(obra.getAnexos() != null ? obra.getAnexos().size() : 0)")
+    @Mapping(target = "carteira", expression = "java(toCarteira(obra))")
     ObraResumoResponse toResumo(Obra obra, String processoNome, String baseOperacionalNome,
                                 String municipioNome, String centroCustoNome,
                                 String supervisorNome, String coordenadorNome,
                                 int totalProjetosRelacionados);
+
+    default CarteiraObraResponse toCarteira(Obra obra) {
+        if (obra == null) {
+            return null;
+        }
+        return new CarteiraObraResponse(
+                obra.getIdContrato(),
+                obra.getClasseTensao(),
+                obra.getClasseTensao() != null ? obra.getClasseTensao().getRotulo() : null,
+                obra.getClasseTensaoInformadaPor(),
+                obra.getClasseTensaoInformadaEm(),
+                obra.getPrazoRegulado(),
+                obra.getPrioridade(),
+                obra.getLotePrevisto(),
+                obra.getSituacaoCarteira(),
+                obra.getValorMaterialPrevisto(),
+                obra.getValorServicoPrevisto(),
+                obra.getObservacaoStatus(),
+                obra.deslocamentoDesatualizado() ? null : obra.getDistanciaBaseKm(),
+                obra.deslocamentoDesatualizado() ? null : obra.getTempoDeslocamentoMin(),
+                obra.deslocamentoDesatualizado() ? null : obra.getDeslocamentoEstimado(),
+                obra.deslocamentoDesatualizado() ? null : obra.getDeslocamentoCalculadoEm()
+        );
+    }
 
     @Mapping(target = "statusId", source = "statusObra.id")
     @Mapping(target = "statusNome", source = "statusObra.nome")

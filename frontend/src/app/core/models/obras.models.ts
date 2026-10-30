@@ -1,3 +1,4 @@
+import { ClasseTensao } from './obras-kit.models';
 import { PagedResponse } from './shared.models';
 
 /**
@@ -55,6 +56,7 @@ export interface ObraResumoResponse {
   totalEquipes: number;
   totalSubprojetos: number;
   totalAnexos: number;
+  carteira?: CarteiraObraResponse | null;
   ativo: boolean;
 }
 
@@ -100,6 +102,7 @@ export interface ObraResponse {
   projetosRelacionados?: ProjetoRelacionadoResponse[];
   subprojetos: SubprojetoResponse[];
   anexos: AnexoObraResponse[];
+  carteira?: CarteiraObraResponse | null;
   ativo: boolean;
   dataCriacao: string;
   dataUltimaAlteracao?: string;
@@ -357,4 +360,106 @@ export interface ObraMetricas {
   planejadas: number;
   concluidasMes: number;
   valorTotalExecucao: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Carteira de obras (dados de carteira, status operacional, deslocamento,
+// obras próximas, indicadores e orçamento previsto)
+// ═══════════════════════════════════════════════════════════════════════
+
+export type PrioridadeObra = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
+
+export const PRIORIDADES_OBRA: { label: string; value: PrioridadeObra }[] = [
+  { label: 'Baixa', value: 'BAIXA' },
+  { label: 'Normal', value: 'NORMAL' },
+  { label: 'Alta', value: 'ALTA' },
+  { label: 'Urgente', value: 'URGENTE' }
+];
+
+export interface CarteiraObraResponse {
+  idContrato?: string | null;
+  classeTensao?: ClasseTensao | null;
+  classeTensaoRotulo?: string | null;
+  classeTensaoInformadaPor?: string | null;
+  classeTensaoInformadaEm?: string | null;
+  prazoRegulado?: string | null; // dd/MM/yyyy
+  prioridade?: PrioridadeObra | null;
+  lotePrevisto?: string | null;
+  situacaoCarteira?: string | null;
+  valorMaterialPrevisto?: number | null;
+  valorServicoPrevisto?: number | null;
+  observacaoStatus?: string | null;
+  distanciaBaseKm?: number | null;
+  tempoDeslocamentoMin?: number | null;
+  deslocamentoEstimado?: boolean | null;
+  deslocamentoCalculadoEm?: string | null;
+}
+
+export interface CarteiraObraRequest {
+  idContrato?: string | null;
+  classeTensao?: ClasseTensao | null;
+  prazoRegulado?: string | null; // dd/MM/yyyy
+  prioridade?: PrioridadeObra | null;
+  lotePrevisto?: string | null;
+  situacaoCarteira?: string | null;
+  valorProjeto?: number | null;
+  valorMaterialPrevisto?: number | null;
+  valorServicoPrevisto?: number | null;
+}
+
+export interface StatusOperacionalObraRequest {
+  idStatusObra: string;
+  observacao?: string | null;
+  dataFimEfetiva?: string | null; // dd/MM/yyyy
+}
+
+export interface HistoricoStatusObraResponse {
+  id: string;
+  statusAnteriorId?: string | null;
+  statusAnteriorNome?: string | null;
+  statusNovoId: string;
+  statusNovoNome: string;
+  observacao?: string | null;
+  usuario?: string | null;
+  data?: string | null;
+}
+
+export interface ObraProximaResponse {
+  id: string;
+  numero: string;
+  titulo: string;
+  statusNome?: string | null;
+  municipioNome?: string | null;
+  distanciaKm: number;
+  latitude: number;
+  longitude: number;
+}
+
+export interface IndicadoresCarteiraResponse {
+  quantidade: number;
+  valorProjeto: number;
+  valorMaterialPrevisto: number;
+  valorServicoPrevisto: number;
+  municipios: number;
+}
+
+export interface ItemOrcamentoObraResponse {
+  id: string;
+  codigo: string;
+  descricao?: string | null;
+  unidade?: string | null;
+  quantidade: number;
+  valorUnitario?: number | null;
+  valorTotal: number;
+  idAcao?: string | null;
+}
+
+export interface OrcamentoObraResponse {
+  idObra: string;
+  importado: boolean;
+  dataImportacao?: string | null;
+  valorMaterialPrevisto?: number | null;
+  valorServicoPrevisto?: number | null;
+  totalServicosImportados: number;
+  itens: ItemOrcamentoObraResponse[];
 }

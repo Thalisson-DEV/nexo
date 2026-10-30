@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImportacaoStatus, ObraResumoResponse } from '../../../core/models/obras.models';
 import { AuthService } from '../../../core/services/auth.service';
+import { ContratoService } from '../../../core/services/contrato.service';
+import { ObrasKitService } from '../../../core/services/obras-kit.service';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
 import { abrirListagem, chipsDoPainel, paginaTeste } from '../../../shared/listagem/listagem-teste';
@@ -40,6 +42,8 @@ describe('ObrasListComponent', () => {
     abrirListagem(ObrasListComponent, 'lista', url, [
       { provide: ObrasService, useValue: servico },
       { provide: AuthService, useValue: { currentUser: () => ({ permissoes }) } },
+      { provide: ObrasKitService, useValue: { listarImportacoes: vi.fn(() => paginaTeste([])) } },
+      { provide: ContratoService, useValue: { listarContratosAtivos: () => paginaTeste([{ id: 'c1', numeroContrato: 'CT-01', cliente: 'Cliente' }]) } },
       {
         provide: RhService,
         useValue: {
@@ -59,6 +63,7 @@ describe('ObrasListComponent', () => {
     permissoes = ['obras:obra:read', 'obras:obra:write', 'obras:obra:import', 'obras:obra:export'];
     servico = {
       listarObras: vi.fn(() => paginaTeste([obra])),
+      indicadoresCarteira: vi.fn(() => of({ quantidade: 12, valorProjeto: 1500000, valorMaterialPrevisto: 400000, valorServicoPrevisto: 900000, municipios: 3 })),
       listarStatusAtivos: vi.fn(() => of([
         { id: 'st-1', nome: 'EM EXECUÇÃO', concluida: false, ativo: true },
         { id: 'st-2', nome: 'CONCLUÍDA', concluida: true, ativo: true }
@@ -194,5 +199,33 @@ describe('ObrasListComponent', () => {
     vi.spyOn(TestBed.inject(CesConfirmationService), 'confirm').mockResolvedValue(true);
     await tela.importacao.processar();
     expect(servico['confirmarImportacao']).toHaveBeenCalledWith({ registros: [expect.not.objectContaining({ editing: expect.anything() })] });
+  });
+
+  it('mostra os indicadores do mesmo recorte da tabela', async () => {
+    const { el, harness } = await abrir('/lista?numero=1228');
+    await new Promise((r) => setTimeout(r, 300));
+    harness.detectChanges();
+    expect(servico['indicadoresCarteira']).toHaveBeenLastCalledWith(expect.objectContaining({ numero: '1228', ativo: true }));
+    expect(el.textContent).toContain('Obras no recorte');
+    expect(el.textContent).toContain('3 municípios');
+    expect(el.textContent).toContain('1.500.000,00');
+  });
+
+  it('"Importar" deixa escolher entre cadastro, carteira e orçamento', async () => {
+    const { componente } = await abrir();
+    const tela = componente as unknown as {
+      escolhaImportacaoAberta(): boolean;
+      importacaoCarteiraAberta(): boolean;
+      importacaoOrcamentoAberta(): boolean;
+      importacao: { aberta(): boolean };
+      abrirImportacao(t: 'obras' | 'carteira' | 'orcamento'): void;
+    };
+    tela.abrirImportacao('carteira');
+    expect(tela.importacaoCarteiraAberta()).toBe(true);
+    expect(tela.escolhaImportacaoAberta()).toBe(false);
+    tela.abrirImportacao('orcamento');
+    expect(tela.importacaoOrcamentoAberta()).toBe(true);
+    tela.abrirImportacao('obras');
+    expect(tela.importacao.aberta()).toBe(true);
   });
 });

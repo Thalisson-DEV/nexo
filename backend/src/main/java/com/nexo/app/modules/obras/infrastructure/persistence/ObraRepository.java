@@ -33,6 +33,20 @@ public interface ObraRepository
     @Query("SELECT o FROM Obra o LEFT JOIN FETCH o.statusObra LEFT JOIN FETCH o.agenteResponsavel LEFT JOIN FETCH o.obraPai WHERE o.id = :id")
     Optional<Obra> findByIdWithDetails(@Param("id") UUID id);
 
+    /** Obras ativas com coordenadas cujo deslocamento nunca foi calculado ou usou outra base/coordenadas. */
+    @Query("SELECT o.id FROM Obra o WHERE o.ativo = true AND o.latitude IS NOT NULL AND o.longitude IS NOT NULL "
+            + "AND (o.distanciaBaseKm IS NULL OR o.idBaseDeslocamento IS NULL OR o.idBaseDeslocamento <> o.idBaseOperacional "
+            + "OR o.latitudeDeslocamento <> o.latitude OR o.longitudeDeslocamento <> o.longitude) "
+            + "ORDER BY o.dataUltimaAlteracao DESC NULLS LAST")
+    List<UUID> buscarIdsComDeslocamentoDesatualizado(org.springframework.data.domain.Pageable pageable);
+
+    /** Pré-filtro por retângulo para a busca de obras próximas; a distância exata é calculada em memória. */
+    @Query("SELECT o FROM Obra o LEFT JOIN FETCH o.statusObra WHERE o.ativo = true AND o.id <> :idIgnorado "
+            + "AND o.latitude BETWEEN :latMin AND :latMax AND o.longitude BETWEEN :lngMin AND :lngMax")
+    List<Obra> buscarNoRetangulo(@Param("idIgnorado") UUID idIgnorado,
+                                 @Param("latMin") double latMin, @Param("latMax") double latMax,
+                                 @Param("lngMin") double lngMin, @Param("lngMax") double lngMax);
+
     @Modifying
     @Query(value = "INSERT INTO obras_equipes (id_obra, id_equipe) VALUES (:idObra, :idEquipe) "
             + "ON CONFLICT (id_obra, id_equipe) DO NOTHING", nativeQuery = true)

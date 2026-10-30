@@ -1,0 +1,29 @@
+schema: spec-driven
+
+context: |
+  Produto: Nexo (gestão operacional), monorepo white label. Nunca use nome, logo ou mascote de
+  empresa (cliente, concessionária, parceiro ou sistema de referência) em specs, código, textos ou dados.
+  Idioma: português do Brasil em todos os artefatos.
+  Backend: Java 21, Spring Boot 4, Spring Modulith, PostgreSQL 17.5, Flyway (backend/src/main/resources/db/migration,
+  próxima versão a partir de V195). Módulos em com.nexo.app.modules.<dominio> com camadas application/{dto,mappers,usecases},
+  doc, domain, infrastructure/{persistence,web}. Rich Domain Model sobre BaseEntity (UUID, versao, auditoria, soft delete),
+  sem setters, OffsetDateTime, Problem Details, Specifications + PageResponse, cache Redis nos UseCases CRUD,
+  comunicação entre módulos só por eventos de domínio.
+  Frontend: Angular 21 standalone + signals, PrimeNG 21 consumido via @ces/ui (Design System Nexo, source-owned),
+  Tailwind v4, offline-first (BaseService/SyncService/Dexie), Leaflet, chart.js. Listagens seguem o padrão
+  "tabela primeiro" (ces-page-header, ces-filter-panel, ces-data-table mode server, ces-form-drawer, cesListState).
+  Sem ::ng-deep, sem cores semânticas hardcoded, sem hosts locais de toast/confirm. Rodar npm run verify:design-system.
+  Mobile: app de campo em mobile/ (Angular), offline-first.
+  Domínio existente relevante: Obra (subprojetos, anexos, status, agente responsável), Contrato/Acao/AcaoValor
+  (serviços com valor vigente por contrato), Material/Estoque/SolicitacaoMaterial (inclui solicitação técnica),
+  Equipe/TipoEquipe/BaseOperacional/MetaFaturamentoEquipe, Turno (equipe, veículo, colaboradores), ExecucaoComercial,
+  Frota com provedores de telemetria. "Processo técnico" = processo de Obras.
+
+rules:
+  proposal:
+    - Separar explicitamente o que fica para etapas futuras.
+  specs:
+    - Requisitos normativos com SHALL ou MUST no texto; o restante em português.
+    - Cada requisito com pelo menos um cenário WHEN/THEN testável.
+  tasks:
+    - Agrupar por frente de trabalho para permitir execução em paralelo e indicar dependências entre frentes.

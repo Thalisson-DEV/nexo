@@ -8,13 +8,20 @@ import {
   AgenteResponsavelRequest,
   AgenteResponsavelResponse,
   AnexoObraResponse,
+  CarteiraObraRequest,
+  CarteiraObraResponse,
   ConfirmarImportacaoObraRequest,
+  HistoricoStatusObraResponse,
   ImportacaoObraResponse,
+  IndicadoresCarteiraResponse,
   ObraFilter,
+  ObraProximaResponse,
   ObraRequest,
   ObraResponse,
   ObraResumoResponse,
+  OrcamentoObraResponse,
   StatusObraFilter,
+  StatusOperacionalObraRequest,
   StatusObraRequest,
   StatusObraResponse,
   SubprojetoVinculoRequest,
@@ -67,6 +74,45 @@ export class ObrasService extends BaseService {
 
   desativarObra(id: string): Observable<void | null> {
     return this.deleteSync(this.baseUrl, id);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Carteira (dados de carteira, status operacional, deslocamento, próximas)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  buscarCarteira(id: string): Observable<CarteiraObraResponse> {
+    return this.http.get<CarteiraObraResponse>(`${this.baseUrl}/${id}/carteira`);
+  }
+
+  informarCarteira(id: string, request: CarteiraObraRequest): Observable<CarteiraObraResponse> {
+    return this.http.put<CarteiraObraResponse>(`${this.baseUrl}/${id}/carteira`, request);
+  }
+
+  informarStatusOperacional(id: string, request: StatusOperacionalObraRequest): Observable<CarteiraObraResponse> {
+    return this.http.post<CarteiraObraResponse>(`${this.baseUrl}/${id}/status-operacional`, request);
+  }
+
+  listarHistoricoStatus(id: string): Observable<HistoricoStatusObraResponse[]> {
+    return this.http.get<HistoricoStatusObraResponse[]>(`${this.baseUrl}/${id}/historico-status`);
+  }
+
+  recalcularDeslocamento(id: string): Observable<CarteiraObraResponse> {
+    return this.http.post<CarteiraObraResponse>(`${this.baseUrl}/${id}/deslocamento/recalcular`, null);
+  }
+
+  listarObrasProximas(id: string, raioKm?: number | null): Observable<ObraProximaResponse[]> {
+    const params = raioKm ? new HttpParams().set('raioKm', raioKm) : undefined;
+    return this.http.get<ObraProximaResponse[]>(`${this.baseUrl}/${id}/proximas`, { params });
+  }
+
+  buscarOrcamento(id: string): Observable<OrcamentoObraResponse> {
+    return this.http.get<OrcamentoObraResponse>(`${this.baseUrl}/${id}/orcamento`);
+  }
+
+  /** Totais do mesmo recorte da listagem (mesmos filtros). */
+  indicadoresCarteira(filter: ObraFilter = {}): Observable<IndicadoresCarteiraResponse> {
+    const params = toHttpParams(filter as Record<string, unknown>, { ignorar: ['page', 'size', 'sort'] });
+    return this.http.get<IndicadoresCarteiraResponse>(`${this.baseUrl}/indicadores`, { params });
   }
 
   // ═══════════════════════════════════════════════════════════════════════

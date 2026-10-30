@@ -204,6 +204,17 @@ public class ContratoUseCases implements ContratoApi {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<AcaoResponse> buscarAcaoAtivaPorCodigo(String codigo) {
+        if (codigo == null || codigo.isBlank()) {
+            return Optional.empty();
+        }
+        return acaoRepository.findByCodigoIgnoreCase(codigo.trim())
+                .filter(acao -> acao.isAtivo())
+                .map(acaoMapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<AcaoResponse> buscarAcoesPorIdsResponse(Collection<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return List.of();

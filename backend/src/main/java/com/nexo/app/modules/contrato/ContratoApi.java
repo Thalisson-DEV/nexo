@@ -47,6 +47,11 @@ public interface ContratoApi {
     List<AcaoResponse> buscarAcoesPorIdsResponse(Collection<UUID> ids);
 
     /**
+     * Busca uma ação ativa pelo código, sem diferenciar maiúsculas (usado nas importações de planilha).
+     */
+    Optional<AcaoResponse> buscarAcaoAtivaPorCodigo(String codigo);
+
+    /**
      * Verifica se uma ação existe e está ativa.
      */
     boolean existeAcao(UUID id);

@@ -73,6 +73,8 @@ public final class CacheNames {
     public static final String OBRAS_STATUS = "obras-status";
     public static final String OBRAS_AGENTES = "obras-agentes";
     public static final String OBRAS_TIPOS_ANEXOS = "obras-tipos-anexos";
+    public static final String OBRAS_KITS = "obras-kits";
+    public static final String OBRAS_ROTAS = "obras-rotas";
 
     private CacheNames() {}
 }

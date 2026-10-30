@@ -241,6 +241,11 @@ ces:
       expurgo-cron: ${SESSAO_EXPURGO_CRON:0 15 4 * * *}
     crypto:
       secret-key: ${CRYPTO_KEY}
+    # Senha do administrador padrão (V20) definida na subida, para bancos de desenvolvimento e
+    # homologação. Vazia = não altera nada (deixe vazia em produção).
+    admin-padrao:
+      login: ${ADMIN_PADRAO_LOGIN:USRADMIN}
+      senha: ${ADMIN_PADRAO_SENHA:}
 
   observability:
     # Dedicated technical credential for private health probes. It is never a

@@ -54,6 +54,7 @@ public record ObraResponse(
         OffsetDateTime dataCriacao,
         OffsetDateTime dataUltimaAlteracao,
         String usuarioCriacao,
-        String usuarioUltimaAlteracao
+        String usuarioUltimaAlteracao,
+        CarteiraObraResponse carteira
 ) {
 }

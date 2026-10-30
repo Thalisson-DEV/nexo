@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ObraResponse, TipoVinculoSubprojeto } from '../../../core/models/obras.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { FavoritosService } from '../../../core/services/favoritos.service';
+import { ContratoService } from '../../../core/services/contrato.service';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
 import { SolicitacaoMaterialTecnicaService } from '../../../core/services/solicitacao-material-tecnica.service';
@@ -93,6 +94,10 @@ describe('ObraDetalheComponent', () => {
       listarTiposAnexosAtivos: vi.fn().mockReturnValue(of([{ id: 'tipo-1', nome: 'PROJETO EXECUTIVO' }])),
       listarObras: vi.fn().mockReturnValue(of({ content: [] })),
       alterarStatus: vi.fn().mockReturnValue(of(mockObra)),
+      informarStatusOperacional: vi.fn().mockReturnValue(of({})),
+      listarHistoricoStatus: vi.fn().mockReturnValue(of([])),
+      listarObrasProximas: vi.fn().mockReturnValue(of([])),
+      buscarOrcamento: vi.fn().mockReturnValue(of({ idObra: 'obra-1', importado: false, totalServicosImportados: 0, itens: [] })),
       vincularSubprojeto: vi.fn().mockReturnValue(of(mockObra)),
       desvincularSubprojeto: vi.fn().mockReturnValue(of(mockObra)),
       anexarArquivo: vi.fn().mockReturnValue(of(mockObra.anexos[0])),
@@ -173,6 +178,7 @@ describe('ObraDetalheComponent', () => {
         { provide: AuthService, useValue: authService },
         { provide: FavoritosService, useValue: favoritosService },
         { provide: SolicitacaoMaterialTecnicaService, useValue: solicitacaoService },
+        { provide: ContratoService, useValue: { listarContratosAtivos: () => of({ content: [], page: { totalElements: 0 } }) } },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 'obra-1' } } }
@@ -241,6 +247,26 @@ describe('ObraDetalheComponent', () => {
     component['abrirAlteracaoStatus']();
     expect(component['statusDialogVisible']()).toBe(true);
     expect(component['novoStatusId']).toBe('st-1');
+  });
+
+  it('registra o status operacional com a observação no histórico', () => {
+    component['abrirAlteracaoStatus']();
+    component['novoStatusId'] = 'st-1';
+    component['observacaoStatus'] = '  Aguardando desligamento  ';
+    component['salvarAlteracaoStatus']();
+    expect(obrasService.informarStatusOperacional).toHaveBeenCalledWith('obra-1', {
+      idStatusObra: 'st-1',
+      observacao: 'Aguardando desligamento',
+      dataFimEfetiva: null
+    });
+    expect(obrasService.alterarStatus).not.toHaveBeenCalled();
+  });
+
+  it('mostra a seção de carteira com orçamento vazio', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Carteira');
+    expect(compiled.textContent).toContain('Não há orçamento importado');
+    expect(obrasService.listarHistoricoStatus).toHaveBeenCalledWith('obra-1');
   });
 
   it('deve abrir o modal de vincular subprojeto com tipo padrão KIT', () => {

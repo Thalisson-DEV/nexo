@@ -479,6 +479,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/obras/cadastros/agentes-responsaveis/agentes-responsaveis.component').then(m => m.AgentesResponsaveisComponent)
       },
       {
+        path: 'cadastros/kits',
+        data: { permission: 'obras:kit:read' },
+        loadComponent: () => import('./features/obras/kits/kits-construtivos.component').then(m => m.KitsConstrutivosComponent)
+      },
+      {
         path: 'cadastros/tipos-anexos',
         data: { permission: 'obras:cadastros:read' },
         loadComponent: () => import('./features/obras/cadastros/tipos-anexos/tipos-anexos.component').then(m => m.TiposAnexosComponent)

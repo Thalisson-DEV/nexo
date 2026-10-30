@@ -99,6 +99,7 @@ export class App {
     '/obras/cadastros/status': 'obras:cadastros:read',
     '/obras/cadastros/agentes': 'obras:cadastros:read',
     '/obras/cadastros/tipos-anexos': 'obras:cadastros:read',
+    '/obras/cadastros/kits': 'obras:kit:read',
     '/almoxarifado/solicitacoes': 'estoque:solicitacao:read',
     '/almoxarifado/solicitacoes/kanban': 'estoque:solicitacao:read',
     '/almoxarifado/solicitacoes/calendario': 'estoque:solicitacao:read',
@@ -317,7 +318,8 @@ export class App {
             { label: 'Supervisores', icon: 'pi pi-users', routerLink: '/admin/cadastros/supervisores' },
             { label: 'Status de Obras', icon: 'pi pi-tag', routerLink: '/obras/cadastros/status' },
             { label: 'Agentes Responsáveis', icon: 'pi pi-users', routerLink: '/obras/cadastros/agentes' },
-            { label: 'Tipos de Anexos', icon: 'pi pi-paperclip', routerLink: '/obras/cadastros/tipos-anexos' }
+            { label: 'Tipos de Anexos', icon: 'pi pi-paperclip', routerLink: '/obras/cadastros/tipos-anexos' },
+            { label: 'Kits Construtivos', icon: 'pi pi-box', routerLink: '/obras/cadastros/kits' }
           ]
         }
       ]

@@ -111,6 +111,11 @@
         </div>
       }
 
+      <!-- CARTEIRA: TENSÃO, PRAZOS, VALORES PREVISTOS, DESLOCAMENTO, STATUS, PRÓXIMAS E ORÇAMENTO -->
+      <div class="mb-6 px-1 print:mb-3">
+        <app-obra-carteira [obra]="o" [podeEscrever]="podeEscrever" (alterada)="carregarObra(o.id)"></app-obra-carteira>
+      </div>
+
       <!-- EQUIPES OPERACIONAIS (PADRÃO ENXUTO: APENAS NOME/CÓDIGO E TIPO) -->
       <div class="mb-6 px-1 print:mb-3">
         <div class="flex items-center justify-between mb-3 border-l-2 border-primary-500 pl-3">
@@ -402,6 +407,14 @@
             class="custom-date w-full" appendTo="body" />
         </div>
       }
+      <div class="flex flex-col gap-1.5">
+        <label class="form-label" for="observacao-status">Observação</label>
+        <textarea pTextarea id="observacao-status" [(ngModel)]="observacaoStatus" rows="3" maxlength="1000" class="w-full"
+          aria-describedby="observacao-status-dica"></textarea>
+        <p id="observacao-status-dica" class="m-0 text-[11px] text-[var(--ces-foreground-muted)]">
+          Fica no histórico do status. Pode ser registrada mesmo sem trocar o status.
+        </p>
+      </div>
     </div>
   }
   <div dialog-footer>

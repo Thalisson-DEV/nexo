@@ -2,7 +2,9 @@ package com.nexo.app.modules.obras.infrastructure.persistence;
 
 import com.nexo.app.modules.obras.application.dto.ObraFilter;
 import com.nexo.app.modules.obras.domain.AgenteResponsavel;
+import com.nexo.app.modules.obras.domain.ClasseTensao;
 import com.nexo.app.modules.obras.domain.Obra;
+import com.nexo.app.modules.obras.domain.PrioridadeObra;
 import com.nexo.app.modules.obras.domain.RelacionamentoProjeto;
 import com.nexo.app.modules.obras.domain.StatusObra;
 import com.nexo.app.modules.rh.domain.BaseOperacional;
@@ -183,6 +185,25 @@ public class ObraSpecification {
             case "dataprevisaofim", "data_previsao_fim" -> asc ? cb.asc(root.get("dataPrevisaoFim")) : cb.desc(root.get("dataPrevisaoFim"));
             case "datafimefetiva", "data_fim_efetiva" -> asc ? cb.asc(root.get("dataFimEfetiva")) : cb.desc(root.get("dataFimEfetiva"));
             case "ativo" -> asc ? cb.asc(root.get("ativo")) : cb.desc(root.get("ativo"));
+            case "classetensao", "classe_tensao" -> {
+                // Pela tensão (BT < 15 kV < ... < 138 kV), não pelo nome do enum.
+                CriteriaBuilder.SimpleCase<ClasseTensao, Integer> nivel = cb.selectCase(root.get("classeTensao"));
+                for (ClasseTensao classe : ClasseTensao.values()) {
+                    nivel = nivel.when(classe, classe.ordinal());
+                }
+                yield asc ? cb.asc(nivel.otherwise(ClasseTensao.values().length)) : cb.desc(nivel.otherwise(-1));
+            }
+            case "prioridade" -> {
+                CriteriaBuilder.SimpleCase<PrioridadeObra, Integer> nivel = cb.selectCase(root.get("prioridade"));
+                for (PrioridadeObra prioridade : PrioridadeObra.values()) {
+                    nivel = nivel.when(prioridade, prioridade.ordinal());
+                }
+                yield asc ? cb.asc(nivel.otherwise(PrioridadeObra.values().length)) : cb.desc(nivel.otherwise(-1));
+            }
+            case "prazoregulado", "prazo_regulado" -> asc ? cb.asc(root.get("prazoRegulado")) : cb.desc(root.get("prazoRegulado"));
+            case "situacaocarteira", "situacao_carteira" -> asc ? cb.asc(cb.lower(root.get("situacaoCarteira"))) : cb.desc(cb.lower(root.get("situacaoCarteira")));
+            case "valormaterialprevisto", "valor_material_previsto" -> asc ? cb.asc(root.get("valorMaterialPrevisto")) : cb.desc(root.get("valorMaterialPrevisto"));
+            case "valorservicoprevisto", "valor_servico_previsto" -> asc ? cb.asc(root.get("valorServicoPrevisto")) : cb.desc(root.get("valorServicoPrevisto"));
             case "datacriacao", "data_criacao", "createdat" -> asc ? cb.asc(root.get("dataCriacao")) : cb.desc(root.get("dataCriacao"));
             case "dataultimaalteracao", "data_ultima_alteracao", "updatedat" -> asc ? cb.asc(root.get("dataUltimaAlteracao")) : cb.desc(root.get("dataUltimaAlteracao"));
             case "id" -> asc ? cb.asc(root.get("id")) : cb.desc(root.get("id"));

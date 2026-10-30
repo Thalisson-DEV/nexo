@@ -46,6 +46,7 @@ import { AnalisarComCopilotoComponent } from '../../../shared/components/analisa
 import { FavoritosService } from '../../../core/services/favoritos.service';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
+import { ObraCarteiraComponent } from './obra-carteira.component';
 import { SolicitacaoMaterialTecnicaService } from '../../../core/services/solicitacao-material-tecnica.service';
 import {
   statusLabel as statusSolicitacaoLabel,
@@ -89,7 +90,8 @@ declare var L: any;
     CesButtonComponent,
     CesDialogShellComponent,
     CesStatusComponent,
-    AnalisarComCopilotoComponent
+    AnalisarComCopilotoComponent,
+    ObraCarteiraComponent
   ],
   templateUrl: './obra-detalhe.component.html',
   styleUrl: './obra-detalhe.component.css'
@@ -152,6 +154,7 @@ export class ObraDetalheComponent implements OnInit, OnDestroy {
   protected statusDialogLoading = signal(false);
   protected novoStatusId: string | null = null;
   protected novaDataFimEfetiva: Date | null = null;
+  protected observacaoStatus = '';
 
   // Modal: Vincular Subprojeto
   protected vincularDialogVisible = signal(false);
@@ -300,6 +303,7 @@ export class ObraDetalheComponent implements OnInit, OnDestroy {
     if (!o) return;
     this.novoStatusId = o.statusId;
     this.novaDataFimEfetiva = o.dataFimEfetiva ? parseDataBrParaDate(o.dataFimEfetiva) : null;
+    this.observacaoStatus = '';
     this.statusDialogVisible.set(true);
   }
 
@@ -310,14 +314,22 @@ export class ObraDetalheComponent implements OnInit, OnDestroy {
     this.statusDialogLoading.set(true);
     const dataFimStr = formatarDataParaApi(this.novaDataFimEfetiva);
 
-    this.service.alterarStatus(o.id, this.novoStatusId, dataFimStr).subscribe({
-      next: (atualizada) => {
+    // Status operacional: grava a troca (ou só a observação) no histórico do status da obra.
+    const novoStatus = this.statusList().find((s) => s.id === this.novoStatusId);
+    this.service
+      .informarStatusOperacional(o.id, {
+        idStatusObra: this.novoStatusId,
+        observacao: this.observacaoStatus.trim() || null,
+        dataFimEfetiva: dataFimStr ?? null
+      })
+      .subscribe({
+      next: () => {
         this.statusDialogLoading.set(false);
         this.statusDialogVisible.set(false);
         this.messages.add({
           severity: 'success',
           summary: 'Status atualizado',
-          detail: `Status alterado para "${atualizada.statusNome}".`
+          detail: `Status registrado como "${novoStatus?.nome ?? o.statusNome}".`
         });
         this.carregarObra(o.id);
       },

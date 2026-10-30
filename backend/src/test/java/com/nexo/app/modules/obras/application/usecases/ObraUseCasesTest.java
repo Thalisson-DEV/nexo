@@ -139,7 +139,7 @@ class ObraUseCasesTest {
                 null, null, null, null, null, null, null,
                 request.equipes(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
                 true, OffsetDateTime.now(), null, "admin", null
-        );
+        , null);
 
         when(mapper.toResponse(any(Obra.class), any(), any(), any(), any(), any(), any(), anyList())).thenReturn(mockResponse);
 

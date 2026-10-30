@@ -52,6 +52,18 @@ public class EstoqueApi {
     }
 
     /**
+     * Busca um material ativo pelo código, sem diferenciar maiúsculas (usado nas importações de planilha).
+     */
+    public Optional<MaterialResponse> buscarMaterialAtivoPorCodigo(String codigo) {
+        if (codigo == null || codigo.isBlank()) {
+            return Optional.empty();
+        }
+        return materialRepository.findByCodigoIgnoreCase(codigo.trim())
+                .filter(Material::isAtivo)
+                .map(materialMapper::toResponse);
+    }
+
+    /**
      * Busca vários materiais de uma vez, para quem monta listas. Ids sem material ficam fora do resultado.
      */
     public List<MaterialResponse> buscarMateriaisPorIdsResponse(Collection<UUID> ids) {

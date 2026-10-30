@@ -58,6 +58,8 @@ public class RedisConfig implements CachingConfigurer {
         cacheConfigurations.put(PERFIS_ACESSO, referenceDataConfig);
         cacheConfigurations.put(ACOES, referenceDataConfig);
         cacheConfigurations.put(ACOES_VALORES, referenceDataConfig);
+        // Rota base -> obra muda só quando as coordenadas mudam (e a chave muda junto).
+        cacheConfigurations.put(OBRAS_ROTAS, referenceDataConfig);
         cacheConfigurations.put(CBF, referenceDataConfig);
         cacheConfigurations.put(TIPOS_ESTOQUE, referenceDataConfig);
         cacheConfigurations.put(AVALIACOES_MATERIAL, referenceDataConfig);

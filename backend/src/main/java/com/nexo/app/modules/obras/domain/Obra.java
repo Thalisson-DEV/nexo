@@ -1,7 +1,9 @@
 package com.nexo.app.modules.obras.domain;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -158,6 +160,70 @@ public class Obra extends BaseEntity {
     @OneToMany(mappedBy = "obra", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AnexoObra> anexos = new ArrayList<>();
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "obra", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    private List<HistoricoStatusObra> historicoStatus = new ArrayList<>();
+
+    // ---- Dados de carteira (todos opcionais; o "prazo" da carteira é a dataPrevisaoFim) ----
+
+    @Column(name = "id_contrato")
+    private UUID idContrato;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "classe_tensao", length = 20)
+    private ClasseTensao classeTensao;
+
+    @Column(name = "classe_tensao_informada_por")
+    private String classeTensaoInformadaPor;
+
+    @Column(name = "classe_tensao_informada_em")
+    private OffsetDateTime classeTensaoInformadaEm;
+
+    @Column(name = "prazo_regulado")
+    private LocalDate prazoRegulado;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "prioridade", length = 20)
+    private PrioridadeObra prioridade;
+
+    @Column(name = "lote_previsto", length = 40)
+    private String lotePrevisto;
+
+    @Column(name = "situacao_carteira", length = 60)
+    private String situacaoCarteira;
+
+    @Column(name = "valor_material_previsto", precision = 15, scale = 2)
+    private BigDecimal valorMaterialPrevisto;
+
+    @Column(name = "valor_servico_previsto", precision = 15, scale = 2)
+    private BigDecimal valorServicoPrevisto;
+
+    @Column(name = "observacao_status", length = 1000)
+    private String observacaoStatus;
+
+    // ---- Deslocamento base -> obra (calculado; guarda a base e as coordenadas usadas) ----
+
+    @Column(name = "distancia_base_km", precision = 10, scale = 2)
+    private BigDecimal distanciaBaseKm;
+
+    @Column(name = "tempo_deslocamento_min")
+    private Integer tempoDeslocamentoMin;
+
+    @Column(name = "deslocamento_estimado")
+    private Boolean deslocamentoEstimado;
+
+    @Column(name = "deslocamento_calculado_em")
+    private OffsetDateTime deslocamentoCalculadoEm;
+
+    @Column(name = "id_base_deslocamento")
+    private UUID idBaseDeslocamento;
+
+    @Column(name = "latitude_deslocamento")
+    private Double latitudeDeslocamento;
+
+    @Column(name = "longitude_deslocamento")
+    private Double longitudeDeslocamento;
+
     public Obra(String numero, String titulo, String descricao, String notaObra,
                 BigDecimal valorProjeto, LocalDate dataInicio, LocalDate dataPrevisaoFim,
                 Double latitude, Double longitude, UUID idProcesso, UUID idBaseOperacional,
@@ -196,6 +262,7 @@ public class Obra extends BaseEntity {
         if (equipes != null) {
             this.equipes.addAll(equipes);
         }
+        this.historicoStatus.add(new HistoricoStatusObra(this, null, statusObra, null));
     }
 
     public void atualizarDados(String numero, String titulo, String descricao, String notaObra,
@@ -232,14 +299,14 @@ public class Obra extends BaseEntity {
         this.idCentroCusto = idCentroCusto;
         this.idSupervisor = idSupervisor;
         this.idCoordenador = idCoordenador;
-        this.statusObra = statusObra;
+        registrarTrocaStatus(statusObra, null);
         this.agenteResponsavel = agenteResponsavel;
         atualizarEquipes(novasEquipes);
     }
 
     public void alterarStatus(StatusObra novoStatus, LocalDate dataFimEfetiva) {
         validarAtivo();
-        this.statusObra = Objects.requireNonNull(novoStatus, "O novo status é obrigatório.");
+        registrarTrocaStatus(Objects.requireNonNull(novoStatus, "O novo status é obrigatório."), null);
         if (novoStatus.isConcluida()) {
             this.dataFimEfetiva = dataFimEfetiva != null ? dataFimEfetiva : LocalDate.now();
         } else {
@@ -291,6 +358,143 @@ public class Obra extends BaseEntity {
         validarAtivo();
         if (idAnexo == null) return;
         this.anexos.removeIf(a -> idAnexo.equals(a.getId()));
+    }
+
+    /**
+     * Status operacional informado pela carteira, com observação que fica no histórico e na listagem.
+     */
+    public void informarStatusOperacional(StatusObra novoStatus, String observacao, LocalDate dataFimEfetiva) {
+        validarAtivo();
+        Objects.requireNonNull(novoStatus, "O novo status é obrigatório.");
+        String obs = textoOpcional(observacao, 1000, "A observação do status");
+        if (novoStatus.equals(this.statusObra)) {
+            // Mesmo status com nova observação também vai para o histórico.
+            this.historicoStatus.add(new HistoricoStatusObra(this, this.statusObra, novoStatus, obs));
+        } else {
+            registrarTrocaStatus(novoStatus, obs);
+        }
+        this.observacaoStatus = obs;
+        if (novoStatus.isConcluida()) {
+            this.dataFimEfetiva = dataFimEfetiva != null ? dataFimEfetiva : LocalDate.now();
+        } else {
+            this.dataFimEfetiva = null;
+        }
+    }
+
+    public void informarCarteira(UUID idContrato, LocalDate prazoRegulado, PrioridadeObra prioridade,
+                                 String lotePrevisto, String situacaoCarteira, BigDecimal valorProjeto,
+                                 BigDecimal valorMaterialPrevisto, BigDecimal valorServicoPrevisto) {
+        validarAtivo();
+        validarNaoNegativo(valorProjeto, "O valor de projeto");
+        validarNaoNegativo(valorMaterialPrevisto, "O valor de material previsto");
+        validarNaoNegativo(valorServicoPrevisto, "O valor de serviço previsto");
+        this.idContrato = idContrato;
+        this.prazoRegulado = prazoRegulado;
+        this.prioridade = prioridade;
+        this.lotePrevisto = textoOpcional(lotePrevisto, 40, "O lote previsto");
+        this.situacaoCarteira = textoOpcional(situacaoCarteira, 60, "A situação na carteira");
+        if (valorProjeto != null) {
+            this.valorProjeto = valorProjeto;
+        }
+        this.valorMaterialPrevisto = valorMaterialPrevisto;
+        this.valorServicoPrevisto = valorServicoPrevisto;
+    }
+
+    /**
+     * Registra a classe de tensão com quem informou e quando. Informar a mesma classe não altera o registro.
+     */
+    public void informarClasseTensao(ClasseTensao classe, String usuario) {
+        validarAtivo();
+        if (Objects.equals(this.classeTensao, classe)) {
+            return;
+        }
+        this.classeTensao = classe;
+        this.classeTensaoInformadaPor = classe != null ? usuario : null;
+        this.classeTensaoInformadaEm = classe != null ? OffsetDateTime.now() : null;
+    }
+
+    /**
+     * Atualiza só as coordenadas (ex.: importação da carteira). O deslocamento fica desatualizado e é recalculado.
+     */
+    public void atualizarLocalizacao(Double latitude, Double longitude) {
+        validarAtivo();
+        if ((latitude == null) != (longitude == null)) {
+            throw new InvarianteVioladaException("Informe latitude e longitude juntas.");
+        }
+        if (latitude != null && (Math.abs(latitude) > 90 || Math.abs(longitude) > 180)) {
+            throw new InvarianteVioladaException("Coordenadas fora do intervalo válido.");
+        }
+        this.latitude = latitude;
+        this.longitude = longitude;
+    }
+
+    public boolean possuiCoordenadas() {
+        return latitude != null && longitude != null;
+    }
+
+    /**
+     * Deslocamento ausente ou calculado com outra base/coordenadas precisa ser recalculado.
+     */
+    public boolean deslocamentoDesatualizado() {
+        if (!possuiCoordenadas()) {
+            return distanciaBaseKm != null;
+        }
+        return distanciaBaseKm == null
+                || !Objects.equals(idBaseDeslocamento, idBaseOperacional)
+                || !Objects.equals(latitudeDeslocamento, latitude)
+                || !Objects.equals(longitudeDeslocamento, longitude);
+    }
+
+    public void registrarDeslocamento(BigDecimal distanciaKm, Integer tempoMinutos, boolean estimado) {
+        if (!possuiCoordenadas()) {
+            throw new InvarianteVioladaException("A obra não tem coordenadas para calcular o deslocamento.");
+        }
+        this.distanciaBaseKm = distanciaKm != null ? distanciaKm.setScale(2, RoundingMode.HALF_UP) : null;
+        this.tempoDeslocamentoMin = tempoMinutos;
+        this.deslocamentoEstimado = estimado;
+        this.deslocamentoCalculadoEm = OffsetDateTime.now();
+        this.idBaseDeslocamento = idBaseOperacional;
+        this.latitudeDeslocamento = latitude;
+        this.longitudeDeslocamento = longitude;
+    }
+
+    public void limparDeslocamento() {
+        this.distanciaBaseKm = null;
+        this.tempoDeslocamentoMin = null;
+        this.deslocamentoEstimado = null;
+        this.deslocamentoCalculadoEm = null;
+        this.idBaseDeslocamento = null;
+        this.latitudeDeslocamento = null;
+        this.longitudeDeslocamento = null;
+    }
+
+    public List<HistoricoStatusObra> getHistoricoStatus() {
+        return List.copyOf(historicoStatus);
+    }
+
+    private void registrarTrocaStatus(StatusObra novoStatus, String observacao) {
+        if (this.statusObra != null && this.statusObra.equals(novoStatus)) {
+            return;
+        }
+        this.historicoStatus.add(new HistoricoStatusObra(this, this.statusObra, novoStatus, observacao));
+        this.statusObra = novoStatus;
+    }
+
+    private static void validarNaoNegativo(BigDecimal valor, String campo) {
+        if (valor != null && valor.signum() < 0) {
+            throw new InvarianteVioladaException(campo + " não pode ser negativo.");
+        }
+    }
+
+    private static String textoOpcional(String valor, int limite, String campo) {
+        if (valor == null || valor.isBlank()) {
+            return null;
+        }
+        String limpo = valor.trim();
+        if (limpo.length() > limite) {
+            throw new InvarianteVioladaException(campo + " deve ter até " + limite + " caracteres.");
+        }
+        return limpo;
     }
 
     private void validarCamposObrigatorios(String numero, String titulo, LocalDate dataInicio,

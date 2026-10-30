@@ -1,0 +1,124 @@
+<!--
+Frentes e dependências:
+  A (fundação) → todas. Após 1.x concluído, B, C, D, E, F, G, H e I podem seguir em paralelo,
+  respeitando: C usa o modelo de B (só leitura), F usa C e D, I usa C e D.
+
+Linha de base (1.1, 29/10/2026): backend 1649 testes, 3 erros pré-existentes (RenderizacaoAtaDocxServiceTest, .docx de
+referência ausente); frontend 1514 testes, 2 falhas pré-existentes (solicitacoes-comerciais-kanban, destinos-deeplink).
+-->
+
+## 1. Frente A: fundação (kits, carteira, permissões)
+
+- [x] 1.1 Rodar a suíte atual de backend e frontend e registrar a linha de base (regressão de Obra, Turno, Equipe, Solicitação)
+- [x] 1.2 Migração: tabelas `kit_construtivo` e `item_kit` (contrato, código único ativo, grupo, classes de tensão, ação, qtd)
+- [x] 1.3 Domínio Kit/ItemKit com invariantes (código único, item serviço→Ação, material→Material, kit sem item não aplicável)
+- [x] 1.4 KitUseCases (CRUD, filtro por contrato/grupo/tensão, valor em R$ pela vigência) + controller, doc OpenAPI e testes
+- [x] 1.5 Importação de kits (kits, materiais, serviços) assíncrona com relatório por linha + testes com planilha de amostra
+- [x] 1.6 Migração e domínio: novos campos de carteira na Obra (classe de tensão com autor/data, prazo, prazo regulado,
+      prioridade, lote, situação, valores previstos, status operacional com histórico)
+- [x] 1.7 Importação da carteira e dos serviços/orçamento previstos com histórico de importações
+      <!-- V197, ItemOrcamentoObra, ProcessarImportacao{Carteira,Orcamento}Service, ImportarCarteiraUseCase (modelos XLSX),
+           POST /v1/obras/importacoes/{carteira,orcamento}, GET .../{carteira,orcamento}/modelo, GET /v1/obras/{id}/orcamento.
+           Testes: ProcessarImportacao{Carteira,Orcamento}ServiceTest, CarteiraObraUseCasesTest. -->
+- [x] 1.8 `RotaRodoviariaPort` + adaptador + fallback estimado + cache; cálculo de deslocamento base→obra por evento
+- [x] 1.9 Endpoint de obras próximas (raio configurável) e indicadores da listagem
+      <!-- GET /v1/obras/{id}/proximas e GET /v1/obras/indicadores. Teste de obras próximas em CarteiraObraUseCasesTest;
+           indicadores (Criteria sobre ObraSpecification) sem teste unitário: o projeto não tem teste de integração com banco.
+           Colunas por obra (valor planejado, % programado/concluído, pré-fechamento) entram com as frentes B, C e F. -->
+- [x] 1.10 Migração de permissões `obras:*` novas e vínculo aos perfis administrativos
+      <!-- V198: ADMINISTRADOR recebe todas; SUPERVISOR recebe leitura de kits, planejamento, programação, execução,
+           leitura de medição, documentação e central. Rótulos no catálogo de permissões do frontend.
+           PermissoesObrasMigrationContractTest garante que toda permissão obras:* dos controllers existe em migração. -->
+- [x] 1.11 Frontend: tela de kits (lista padrão, drawer de kit e itens, importação) e serviço `obras-kit.service`
+      <!-- /obras/cadastros/kits (obras:kit:read), KitsConstrutivosComponent, ObrasKitService, ImportacaoObrasDrawerComponent
+           (importação assíncrona compartilhada: envio, acompanhamento por polling, relatório por linha, histórico).
+           Pendente: conferência visual no navegador (ambiente local do Nexo não estava no ar). -->
+- [x] 1.12 Frontend: campos de carteira no form/detalhe da obra, colunas e indicadores na listagem, obras próximas, importações
+      <!-- Listagem: faixa de indicadores do recorte, colunas de carteira (tensão, prioridade, prazo regulado, situação,
+           valores previstos; ordenação no backend), "Importar" com escolha cadastro/carteira/orçamento. Ficha: ObraCarteiraComponent
+           (carteira com edição em drawer, deslocamento com recalcular, histórico de status, obras próximas com raio, orçamento)
+           e observação no diálogo de status (usa status-operacional). Carteira é editada na ficha, não no form de cadastro,
+           para não mexer no fluxo do ObraRequest. Pendente: conferência visual no navegador. -->
+
+## 2. Frente B: planejamento sobre o PDF (depende de 1.2–1.6)
+
+- [ ] 2.1 Migração e domínio PlanejamentoObra: Ponto, Vao, KitAplicado, ItemPlanejado, Anotacao, rotação por página do anexo
+- [ ] 2.2 Marcação de projeto mestre e versionamento ao substituir o PDF preservando o planejamento
+- [ ] 2.3 Comandos: adicionar/mover/editar/excluir ponto; lançar/excluir vão (inclusive entre páginas); anotações
+- [ ] 2.4 Comandos: aplicar kit (ação, multiplicador, lote em seleção), remover kit, editar/remover item pendente
+- [ ] 2.5 Endpoint de leitura compacto do planejamento + indicadores (exec/prog/pend/total, avanço por kit, sem kit)
+- [ ] 2.6 Optimistic locking com 409 + estado atual; testes de domínio e de concorrência
+- [ ] 2.7 `@ces/ui`: componente `ces-pdf-canvas` (pdfjs-dist local, zoom ancorado, pan, toque, rotação, extração por região)
+      com catálogo, cobertura, docs e testes
+- [ ] 2.8 Feature `obras/planejamento`: layout, toolbar, overlays de pontos/trechos/anotações, estados com forma além da cor
+- [ ] 2.9 Ferramentas: adicionar ponto, lançar vão, conectar entre folhas, mover, selecionar por clique/área, extrair texto,
+      ocultar camadas, esmaecer, ocultar painel, atalhos de teclado
+- [ ] 2.10 Árvore lateral virtualizada (página→ponto→kit→itens, vãos), busca, só serviços/serviço+material, resumo sem kit
+- [ ] 2.11 Resumo rápido do ponto e detalhe completo (abas Kits e Orçamento)
+- [ ] 2.12 Cabeçalho de indicadores e painel Avanço por kit; estados vazio, carregando, erro e conflito
+- [ ] 2.13 Teste e2e do fluxo: anexar PDF → pontos → vão → kits → indicadores
+
+## 3. Frente C: programação (depende de 2.1, 2.5)
+
+- [ ] 3.1 Migração e domínio Programacao, ProgramacaoItem (valor congelado), EventoProgramacao
+- [ ] 3.2 Campos de jornada e plataforma em Equipe/TipoEquipe (opcionais, padrão 8h/30min) e calendário de dias úteis
+- [ ] 3.3 Use cases: programar (ignora já programados), editar, reprogramar, cancelar, excluir, remover item; eventos
+- [ ] 3.4 Leitura de capacidade e meta do período por equipe (jornada − plataforma − deslocamento; meta/dia × dias úteis)
+- [ ] 3.5 Frontend: diálogo Programar (equipe com filtros base/tipo, projeção, detalhes operacionais, período, avisos)
+- [ ] 3.6 Frontend: badges de programação na árvore e remoção de item da programação
+- [ ] 3.7 Frontend: histórico de reprogramações (lista padrão com filtros por tipo)
+- [ ] 3.8 Frontend: Gantt por equipe com período/filtros na URL e acesso ao planejamento
+- [ ] 3.9 Testes de domínio (status, valores congelados, retorno a pendente) e e2e programar/reprogramar
+
+## 4. Frente D: turnos de Obras (depende de 3.1)
+
+- [ ] 4.1 Testes de regressão do Turno comercial antes da extensão
+- [ ] 4.2 Migração e domínio: líder, papel titular/substituto, atividades (programada/não programada), relatório diário
+- [ ] 4.3 APR e ocorrências do turno de Obras (reutilizar SST/ocorrências existentes onde houver)
+- [ ] 4.4 ApontamentoExecucao (web) com limite e justificativa de excedente; evento ItemExecutado
+- [ ] 4.5 Desempenho do dia (realizado × meta) e indicadores da listagem de turnos
+- [ ] 4.6 Frontend: listagem e detalhe de turnos com filtros de Obras e apontamento web
+- [ ] 4.7 Frontend: visão por equipe (cartões detalhado/painel) no dashboard de turnos
+- [ ] 4.8 Alerta "agendamento sem turno aberto"
+
+## 5. Frente E: documentação técnica (depende de 2.1, 4.4)
+
+- [ ] 5.1 Visita prévia com checklist configurável e PDF
+- [ ] 5.2 Ficha As Built por ponto com "Não se aplica" e validação de completude
+- [ ] 5.3 Geração assíncrona das plantas marcadas + fichas como nova versão de anexo
+- [ ] 5.4 Book de equipamentos por ponto
+- [ ] 5.5 Frontend: seções no detalhe da obra e estados
+
+## 6. Frente F: medições (depende de 3.1, 4.4)
+
+- [ ] 6.1 Pré-fechamento (contagens, levantadores, conclusão bloqueada com pendências) + listagem
+- [ ] 6.2 Medicao/MedicaoItem com unicidade de item medido; gerar e estornar medição parcial
+- [ ] 6.3 Medição por ciclo com saldo anterior
+- [ ] 6.4 Relatório detalhado orçado × faturado (modelo, upload, seleção de obras, XLSX+PDF+fotos em pacote)
+- [ ] 6.5 Fechamento de obra para um ou vários códigos
+- [ ] 6.6 Frontend das quatro telas e testes
+
+## 7. Frente G: recursos (depende de 1.x, 3.1)
+
+- [ ] 7.1 Canteiro de postes como tipo de estoque com coordenadas; entradas, lote, contagem, anexos
+- [ ] 7.2 Solicitação técnica de materiais a partir da programação (evento → estoque) com regressão do fluxo atual
+- [ ] 7.3 Frontend de canteiros e ação "solicitar materiais" na programação
+
+## 8. Frente H: central de operações e mapa (depende de 3.x, 4.x)
+
+- [ ] 8.1 Endpoints agregados do painel (cacheados) e cálculo de ritmo/projeção
+- [ ] 8.2 Frontend do painel com alertas acionáveis e atualização
+- [ ] 8.3 Mapa de obras com filtros e rota da base
+- [ ] 8.4 Telemetria: camadas, categorias, busca por placa, turmas do dia, offline
+
+## 9. Frente I: relatórios (depende de 3.x, 4.x)
+
+- [ ] 9.1 Avaliação da carteira e prazos
+- [ ] 9.2 Programação e programado × executado com exportação
+- [ ] 9.3 Execução por turno, produtividade (equipe e colaborador), financeiro e APRs
+
+## 10. Fechamento
+
+- [ ] 10.1 `npm run verify:design-system`, testes e build do frontend; testes e build do backend
+- [ ] 10.2 Documentação (CLAUDE.md dos apps, catálogo do Design System, manual do usuário de Obras)
+- [ ] 10.3 Validação com a operação em homologação e ajuste das Open Questions do design

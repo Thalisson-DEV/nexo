@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
+import { catchError, debounceTime, distinctUntilChanged, map, of, startWith, switchMap } from 'rxjs';
 import {
   CesButtonComponent,
   CesCellDirective,
@@ -26,16 +28,27 @@ import {
   cesListState
 } from '@ces/ui';
 
-import { ImportacaoStatus, ObraFilter, ObraImportacaoDTO, ObraResumoResponse, StatusObraResponse } from '../../../core/models/obras.models';
+import {
+  ImportacaoStatus,
+  IndicadoresCarteiraResponse,
+  ObraFilter,
+  ObraImportacaoDTO,
+  ObraResumoResponse,
+  PRIORIDADES_OBRA,
+  PrioridadeObra,
+  StatusObraResponse
+} from '../../../core/models/obras.models';
 import { getErrorMessage } from '../../../core/models/shared.models';
 import { AuthService } from '../../../core/services/auth.service';
+import { ContratoService } from '../../../core/services/contrato.service';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
 import { AuditDialogComponent } from '../../../shared/components/audit-dialog/audit-dialog.component';
 import { AjudaListagemComponent } from '../../../shared/listagem/ajuda-listagem.component';
 import { CHAVE_LINHA_IMPORTACAO, importacaoListagem } from '../../../shared/listagem/importacao-listagem';
 import { dataIso, dataLocal } from '../../../shared/listagem/listagem';
-import { formatarDataParaApi, parseDataBrParaDate, sanitizarNumeroObra, sanitizarTituloObra, statusIcon, statusTone } from '../obras-ui';
+import { ImportacaoObrasDrawerComponent } from '../importacao/importacao-obras-drawer.component';
+import { formatarDataParaApi, formatarMoeda, parseDataBrParaDate, sanitizarNumeroObra, sanitizarTituloObra, statusIcon, statusTone } from '../obras-ui';
 
 export type ObraImportRow = ObraImportacaoDTO & { editing?: boolean };
 
@@ -67,6 +80,22 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
   selector: 'app-obras-lista',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `
+    .ces-kpis {
+      margin-bottom: 1rem;
+    }
+
+    /* O título é a coluna de leitura da carteira: não deixa a tabela larga espremer em várias linhas. */
+    .obra-titulo {
+      display: block;
+      min-width: 16rem;
+    }
+
+    .importacao-opcoes {
+      display: grid;
+      gap: 0.5rem;
+    }
+  `,
   imports: [
     CesButtonComponent,
     CesCellDirective,
@@ -85,7 +114,8 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
     CesStatusComponent,
     CesTextInputComponent,
     AuditDialogComponent,
-    AjudaListagemComponent
+    AjudaListagemComponent,
+    ImportacaoObrasDrawerComponent
   ],
   template: `
     <div class="ces-page" cesListShortcuts #atalhos="cesListShortcuts" [newAction]="podeEscrever" (newRequested)="novaObra()">
@@ -101,7 +131,7 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
           <ces-button actions variant="outline" icon="pi pi-download" label="Exportar CSV" (pressed)="exportacaoAberta.set(true)"></ces-button>
         }
         @if (podeImportar) {
-          <ces-button actions variant="outline" icon="pi pi-upload" label="Importar" (pressed)="importacao.aberta.set(true)"></ces-button>
+          <ces-button actions variant="outline" icon="pi pi-upload" label="Importar" (pressed)="escolhaImportacaoAberta.set(true)"></ces-button>
         }
         @if (podeEscrever) {
           <ces-button actions icon="pi pi-plus" label="Nova obra" [keyShortcut]="atalhos.newShortcut()" (pressed)="novaObra()"></ces-button>
@@ -131,6 +161,27 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
           <ces-number-input label="Valor máximo" mode="currency" [min]="0" [(value)]="lista.filters.valorMax"></ces-number-input>
         </div>
       </ces-filter-panel>
+
+      <section class="ces-kpis" aria-label="Indicadores do recorte" aria-live="polite">
+        <div class="ces-kpi" data-tone="info">
+          <span class="ces-kpi__icon"><i class="pi pi-building" aria-hidden="true"></i></span>
+          <span class="ces-kpi__body"><span class="ces-kpi__label">Obras no recorte</span>
+            <span class="ces-kpi__value">{{ indicador('quantidade') }}</span>
+            <span class="ces-kpi__detail">{{ indicador('municipios') }}</span></span>
+        </div>
+        <div class="ces-kpi" data-tone="neutral">
+          <span class="ces-kpi__icon"><i class="pi pi-wallet" aria-hidden="true"></i></span>
+          <span class="ces-kpi__body"><span class="ces-kpi__label">Valor de projeto</span><span class="ces-kpi__value">{{ indicador('valorProjeto') }}</span></span>
+        </div>
+        <div class="ces-kpi" data-tone="neutral">
+          <span class="ces-kpi__icon"><i class="pi pi-box" aria-hidden="true"></i></span>
+          <span class="ces-kpi__body"><span class="ces-kpi__label">Material previsto</span><span class="ces-kpi__value">{{ indicador('valorMaterialPrevisto') }}</span></span>
+        </div>
+        <div class="ces-kpi" data-tone="neutral">
+          <span class="ces-kpi__icon"><i class="pi pi-wrench" aria-hidden="true"></i></span>
+          <span class="ces-kpi__body"><span class="ces-kpi__label">Serviço previsto</span><span class="ces-kpi__value">{{ indicador('valorServicoPrevisto') }}</span></span>
+        </div>
+      </section>
 
       <ces-data-table
         title="Obras"
@@ -165,7 +216,7 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
             <span class="ces-cell-muted"><i class="pi pi-link" aria-hidden="true"></i> subprojeto de {{ row.obraPaiNumero }}</span>
           }
         </ng-template>
-        <ng-template cesCell="titulo" let-row><span [title]="row.titulo">{{ row.titulo }}</span></ng-template>
+        <ng-template cesCell="titulo" let-row><span class="obra-titulo" [title]="row.titulo">{{ row.titulo }}</span></ng-template>
         <ng-template cesCell="status" let-row>
           <ces-status [tone]="statusTone(row.statusNome, row.statusConcluida)" [icon]="statusIcon(row.statusNome)">{{ row.statusNome }}</ces-status>
         </ng-template>
@@ -173,6 +224,20 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
           <span>{{ row.dataInicio }} → {{ row.dataPrevisaoFim }}</span>
           @if (row.dataFimEfetiva) {
             <span class="ces-cell-muted">Concluída em {{ row.dataFimEfetiva }}</span>
+          }
+        </ng-template>
+        <ng-template cesCell="tensao" let-row>
+          @if (row.carteira?.classeTensaoRotulo) {
+            {{ row.carteira.classeTensaoRotulo }}
+          } @else {
+            <span class="ces-cell-muted" title="Classe de tensão não informada">—</span>
+          }
+        </ng-template>
+        <ng-template cesCell="prioridade" let-row>
+          @if (row.carteira?.prioridade; as p) {
+            <ces-status [tone]="tomPrioridade(p)" [icon]="p === 'URGENTE' ? 'pi-exclamation-circle' : undefined">{{ rotuloPrioridade(p) }}</ces-status>
+          } @else {
+            <span class="ces-cell-muted">—</span>
           }
         </ng-template>
         <ng-template cesRowActions let-row>
@@ -254,6 +319,39 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
       }
     </ces-import-drawer>
 
+    <ces-form-drawer [(visible)]="escolhaImportacaoAberta" title="Importar planilha" description="Escolha o que a planilha traz." size="sm">
+      <div class="importacao-opcoes">
+        <button type="button" class="ces-kpi" (click)="abrirImportacao('obras')">
+          <span class="ces-kpi__icon"><i class="pi pi-building" aria-hidden="true"></i></span>
+          <span class="ces-kpi__body"><span class="ces-kpi__label">Cadastro de obras</span>
+            <span class="ces-kpi__detail">CSV conferido e corrigido linha a linha antes de gravar.</span></span>
+          <i class="pi pi-angle-right ces-kpi__go" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ces-kpi" (click)="abrirImportacao('carteira')">
+          <span class="ces-kpi__icon"><i class="pi pi-briefcase" aria-hidden="true"></i></span>
+          <span class="ces-kpi__body"><span class="ces-kpi__label">Carteira do contrato</span>
+            <span class="ces-kpi__detail">Cria e atualiza obras pelo número, com tensão, prazos, prioridade e valores previstos.</span></span>
+          <i class="pi pi-angle-right ces-kpi__go" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="ces-kpi" (click)="abrirImportacao('orcamento')">
+          <span class="ces-kpi__icon"><i class="pi pi-calculator" aria-hidden="true"></i></span>
+          <span class="ces-kpi__body"><span class="ces-kpi__label">Serviços e orçamento previstos</span>
+            <span class="ces-kpi__detail">Serviços com preço por obra, para comparar com o planejamento.</span></span>
+          <i class="pi pi-angle-right ces-kpi__go" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div drawer-footer class="ces-actions-row">
+        <ces-button variant="ghost" label="Cancelar" (pressed)="escolhaImportacaoAberta.set(false)"></ces-button>
+      </div>
+    </ces-form-drawer>
+
+    <app-importacao-obras-drawer [(visible)]="importacaoCarteiraAberta" tipo="CARTEIRA" titulo="Importar carteira"
+      descricao="Obras existentes são atualizadas pelo número; célula vazia mantém o valor atual. Planejamento, programação e medições não são alterados."
+      [exigeContrato]="true" [contratos]="contratoOpcoes()" rotuloInseridos="Obras criadas" (concluida)="lista.reload()"></app-importacao-obras-drawer>
+    <app-importacao-obras-drawer [(visible)]="importacaoOrcamentoAberta" tipo="ORCAMENTO" titulo="Importar serviços e orçamento previstos"
+      descricao="Uma linha por serviço, identificada pelo número da obra. Os serviços previstos anteriores de cada obra da planilha são substituídos."
+      rotuloInseridos="Serviços gravados" (concluida)="lista.reload()"></app-importacao-obras-drawer>
+
     <app-audit-dialog #auditoria></app-audit-dialog>
     <app-ajuda-listagem #ajuda titulo="Obras e projetos" artigoPlural="as" entidadePlural="obras" busca="número, título ou nota da obra"
       rotuloNovo="Nova obra" [podeCriar]="podeEscrever" [importacao]="podeImportar">
@@ -270,6 +368,7 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
 })
 export class ObrasListComponent {
   private readonly service = inject(ObrasService);
+  private readonly contratos = inject(ContratoService);
   private readonly rh = inject(RhService);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
@@ -334,7 +433,13 @@ export class ObrasListComponent {
     { key: 'supervisor', header: 'Supervisor', sortField: 'supervisor', value: (o) => o.supervisorNome, display: (o) => o.supervisorNome || '—' },
     { key: 'coordenador', header: 'Coordenador', sortField: 'coordenador', value: (o) => o.coordenadorNome, display: (o) => o.coordenadorNome || '—' },
     { key: 'prazo', header: 'Início → previsão', type: 'custom', sortField: 'dataInicio', value: (o) => o.dataInicio, display: (o) => `${o.dataInicio} → ${o.dataPrevisaoFim}` },
-    { key: 'valor', header: 'Valor do projeto', type: 'currency', sortField: 'valorProjeto', value: (o) => o.valorProjeto }
+    { key: 'valor', header: 'Valor do projeto', type: 'currency', sortField: 'valorProjeto', value: (o) => o.valorProjeto },
+    { key: 'tensao', header: 'Tensão', type: 'custom', sortField: 'classeTensao', width: '7rem', value: (o) => o.carteira?.classeTensao, display: (o) => o.carteira?.classeTensaoRotulo || '—' },
+    { key: 'prioridade', header: 'Prioridade', type: 'custom', sortField: 'prioridade', width: '7rem', value: (o) => o.carteira?.prioridade, display: (o) => this.rotuloPrioridade(o.carteira?.prioridade) },
+    { key: 'prazoRegulado', header: 'Prazo regulado', sortField: 'prazoRegulado', width: '8rem', value: (o) => o.carteira?.prazoRegulado, display: (o) => o.carteira?.prazoRegulado || '—' },
+    { key: 'situacaoCarteira', header: 'Situação na carteira', sortField: 'situacaoCarteira', value: (o) => o.carteira?.situacaoCarteira, display: (o) => o.carteira?.situacaoCarteira || '—' },
+    { key: 'materialPrevisto', header: 'Material previsto', type: 'currency', sortField: 'valorMaterialPrevisto', value: (o) => o.carteira?.valorMaterialPrevisto },
+    { key: 'servicoPrevisto', header: 'Serviço previsto', type: 'currency', sortField: 'valorServicoPrevisto', value: (o) => o.carteira?.valorServicoPrevisto }
   ];
   protected readonly rotulo = (o: ObraResumoResponse) => `Obra ${o.numero}`;
 
@@ -350,7 +455,34 @@ export class ObrasListComponent {
   protected readonly exportFormato = signal<'resumo' | 'detalhado'>('resumo');
   protected readonly exportando = signal(false);
 
-  // Importação
+  // Indicadores do recorte: mesmos filtros e busca da tabela, sem paginação. Recalculam a cada carga da
+  // tabela (filtro novo, recarga depois de importar ou alterar uma obra).
+  private readonly indicadores = toSignal(
+    toObservable(computed(() => ({ recorte: JSON.stringify(this.filtro()), linhas: this.resultado.rows() }))).pipe(
+      debounceTime(250),
+      distinctUntilChanged((a, b) => a.recorte === b.recorte && a.linhas === b.linhas),
+      switchMap(({ recorte }) =>
+        this.service.indicadoresCarteira(JSON.parse(recorte) as ObraFilter).pipe(
+          map((i): IndicadoresCarteiraResponse | 'erro' => i),
+          catchError(() => of('erro' as const)),
+          startWith(null)
+        )
+      )
+    ),
+    { initialValue: null }
+  );
+
+  // Importações: cadastro (CSV com pré-visualização), carteira e orçamento (processadas no servidor)
+  protected readonly escolhaImportacaoAberta = signal(false);
+  protected readonly importacaoCarteiraAberta = signal(false);
+  protected readonly importacaoOrcamentoAberta = signal(false);
+  protected readonly contratoOpcoes = toSignal(
+    this.contratos.listarContratosAtivos().pipe(
+      map((p) => p.content.map((c) => ({ label: `${c.numeroContrato} · ${c.cliente}`, value: c.id }))),
+      catchError(() => of([] as CesSelectOption<string>[]))
+    ),
+    { initialValue: [] as CesSelectOption<string>[] }
+  );
   protected readonly importacao = importacaoListagem<ObraImportRow>({
     enviar: (arquivo) => this.service.validarImportacao(arquivo),
     confirmar: (registros) => this.service.confirmarImportacao({ registros }),
@@ -396,6 +528,32 @@ export class ObrasListComponent {
       next: (r) => definir('coordenadores', r.map((c) => ({ id: c.id, nome: c.nomeColaborador }))),
       error: aviso('os coordenadores')
     });
+  }
+
+  /** Indicador formatado; "…" enquanto carrega e "—" se a consulta falhou. */
+  protected indicador(campo: keyof IndicadoresCarteiraResponse): string {
+    const atual = this.indicadores();
+    if (atual === null) return '…';
+    if (atual === 'erro') return '—';
+    const valor = atual[campo];
+    if (campo === 'quantidade') return valor.toLocaleString('pt-BR');
+    if (campo === 'municipios') return `${valor} ${valor === 1 ? 'município' : 'municípios'}`;
+    return formatarMoeda(valor);
+  }
+
+  protected rotuloPrioridade(p?: PrioridadeObra | null): string {
+    return PRIORIDADES_OBRA.find((o) => o.value === p)?.label ?? '—';
+  }
+
+  protected tomPrioridade(p: PrioridadeObra): 'neutral' | 'info' | 'warning' | 'danger' {
+    return p === 'URGENTE' ? 'danger' : p === 'ALTA' ? 'warning' : p === 'NORMAL' ? 'info' : 'neutral';
+  }
+
+  protected abrirImportacao(tipo: 'obras' | 'carteira' | 'orcamento'): void {
+    this.escolhaImportacaoAberta.set(false);
+    if (tipo === 'obras') this.importacao.aberta.set(true);
+    else if (tipo === 'carteira') this.importacaoCarteiraAberta.set(true);
+    else this.importacaoOrcamentoAberta.set(true);
   }
 
   private nome(chave: Lookup, id: string): string {

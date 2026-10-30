@@ -42,6 +42,7 @@ public record ObraResumoResponse(
         int totalProjetosRelacionados,
         @Deprecated(forRemoval = true) int totalSubprojetos,
         int totalAnexos,
-        boolean ativo
+        boolean ativo,
+        CarteiraObraResponse carteira
 ) {
 }
