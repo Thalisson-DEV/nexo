@@ -133,6 +133,35 @@ migração e consumidas por `authGuard`.
   coordenadas mudaram, em vez de evento, e sob demanda em `POST /v1/obras/{id}/deslocamento/recalcular`.
 - Obras próximas: pré-filtro por retângulo no banco e distância em linha reta em memória (padrão 10 km, máximo 100 km).
 
+### Decisões da frente B (estudo do sistema de referência, 30/10/2026)
+Regras observadas e mantidas: ponto com execução (não definido, sem ou com desligamento) e barramento; kit com código, itens de
+serviço e material, previsto × executado por item e bloqueio quando há programação; aplicação em lote; árvore página → ponto → kit →
+itens com alternância só serviços ou serviço + material; "Avanço por kit"; seleção por clique, área e caixas; programar ignora os
+itens já programados; materiais acompanham o serviço; grupos de kit (poste, estrutura BT/MT, aterramento, trafo, para-raios, ligação,
+chave, vão BT/MT, poda, aprumo, calçada, religador); kit marcado como executado antes do sistema.
+
+Melhorias decididas:
+- Metragem do vão: aparece só no vão e escala todo item em metro, inclusive o serviço. Na referência, um vão de 35 m ficou com 36,4 m
+  de cabo e 1,04 m de lançamento (R$ 7), e a regra depende do nome do material. Aqui depende da unidade do item.
+- Rotação salva no servidor, para todos os usuários (a referência salva no navegador).
+- Resumo do ponto sempre dentro da área visível, e barra de ferramentas opaca, fora do desenho.
+- Editar execução e barramento só grava ao confirmar ou sair do campo, com aviso de conflito por versão.
+- Modelo: `planejamentos_obras` (obra, anexo mestre, rotações) e, por obra, `pontos_planejamento`, `vaos_planejamento`,
+  `kits_aplicados`, `itens_planejados`, `anotacoes_planejamento`. Cada entidade tem versão própria e gravação por comando. O item guarda
+  cópia de código, descrição, unidade e quantidade do kit, para o catálogo não alterar o que já foi planejado.
+- Substituir o PDF mestre troca `id_anexo_mestre`. O anexo anterior segue ativo no histórico.
+
+### D14. Planejamento assistido pelo Copiloto
+Projetos vindos de CAD costumam não ter camada de texto, então a leitura é por imagem: o backend renderiza a página com PDFBox,
+divide em blocos sobrepostos quando a folha é grande, e envia ao modelo com visão por `CopilotoApi`, em processamento assíncrono. O modelo
+devolve JSON com pontos, vãos e textos lidos em coordenadas do bloco; o backend converte para [0,1] da página, une duplicados
+e procura os kits candidatos no catálogo do contrato por código e descrição, sem deixar o modelo inventar kit. O resultado fica em
+`analises_planejamento` como proposta. Gravar é um comando separado, com as sugestões que o usuário aceitou, pelas mesmas invariantes
+do planejamento manual.
+- Modelo com visão em `AI_LLM_VISION_MODEL`, no mesmo provedor e chave do chat; vazio deixa o recurso indisponível.
+- Alternativa: gravar direto e deixar o usuário corrigir. Rejeitada: erro de leitura viraria valor em R$ e programação.
+- O PDF do projeto é enviado ao provedor configurado; quem instala decide o provedor.
+
 ## Risks / Trade-offs
 
 - [PDFs grandes e muitos pontos travam o editor] → render só da página atual, overlay em porcentagem, árvore virtualizada,
@@ -159,5 +188,5 @@ migração e consumidas por `authGuard`.
 - Motor de rotas: OSRM self-hosted (custo de infraestrutura) ou serviço externo pago?
 - Checklist de visita prévia e campos da ficha As Built: usar os modelos da concessionária (precisamos dos formulários).
 - Calendário de dias úteis: feriados por município/base ou só nacionais?
-- OCR para PDFs sem camada de texto: necessário na etapa 1 ou pode aguardar?
+- Metragem no serviço: confirmar com a operação se o lançamento de cabo do vão é pago por metro (assumido sim, ver frente B).
 - Formato exato das planilhas de carteira, kits e serviços/orçamento previstos (amostras para os importadores).

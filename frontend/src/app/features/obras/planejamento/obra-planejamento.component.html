@@ -1,0 +1,467 @@
+@if (erro(); as mensagem) {
+  <ces-async-state class="plan-estado" state="error" title="Não foi possível abrir o planejamento" [description]="mensagem"
+    actionLabel="Tentar de novo" actionIcon="pi pi-refresh" (action)="carregar()"></ces-async-state>
+} @else if (!plano()) {
+  <ces-async-state class="plan-estado" state="loading" title="Abrindo o planejamento"></ces-async-state>
+} @else {
+  @let p = plano()!;
+  <div class="plan" [class.plan--sem-painel]="painelOculto()">
+    <header class="plan-topo">
+      <ces-icon-button icon="pi pi-arrow-left" variant="ghost" label="Voltar para a obra" tooltip="Voltar para a obra" (pressed)="voltar()"></ces-icon-button>
+      <div class="plan-topo__obra">
+        <strong>{{ p.numeroObra }}</strong>
+        <span [title]="p.tituloObra">{{ p.tituloObra }}</span>
+      </div>
+      @if (p.projetoMestre) {
+        <div class="plan-indicadores" aria-label="Indicadores do planejamento">
+          <strong class="plan-indicadores__percentual">{{ p.indicadores.percentualExecutado }}%</strong>
+          <div class="plan-indicadores__barra">
+            <div class="plan-barra" role="img"
+              [attr.aria-label]="'Executado ' + moeda(p.indicadores.valorExecutado) + ', programado ' + moeda(p.indicadores.valorProgramado) + ', pendente ' + moeda(p.indicadores.valorPendente)">
+              <span class="plan-barra__exec" [style.width.%]="barra().executado"></span>
+              <span class="plan-barra__prog" [style.width.%]="barra().programado"></span>
+            </div>
+            <div class="plan-legenda">
+              <span data-tipo="exec">Executado {{ moeda(p.indicadores.valorExecutado) }}</span>
+              <span data-tipo="prog">Programado {{ moeda(p.indicadores.valorProgramado) }}</span>
+              <span data-tipo="pend">Pendente {{ moeda(p.indicadores.valorPendente) }}</span>
+            </div>
+          </div>
+          <div class="plan-indicadores__total"><span>Total</span><strong>{{ moeda(p.indicadores.valorTotal) }}</strong></div>
+        </div>
+      }
+      <div class="plan-topo__acoes">
+        @if (podeEditar && p.projetoMestre) {
+          @if (ultimaLeitura() && !revisando() && !analisando()) {
+            <ces-button variant="ghost" size="sm" icon="pi pi-history" label="Ver última leitura" (pressed)="abrirRevisao(ultimaLeitura()!)"></ces-button>
+          }
+          <span [title]="leituraDisponivel() ? 'O Copiloto lê esta página e propõe pontos, vãos e kits para você revisar' : 'A leitura de projetos não está configurada neste ambiente'">
+            <ces-button size="sm" icon="pi pi-sparkles" label="Planejar com Copiloto"
+              [loading]="analisando()" [disabled]="!leituraDisponivel() || revisando()" (pressed)="lerComCopiloto()"></ces-button>
+          </span>
+          <ces-button variant="ghost" size="sm" icon="pi pi-file-pdf" label="Projeto" (pressed)="abrirProjeto()"></ces-button>
+        }
+      </div>
+    </header>
+
+    @if (!p.projetoMestre) {
+      <ces-async-state class="plan-estado" state="empty" icon="pi pi-file-pdf" title="Esta obra ainda não tem projeto"
+        description="Anexe o PDF do projeto para marcar pontos, vãos e kits sobre a folha."
+        [actionLabel]="podeEditar ? 'Anexar projeto' : undefined" actionIcon="pi pi-upload" (action)="abrirProjeto()"></ces-async-state>
+    } @else {
+      <div class="plan-ferramentas" role="toolbar" aria-label="Ferramentas da folha">
+        <ces-button size="sm" icon="pi pi-arrows-alt" label="Mão" [variant]="ferramenta() === 'mao' ? 'primary' : 'ghost'" keyShortcut="M" (pressed)="escolherFerramenta('mao')"></ces-button>
+        @if (podeEditar) {
+          <span class="plan-separador"></span>
+          <ces-button size="sm" icon="pi pi-map-marker" label="Ponto" [variant]="ferramenta() === 'ponto' ? 'primary' : 'ghost'" keyShortcut="P" [disabled]="revisando()" (pressed)="escolherFerramenta('ponto')"></ces-button>
+          <ces-button size="sm" icon="pi pi-share-alt" label="Vão" [variant]="ferramenta() === 'vao' ? 'primary' : 'ghost'" keyShortcut="V" [disabled]="revisando()" (pressed)="escolherFerramenta('vao')"></ces-button>
+          <ces-button size="sm" icon="pi pi-comment" label="Anotar" [variant]="ferramenta() === 'anotar' ? 'primary' : 'ghost'" keyShortcut="N" [disabled]="revisando()" (pressed)="escolherFerramenta('anotar')"></ces-button>
+        }
+        <span class="plan-separador"></span>
+        <ces-button size="sm" icon="pi pi-check-square" label="Selecionar" [variant]="ferramenta() === 'selecionar' ? 'primary' : 'ghost'" keyShortcut="S" (pressed)="escolherFerramenta('selecionar')"></ces-button>
+        <ces-button size="sm" icon="pi pi-expand" label="Área" [variant]="ferramenta() === 'area' ? 'primary' : 'ghost'" keyShortcut="A" (pressed)="escolherFerramenta('area')"></ces-button>
+        <ces-button size="sm" icon="pi pi-align-left" label="Ler texto" [variant]="ferramenta() === 'texto' ? 'primary' : 'ghost'" keyShortcut="T" (pressed)="escolherFerramenta('texto')"></ces-button>
+        <span class="plan-ferramentas__fim">
+          <ces-icon-button [icon]="camadasOcultas() ? 'pi pi-eye-slash' : 'pi pi-eye'" size="icon-sm" [label]="camadasOcultas() ? 'Mostrar pontos e trechos' : 'Ocultar pontos e trechos'" [tooltip]="camadasOcultas() ? 'Mostrar pontos e trechos' : 'Ocultar pontos e trechos'" tooltipPosition="bottom" (pressed)="camadasOcultas.set(!camadasOcultas())"></ces-icon-button>
+          <ces-icon-button [icon]="painelOculto() ? 'pi pi-angle-double-left' : 'pi pi-angle-double-right'" size="icon-sm" [label]="painelOculto() ? 'Mostrar painel lateral' : 'Ocultar painel lateral'" [tooltip]="painelOculto() ? 'Mostrar painel' : 'Ocultar painel'" tooltipPosition="bottom" (pressed)="painelOculto.set(!painelOculto())"></ces-icon-button>
+        </span>
+      </div>
+
+      <div class="plan-corpo">
+        <section class="plan-folha" aria-label="Folha do projeto">
+          <div class="plan-avisos" aria-live="polite">
+            @if (dica(); as texto) {
+              <p class="plan-dica" role="status"><i class="pi pi-info-circle" aria-hidden="true"></i> {{ texto }}</p>
+            }
+            @if (analisando()) {
+              <p class="plan-dica" role="status"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> O Copiloto está lendo a página {{ pagina() }}. Pode continuar trabalhando: nada será gravado sem a sua revisão.</p>
+            }
+          </div>
+          @if (erroPdf()) {
+            <ces-async-state state="error" title="Não foi possível abrir o PDF do projeto" description="O arquivo pode estar corrompido. Tente substituir o projeto."
+              [actionLabel]="podeEditar ? 'Substituir projeto' : undefined" actionIcon="pi pi-upload" (action)="abrirProjeto()"></ces-async-state>
+          } @else {
+            @if (carregandoPdf()) {
+              <ces-async-state class="plan-folha__carregando" state="loading" title="Abrindo o PDF" [compact]="true"></ces-async-state>
+            }
+            <ces-pdf-canvas [source]="pdf()" [(page)]="pagina" [(zoom)]="zoom" [rotation]="rotacao()" [panMode]="ferramenta() === 'mao' && !modoMover()"
+              [dim]="esmaecido()" [ariaLabel]="'Projeto da obra ' + p.numeroObra" (pageCount)="totalPaginas.set($event)" (loadError)="aoFalharPdf()">
+              <div pdf-overlay #overlay class="plan-sobre" [class.plan-sobre--oculto]="camadasOcultas()">
+                <svg class="plan-trechos" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+                  @for (t of vaosDaPagina(); track t.vao.id) {
+                    <line class="plan-trecho" [attr.data-estado]="t.estado" [class.plan-trecho--ativo]="ativo()?.id === t.vao.id" [class.plan-trecho--selecionado]="locaisSelecionados().has(t.vao.id)"
+                      [attr.x1]="t.x1" [attr.y1]="t.y1" [attr.x2]="t.x2" [attr.y2]="t.y2"></line>
+                    <line class="plan-trecho-alvo" [attr.x1]="t.x1" [attr.y1]="t.y1" [attr.x2]="t.x2" [attr.y2]="t.y2"
+                      (pointerdown)="$event.stopPropagation()" (click)="aoClicarVao(t.vao)"></line>
+                  }
+                </svg>
+
+                @if (capturaAtiva()) {
+                  <div class="plan-captura" [attr.data-ferramenta]="ferramenta()"
+                    (pointerdown)="aoApertarCaptura($event)" (pointermove)="aoMoverCaptura($event)" (pointerup)="aoSoltarCaptura()"></div>
+                }
+
+                @if (rotuloRetangulo(); as r) {
+                  <div class="plan-retangulo" [style.left.%]="r.left" [style.top.%]="r.top" [style.width.%]="r.width" [style.height.%]="r.height"></div>
+                }
+
+                @for (t of vaosDaPagina(); track t.vao.id) {
+                  @if (t.vao.metragem) {
+                    <span class="plan-metragem" [style.left.%]="t.mx" [style.top.%]="t.my">{{ t.vao.metragem }} m</span>
+                  }
+                }
+
+                @for (m of pontosDaPagina(); track m.ponto.id) {
+                  <button type="button" class="plan-marcador" [attr.data-estado]="m.estado"
+                    [class.plan-marcador--ativo]="ativo()?.id === m.ponto.id"
+                    [class.plan-marcador--selecionado]="locaisSelecionados().has(m.ponto.id)"
+                    [class.plan-marcador--origem]="origemVao() === m.ponto.id"
+                    [class.plan-marcador--movendo]="modoMover() && ativo()?.id === m.ponto.id"
+                    [style.left.%]="m.left" [style.top.%]="m.top"
+                    [attr.aria-label]="'Ponto ' + m.ponto.numero + ', ' + rotuloEstado[m.estado]"
+                    [title]="'P' + m.ponto.numero + ' · ' + rotuloEstado[m.estado]"
+                    (pointerdown)="aoApertarMarcador($event, m.ponto)" (pointermove)="aoMoverMarcador($event)" (pointerup)="aoSoltarMarcador()"
+                    (click)="aoClicarPonto(m.ponto)">
+                    <span>{{ m.ponto.numero }}</span>
+                  </button>
+                }
+
+                @for (c of conexoesEntreFolhas(); track c.vao.id) {
+                  <button type="button" class="plan-conexao" [style.left.%]="c.left" [style.top.%]="c.top"
+                    [title]="'Conexão entre folhas: ir para P' + c.destino.numero + ' na página ' + c.destino.pagina"
+                    (pointerdown)="$event.stopPropagation()" (click)="irParaPagina(c.destino.pagina)">
+                    <i class="pi pi-external-link" aria-hidden="true"></i> P{{ c.destino.numero }} · pág. {{ c.destino.pagina }}
+                  </button>
+                }
+
+                @for (a of anotacoesDaPagina(); track a.anotacao.id) {
+                  <button type="button" class="plan-anotacao" [class.plan-anotacao--ativa]="ativo()?.id === a.anotacao.id" [style.left.%]="a.left" [style.top.%]="a.top"
+                    [attr.aria-label]="'Anotação: ' + a.anotacao.texto" [title]="a.anotacao.texto"
+                    (pointerdown)="$event.stopPropagation()" (click)="abrir({ tipo: 'anotacao', id: a.anotacao.id })">
+                    <i class="pi pi-comment" aria-hidden="true"></i>
+                  </button>
+                }
+
+                @for (s of sugestoesDaPagina(); track s.sugestao.referencia) {
+                  <button type="button" class="plan-sugestao" [class.plan-sugestao--ativa]="destaque() === s.sugestao.referencia" [class.plan-sugestao--fora]="!s.sugestao.aceito"
+                    [style.left.%]="s.left" [style.top.%]="s.top" [attr.aria-label]="'Sugestão do Copiloto: ponto ' + s.sugestao.numero" [title]="'Sugestão: P' + s.sugestao.numero + '. Arraste para ajustar.'"
+                    (pointerdown)="aoApertarSugestao($event, s.sugestao.referencia)" (pointermove)="aoMoverSugestao($event)" (pointerup)="aoSoltarSugestao()">
+                    {{ s.sugestao.numero }}
+                  </button>
+                }
+              </div>
+            </ces-pdf-canvas>
+          }
+
+          @if (!erroPdf()) {
+            <div class="plan-flutuante plan-flutuante--esquerda">
+              @if (totalPaginas() > 1) {
+                <div class="plan-pilula" role="group" aria-label="Páginas do projeto">
+                  <ces-icon-button icon="pi pi-chevron-left" size="icon-sm" label="Página anterior" [disabled]="pagina() <= 1" (pressed)="irParaPagina(pagina() - 1)"></ces-icon-button>
+                  <span class="plan-pilula__valor">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+                  <ces-icon-button icon="pi pi-chevron-right" size="icon-sm" label="Próxima página" [disabled]="pagina() >= totalPaginas()" (pressed)="irParaPagina(pagina() + 1)"></ces-icon-button>
+                </div>
+              }
+              <div class="plan-pilula plan-legenda-folha" [class.plan-legenda-folha--aberta]="legendaAberta()">
+                <button type="button" class="plan-legenda-folha__botao" [attr.aria-expanded]="legendaAberta()" (click)="legendaAberta.set(!legendaAberta())">
+                  <i class="pi pi-info-circle" aria-hidden="true"></i> Legenda
+                </button>
+                @if (legendaAberta()) {
+                  <ul>
+                    @for (estado of estadosLegenda; track estado) {
+                      <li><span class="plan-marcador plan-marcador--legenda" [attr.data-estado]="estado"></span> {{ rotuloEstado[estado] }}</li>
+                    }
+                  </ul>
+                }
+              </div>
+            </div>
+            <div class="plan-flutuante plan-flutuante--direita">
+              <div class="plan-pilula" role="group" aria-label="Esmaecer o desenho">
+                <i class="pi pi-sun plan-pilula__icone" aria-hidden="true" title="Esmaecer o desenho para destacar os vãos"></i>
+                <input class="plan-pilula__faixa" type="range" min="0" max="0.8" step="0.2" aria-label="Esmaecer o desenho" title="Esmaecer o desenho para destacar os vãos"
+                  [value]="esmaecido()" (input)="esmaecido.set(+$any($event.target).value)" />
+              </div>
+              @if (podeEditar) {
+                <div class="plan-pilula" role="group" aria-label="Girar a página">
+                  <ces-icon-button icon="pi pi-replay" size="icon-sm" label="Girar 90° à esquerda" tooltip="Girar à esquerda, para todos" (pressed)="girar(-90)"></ces-icon-button>
+                  <ces-icon-button icon="pi pi-refresh" size="icon-sm" label="Girar 90° à direita" tooltip="Girar à direita, para todos" (pressed)="girar(90)"></ces-icon-button>
+                </div>
+              }
+              <div class="plan-pilula" role="group" aria-label="Zoom">
+                <ces-icon-button icon="pi pi-minus" size="icon-sm" label="Reduzir zoom" tooltip="Reduzir (Ctrl + roda)" (pressed)="zoomMenos()"></ces-icon-button>
+                <button type="button" class="plan-pilula__valor plan-pilula__valor--botao" title="Ajustar à largura" (click)="ajustarLargura()">{{ (zoom() * 100).toFixed(0) }}%</button>
+                <ces-icon-button icon="pi pi-plus" size="icon-sm" label="Aumentar zoom" tooltip="Aumentar (Ctrl + roda)" (pressed)="zoomMais()"></ces-icon-button>
+              </div>
+            </div>
+          }
+
+          <!-- Fica preso à área da folha, em vez de flutuar sobre o desenho: nunca sai da tela nem esconde o ponto. -->
+          @if (novoPonto()) {
+            <form class="plan-cartao" [class.plan-cartao--direita]="cartaoNaDireita()" (submit)="$event.preventDefault(); salvarNovoPonto()">
+              <h3>Novo ponto</h3>
+              <ces-text-input #numeroNovo label="Número" [required]="true" [maxlength]="20" [(value)]="novoPontoNumero"></ces-text-input>
+              <ces-select label="Tipo" [options]="tiposPonto" [(value)]="novoPontoTipo"></ces-select>
+              <div class="plan-cartao__acoes">
+                <ces-button variant="ghost" size="sm" label="Cancelar" (pressed)="novoPonto.set(null)"></ces-button>
+                <ces-button type="submit" size="sm" icon="pi pi-check" label="Adicionar" [loading]="salvando()" [disabled]="!novoPontoNumero().trim()"></ces-button>
+              </div>
+            </form>
+          } @else if (novaAnotacao()) {
+            <form class="plan-cartao" [class.plan-cartao--direita]="cartaoNaDireita()" (submit)="$event.preventDefault(); salvarNovaAnotacao()">
+              <h3>Nova anotação</h3>
+              <ces-textarea label="Texto" [rows]="3" [maxlength]="1000" [(value)]="novaAnotacaoTexto" placeholder="Ex.: travessia de rodovia"></ces-textarea>
+              <div class="plan-cartao__acoes">
+                <ces-button variant="ghost" size="sm" label="Cancelar" (pressed)="novaAnotacao.set(null)"></ces-button>
+                <ces-button type="submit" size="sm" icon="pi pi-check" label="Salvar" [loading]="salvando()" [disabled]="!novaAnotacaoTexto().trim()"></ces-button>
+              </div>
+            </form>
+          } @else if (pontoAtivo(); as ponto) {
+            <aside class="plan-cartao" [class.plan-cartao--direita]="cartaoNaDireita()" aria-label="Resumo do ponto">
+              <header class="plan-cartao__topo">
+                <span class="plan-cartao__icone"><i class="pi pi-map-marker" aria-hidden="true"></i></span>
+                <div class="plan-cartao__titulo">
+                  <h3>P{{ ponto.numero }}</h3>
+                  <small>{{ ponto.levantador }}@if (ponto.dataCriacao) { · {{ ponto.dataCriacao | date: 'dd/MM/yy HH:mm' }} }</small>
+                </div>
+                @if (ponto.origem === 'COPILOTO') { <ces-status tone="info">Copiloto</ces-status> }
+                <ces-icon-button icon="pi pi-times" size="icon-sm" label="Fechar" (pressed)="ativo.set(null)"></ces-icon-button>
+              </header>
+              <div class="plan-cartao__corpo">
+                @if (podeEditar) {
+                  <div class="plan-cartao__campos" (focusout)="salvarCamposPonto()" (keydown.enter)="salvarCamposPonto()">
+                    <ces-text-input label="Número" [maxlength]="20" [(value)]="rascunhoNumero"></ces-text-input>
+                    <ces-text-input label="Barramento" [maxlength]="60" [(value)]="rascunhoBarramento" placeholder="Ex.: K051159"></ces-text-input>
+                    <ces-select class="plan-cartao__largo" label="Tipo" [options]="tiposPonto" [value]="ponto.tipo" (valueChange)="$event && alterarPonto({ tipo: $event })"></ces-select>
+                  </div>
+                  <div class="plan-execucao" role="group" aria-labelledby="plan-execucao-rotulo">
+                    <span id="plan-execucao-rotulo" class="plan-rotulo">Execução</span>
+                    <div class="plan-execucao__opcoes">
+                      <button type="button" [attr.aria-pressed]="ponto.tipoExecucao === 'NAO_DEFINIDO'" (click)="alterarPonto({ tipoExecucao: 'NAO_DEFINIDO' })">A definir</button>
+                      <button type="button" [attr.aria-pressed]="ponto.tipoExecucao === 'SEM_DESLIGAMENTO'" (click)="alterarPonto({ tipoExecucao: 'SEM_DESLIGAMENTO' })"><i class="pi pi-bolt" aria-hidden="true"></i> Sem deslig.</button>
+                      <button type="button" [attr.aria-pressed]="ponto.tipoExecucao === 'COM_DESLIGAMENTO'" (click)="alterarPonto({ tipoExecucao: 'COM_DESLIGAMENTO' })"><i class="pi pi-power-off" aria-hidden="true"></i> Com deslig.</button>
+                    </div>
+                  </div>
+                  <div class="plan-marcas">
+                    <label><input type="checkbox" [checked]="ponto.temPoda" (change)="alterarPonto({ temPoda: $any($event.target).checked })" /> Tem poda</label>
+                    <label><input type="checkbox" [checked]="ponto.temAterramento" (change)="alterarPonto({ temAterramento: $any($event.target).checked })" /> Tem aterramento</label>
+                  </div>
+                } @else if (ponto.barramento) {
+                  <p>Barramento {{ ponto.barramento }}</p>
+                }
+                <section class="plan-cartao__kits">
+                  <span class="plan-rotulo">Kits construtivos</span>
+                  <app-planejamento-kits [kits]="kitsDoAtivo()" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" [podeEditar]="podeEditar"
+                    (aplicar)="aplicarKit($event)" (remover)="removerKit($event)" (alterarQuantidade)="alterarQuantidadeKit($event)"
+                    (executadoAntes)="marcarExecutadoAntes($event)" (alterarItem)="alterarItem($event)" (removerItem)="removerItem($event)"></app-planejamento-kits>
+                </section>
+              </div>
+              <footer class="plan-cartao__rodape">
+                @if (podeEditar) {
+                  <ces-button variant="ghost" size="sm" icon="pi pi-arrows-alt" label="Mover" (pressed)="iniciarMover()"></ces-button>
+                  <ces-button variant="ghost" size="sm" icon="pi pi-share-alt" label="Conectar" (pressed)="iniciarConexao(ponto)"></ces-button>
+                }
+                <ces-button variant="ghost" size="sm" icon="pi pi-window-maximize" label="Detalhes" (pressed)="abrirDetalhe()"></ces-button>
+                @if (podeEditar) {
+                  <span class="plan-cartao__empurra"></span>
+                  <ces-icon-button icon="pi pi-trash" size="icon-sm" label="Excluir ponto" tooltip="Excluir ponto" (pressed)="excluirPonto(ponto)"></ces-icon-button>
+                }
+              </footer>
+            </aside>
+          } @else if (vaoAtivo(); as vao) {
+            <aside class="plan-cartao" [class.plan-cartao--direita]="cartaoNaDireita()" aria-label="Resumo do vão">
+              <header class="plan-cartao__topo">
+                <span class="plan-cartao__icone"><i class="pi pi-share-alt" aria-hidden="true"></i></span>
+                <div class="plan-cartao__titulo">
+                  <h3>{{ tituloAtivo() }}</h3>
+                  <small>{{ vao.metragem ? vao.metragem + ' m' : 'Metragem não informada' }}</small>
+                </div>
+                @if (vao.origem === 'COPILOTO') { <ces-status tone="info">Copiloto</ces-status> }
+                <ces-icon-button icon="pi pi-times" size="icon-sm" label="Fechar" (pressed)="ativo.set(null)"></ces-icon-button>
+              </header>
+              <div class="plan-cartao__corpo">
+                @if (podeEditar) {
+                  <div (focusout)="salvarMetragem()" (keydown.enter)="salvarMetragem()">
+                    <ces-number-input label="Metragem" suffix=" m" [min]="0.01" [maxFractionDigits]="2" [(value)]="rascunhoMetragem"
+                      description="Os itens em metro dos kits acompanham a metragem."></ces-number-input>
+                  </div>
+                }
+                <section class="plan-cartao__kits">
+                  <span class="plan-rotulo">Kits construtivos</span>
+                  <app-planejamento-kits [kits]="kitsDoAtivo()" [emVao]="true" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" [podeEditar]="podeEditar"
+                    (aplicar)="aplicarKit($event)" (remover)="removerKit($event)" (alterarQuantidade)="alterarQuantidadeKit($event)"
+                    (executadoAntes)="marcarExecutadoAntes($event)" (alterarItem)="alterarItem($event)" (removerItem)="removerItem($event)"></app-planejamento-kits>
+                </section>
+              </div>
+              <footer class="plan-cartao__rodape">
+                <ces-button variant="ghost" size="sm" icon="pi pi-window-maximize" label="Detalhes" (pressed)="abrirDetalhe()"></ces-button>
+                @if (podeEditar) {
+                  <span class="plan-cartao__empurra"></span>
+                  <ces-icon-button icon="pi pi-trash" size="icon-sm" label="Excluir vão" tooltip="Excluir vão" (pressed)="excluirVao(vao)"></ces-icon-button>
+                }
+              </footer>
+            </aside>
+          } @else if (anotacaoAtiva(); as anotacao) {
+            <aside class="plan-cartao" [class.plan-cartao--direita]="cartaoNaDireita()" aria-label="Anotação">
+              <header class="plan-cartao__topo">
+                <h3>Anotação</h3>
+                <span class="plan-cartao__autor">{{ anotacao.autor }}</span>
+                <ces-icon-button icon="pi pi-times" size="icon-sm" label="Fechar" (pressed)="ativo.set(null)"></ces-icon-button>
+              </header>
+              @if (podeEditar) {
+                <div (focusout)="salvarAnotacao()">
+                  <ces-textarea label="Texto" [rows]="4" [maxlength]="1000" [(value)]="rascunhoAnotacao"></ces-textarea>
+                </div>
+                <footer class="plan-cartao__rodape">
+                  <ces-button variant="ghost" size="sm" icon="pi pi-trash" label="Excluir" (pressed)="excluirAnotacao(anotacao)"></ces-button>
+                </footer>
+              } @else {
+                <p>{{ anotacao.texto }}</p>
+              }
+            </aside>
+          }
+        </section>
+
+        @if (!painelOculto()) {
+          <aside class="plan-painel" aria-label="Painel do planejamento">
+            @if (revisando()) {
+              <app-planejamento-revisao [proposta]="analise()!.proposta!" [pagina]="analise()!.pagina" [numerosExistentes]="numerosExistentes()"
+                [destaque]="destaque()" [salvando]="aceitando()" [ajustes]="ajustes()"
+                (pontosAlterados)="sugestoes.set($event)" (destacar)="destaque.set($event)" (aceitar)="aceitarProposta($event)" (descartar)="descartarRevisao()"></app-planejamento-revisao>
+            } @else if (!p.pontos.length && podeEditar) {
+              <div class="plan-inicio">
+                <h2>Como quer começar?</h2>
+                <button type="button" class="plan-inicio__opcao plan-inicio__opcao--destaque" [disabled]="!leituraDisponivel() || analisando()" (click)="lerComCopiloto()">
+                  <i class="pi pi-sparkles" aria-hidden="true"></i>
+                  <span>
+                    <strong>{{ analisando() ? 'Lendo a folha…' : 'Planejar com Copiloto' }}</strong>
+                    <small>{{ leituraDisponivel() ? 'Ele lê a folha e propõe pontos, vãos e kits. Você revisa antes de gravar.' : 'A leitura de projetos não está configurada neste ambiente.' }}</small>
+                  </span>
+                </button>
+                <button type="button" class="plan-inicio__opcao" (click)="escolherFerramenta('ponto')">
+                  <i class="pi pi-map-marker" aria-hidden="true"></i>
+                  <span>
+                    <strong>Marcar na folha</strong>
+                    <small>Clique em cada poste. O número segue a sequência: é só confirmar com Enter.</small>
+                  </span>
+                </button>
+              </div>
+            } @else {
+              <app-planejamento-arvore [plano]="p" [recolhidos]="recolhidos()" [locaisSelecionados]="locaisSelecionados()" [itensSelecionados]="itensSelecionados()" [ativo]="ativo()?.id ?? null"
+                (alternar)="alternarRecolhido($event)" (marcarLocal)="alternarLocal($event)" (marcarItem)="alternarItem($event)" (abrirLocal)="abrirDaArvore($event)" (irPagina)="irParaPagina($event)"></app-planejamento-arvore>
+
+              <section class="plan-avanco">
+                <button type="button" class="plan-avanco__topo" [attr.aria-expanded]="avancoAberto()" (click)="avancoAberto.set(!avancoAberto())">
+                  <i class="pi pi-chart-bar" aria-hidden="true"></i> Avanço por kit
+                  <i class="pi plan-avanco__seta" [class.pi-chevron-up]="!avancoAberto()" [class.pi-chevron-down]="avancoAberto()" aria-hidden="true"></i>
+                </button>
+                @if (avancoAberto()) {
+                  <ul class="plan-avanco__lista">
+                    @for (kit of p.avancoKits; track kit.codigo) {
+                      <li>
+                        <div class="plan-avanco__linha"><code>{{ kit.codigo }}</code><span [title]="kit.descricao">{{ kit.descricao }}</span><strong>{{ kit.percentualExecutado }}%</strong></div>
+                        <div class="plan-barra plan-barra--fina"><span class="plan-barra__exec" [style.width.%]="kit.percentualExecutado"></span></div>
+                        <div class="plan-avanco__valores"><span>{{ moeda(kit.valorExecutado) }} executado</span><span>{{ moeda(kit.valorTotal) }} total</span></div>
+                      </li>
+                    } @empty {
+                      <li class="plan-avanco__vazio">Nenhum kit aplicado ainda.</li>
+                    }
+                  </ul>
+                }
+              </section>
+
+              @if (temSelecao()) {
+                <footer class="plan-selecao" aria-live="polite">
+                  <span>
+                    @if (contagemSelecao().pontos) { {{ contagemSelecao().pontos }} {{ contagemSelecao().pontos === 1 ? 'ponto' : 'pontos' }} · }
+                    @if (contagemSelecao().vaos) { {{ contagemSelecao().vaos }} {{ contagemSelecao().vaos === 1 ? 'vão' : 'vãos' }} · }
+                    {{ contagemSelecao().itens }} {{ contagemSelecao().itens === 1 ? 'item' : 'itens' }}
+                  </span>
+                  @if (podeEditar && contagemSelecao().pontos + contagemSelecao().vaos > 0) {
+                    <ces-button size="sm" icon="pi pi-briefcase" label="Aplicar kit" (pressed)="loteAberto.set(true)"></ces-button>
+                  }
+                  <ces-icon-button icon="pi pi-times" size="icon-sm" label="Limpar seleção" tooltip="Limpar seleção (Esc)" (pressed)="limparSelecao()"></ces-icon-button>
+                </footer>
+              }
+            }
+          </aside>
+        }
+      </div>
+    }
+  </div>
+
+  <ces-dialog-shell [(visible)]="loteAberto" title="Aplicar kit à seleção" size="md"
+    [description]="'O kit será aplicado a ' + contagemSelecao().pontos + ' pontos e ' + contagemSelecao().vaos + ' vãos. Quem já tem o kit fica como está.'">
+    <app-planejamento-kits [mostrarAplicados]="false" [kits]="[]" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" (aplicar)="aplicarEmLote($event)"></app-planejamento-kits>
+  </ces-dialog-shell>
+
+  <ces-dialog-shell [(visible)]="textoAberto" title="Texto extraído do PDF" size="sm">
+    @if (textoExtraido()) {
+      <pre class="plan-texto">{{ textoExtraido() }}</pre>
+    } @else {
+      <ces-callout tone="info" [dense]="true">Não há texto extraível nesta região. O PDF pode ter o texto como desenho ou imagem.</ces-callout>
+    }
+    <div dialog-footer class="ces-actions-row">
+      <ces-button variant="ghost" size="sm" label="Fechar" (pressed)="textoAberto.set(false)"></ces-button>
+      @if (textoExtraido()) {
+        <ces-button variant="outline" size="sm" icon="pi pi-copy" label="Copiar" (pressed)="copiarTexto()"></ces-button>
+        @if (pontoAtivo() && podeEditar) {
+          <ces-button size="sm" icon="pi pi-check" [label]="'Usar como barramento de P' + pontoAtivo()!.numero" (pressed)="preencherBarramento()"></ces-button>
+        }
+      }
+    </div>
+  </ces-dialog-shell>
+
+  <ces-form-drawer [(visible)]="detalheAberto" [title]="tituloAtivo()" size="lg" [resizable]="true" description="Kits, previsto e executado por item e orçamento da obra">
+    <ces-tabs [tabs]="abasDetalhe" [value]="abaDetalhe()" (valueChange)="abaDetalhe.set($any($event))" ariaLabel="Detalhe do local">
+      <ng-template cesTabPanel="kits">
+        <app-planejamento-kits [kits]="kitsDoAtivo()" [emVao]="!!vaoAtivo()" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" [podeEditar]="podeEditar"
+          (aplicar)="aplicarKit($event)" (remover)="removerKit($event)" (alterarQuantidade)="alterarQuantidadeKit($event)"
+          (executadoAntes)="marcarExecutadoAntes($event)" (alterarItem)="alterarItem($event)" (removerItem)="removerItem($event)"></app-planejamento-kits>
+      </ng-template>
+      <ng-template cesTabPanel="orcamento">
+        @if (orcamento()?.itens?.length) {
+          <table class="plan-orcamento">
+            <thead><tr><th>Código</th><th>Serviço</th><th>Un.</th><th class="numero">Qtd.</th><th class="numero">Valor</th></tr></thead>
+            <tbody>
+              @for (item of orcamento()!.itens; track item.id) {
+                <tr><td><code>{{ item.codigo }}</code></td><td>{{ item.descricao }}</td><td>{{ item.unidade }}</td><td class="numero">{{ item.quantidade }}</td><td class="numero">{{ moeda(item.valorTotal) }}</td></tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <ces-async-state state="empty" [compact]="true" icon="pi pi-inbox" title="Nenhum orçamento importado para esta obra"></ces-async-state>
+        }
+      </ng-template>
+    </ces-tabs>
+  </ces-form-drawer>
+
+  <ces-form-drawer [(visible)]="projetoAberto" [title]="p.projetoMestre ? 'Substituir projeto' : 'Anexar projeto'" size="md" [dirty]="!!projetoArquivo()"
+    [description]="p.projetoMestre ? 'Pontos, vãos e anotações continuam nas mesmas posições. O PDF anterior fica nos anexos da obra.' : 'O PDF será a base do planejamento desta obra.'">
+    @if (anexosPdf().length) {
+      <ces-form-section title="Usar um PDF já anexado" icon="pi pi-paperclip">
+        <ul class="plan-anexos">
+          @for (anexo of anexosPdf(); track anexo.id) {
+            <li>
+              <span><strong>{{ anexo.nomeArquivo }}</strong><small>{{ anexo.tipoAnexoNome }}</small></span>
+              @if (anexo.id === p.projetoMestre?.idAnexo) {
+                <ces-status tone="success">Atual</ces-status>
+              } @else {
+                <ces-button variant="outline" size="sm" label="Usar este" (pressed)="usarAnexo(anexo)"></ces-button>
+              }
+            </li>
+          }
+        </ul>
+      </ces-form-section>
+    }
+    <ces-form-section title="Enviar novo PDF" icon="pi pi-upload">
+      <div class="ces-form-stack">
+        <ces-select label="Tipo de documento" [required]="true" [options]="tiposAnexo()" [(value)]="projetoTipo" [filter]="true"></ces-select>
+        <ces-file-input label="Arquivo PDF" [required]="true" accept="application/pdf,.pdf" [(file)]="projetoArquivo" [maxBytes]="50 * 1024 * 1024" description="Até 50 MB."></ces-file-input>
+      </div>
+    </ces-form-section>
+    <div drawer-footer class="ces-actions-row">
+      <ces-button variant="ghost" label="Cancelar" (pressed)="projetoAberto.set(false)"></ces-button>
+      <ces-button icon="pi pi-upload" label="Enviar projeto" [disabled]="!projetoArquivo() || !projetoTipo()" [loading]="enviandoProjeto()" (pressed)="enviarProjeto()"></ces-button>
+    </div>
+  </ces-form-drawer>
+}

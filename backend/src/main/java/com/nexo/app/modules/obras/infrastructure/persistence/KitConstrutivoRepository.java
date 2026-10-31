@@ -16,6 +16,8 @@ public interface KitConstrutivoRepository
 
     Optional<KitConstrutivo> findByIdContratoAndCodigoAndAtivoTrue(UUID idContrato, String codigo);
 
+    List<KitConstrutivo> findByIdContratoAndAtivoTrue(UUID idContrato);
+
     boolean existsByIdContratoAndCodigoAndAtivoTrue(UUID idContrato, String codigo);
 
     boolean existsByIdContratoAndCodigoAndAtivoTrueAndIdNot(UUID idContrato, String codigo, UUID id);

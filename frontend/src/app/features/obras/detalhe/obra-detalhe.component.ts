@@ -157,6 +157,7 @@ export class ObraDetalheComponent {
 
   private readonly permissoes = inject(AuthService).currentUser()?.permissoes ?? [];
   protected readonly podeEscrever = this.permissoes.includes('obras:obra:write');
+  protected readonly podePlanejar = this.permissoes.includes('obras:planejamento:read');
   protected readonly podeAnexar = this.permissoes.includes('obras:anexos:write');
 
   // Helpers de template
@@ -545,6 +546,11 @@ export class ObraDetalheComponent {
   protected editar(): void {
     const id = this.obra()?.id;
     if (id) void this.router.navigate(['/obras', id, 'editar']);
+  }
+
+  protected planejar(): void {
+    const id = this.obra()?.id;
+    if (id) void this.router.navigate(['/obras', id, 'planejamento']);
   }
 
   protected voltar(): void {

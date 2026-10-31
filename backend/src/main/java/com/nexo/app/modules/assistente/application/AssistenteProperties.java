@@ -36,6 +36,7 @@ public class AssistenteProperties {
         /** Modelo reserva (opcional) usado quando o provedor informa que o principal nao esta disponivel. */
         private String fallbackModel = "";
         private String titleModel = "";
+        private String visionModel = "";
         private String reasoningEffort = "";
         private String titleReasoningEffort = "none";
         private double temperature = 0.1;

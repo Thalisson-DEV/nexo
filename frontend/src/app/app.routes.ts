@@ -494,6 +494,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/obras/form/obra-form.component').then(m => m.ObraFormComponent)
       },
       {
+        path: ':id/planejamento',
+        data: { permission: 'obras:planejamento:read', fullscreen: true },
+        loadComponent: () => import('./features/obras/planejamento/obra-planejamento.component').then(m => m.ObraPlanejamentoComponent)
+      },
+      {
         path: ':id',
         data: { permission: 'obras:obra:read', fullscreen: true, reportNavigator: 'obra' },
         loadComponent: () => import('./features/obras/detalhe/obra-detalhe.component').then(m => m.ObraDetalheComponent)

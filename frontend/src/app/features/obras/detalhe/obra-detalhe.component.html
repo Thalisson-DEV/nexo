@@ -463,6 +463,9 @@
     <!-- Ações da obra: fixas no canto inferior direito, como nos demais relatórios -->
     <div class="obra-acoes" role="toolbar" aria-label="Ações da obra">
       <ces-button variant="ghost" size="sm" icon="pi pi-arrow-left" label="Voltar" (pressed)="voltar()"></ces-button>
+      @if (podePlanejar) {
+        <ces-button variant="outline" size="sm" icon="pi pi-map" label="Planejar" (pressed)="planejar()"></ces-button>
+      }
       <ces-icon-button icon="pi pi-print" label="Imprimir relatório" size="icon-sm" (pressed)="imprimir()"></ces-icon-button>
       <span class="obra-acoes__divisor" aria-hidden="true"></span>
       <app-analisar-com-copiloto origem="Detalhe da obra" tipo="obra" [entidade]="o.id" [rotulo]="o.numero" [filtros]="{ obra: o.id }" size="sm" variant="ghost" label="Copiloto"

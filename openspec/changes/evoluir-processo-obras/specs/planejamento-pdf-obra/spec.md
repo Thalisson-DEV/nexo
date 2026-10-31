@@ -52,14 +52,19 @@ folha e listados como "Pa — Pb". Um vão MUST NOT ligar um ponto a ele mesmo n
 - **THEN** o vão é criado e aparece sinalizado como conexão entre folhas nas duas páginas
 
 ### Requirement: Aplicação de kits em pontos e vãos
-O usuário SHALL aplicar kits a pontos e vãos escolhendo a ação (Instalar ou Retirar) e o multiplicador do kit, gerando itens
-planejados com quantidade prevista = quantidade do item no kit × multiplicador. A busca de kits MUST filtrar pela classe de tensão
-da obra, com opção de ver todos. Cada item planejado SHALL guardar quantidade prevista, executada, status (Pendente, Programado,
+O usuário SHALL aplicar kits a pontos e vãos escolhendo a ação (Instalar ou Retirar). No ponto, o multiplicador é a quantidade de
+kits e vale para todos os itens. No vão, o multiplicador é a metragem do vão e vale só para os itens medidos em metro; os demais
+ficam com a quantidade do kit. A busca de kits MUST filtrar pela classe de tensão da obra, com opção de ver todos, e MUST indicar o
+kit que o ponto ou vão já tem. Cada item planejado SHALL guardar quantidade prevista, executada, status (Pendente, Programado,
 Em andamento, Concluído, Medido) e permitir editar quantidade de material ou remover item ainda pendente.
 
 #### Scenario: Aplicar kit com multiplicador
-- **WHEN** o usuário aplica o kit de cabo com multiplicador 1,04 a um vão
-- **THEN** o vão recebe os itens do kit com quantidades multiplicadas por 1,04
+- **WHEN** o usuário aplica a um vão de 35 m um kit de cabo com 1,04 m de cabo, 1,04 m de lançamento e 1 alça
+- **THEN** o vão prevê 36,4 m de cabo, 36,4 m de lançamento e 1 alça
+
+#### Scenario: Kit executado antes do sistema
+- **WHEN** o usuário marca um kit sem programação como já executado antes do sistema
+- **THEN** os itens saem do pendente, não podem ser programados e contam como executados nos indicadores
 
 #### Scenario: Remover kit com item programado
 - **WHEN** o usuário tenta remover um kit cujo item já está programado
@@ -137,3 +142,21 @@ expandir) e um detalhe completo com abas Kits construtivos e Orçamento.
 #### Scenario: Abrir detalhe completo
 - **WHEN** o usuário expande o resumo do ponto 4
 - **THEN** o detalhe mostra os kits com itens, previsto e executado por item, status e a aba de orçamento da obra
+
+### Requirement: Planejamento assistido pelo Copiloto
+O usuário SHALL poder pedir ao Copiloto que leia uma página do projeto como imagem e proponha pontos (poste, transformador, chave,
+estrutura), número, posição, barramento, vãos com metragem e kits candidatos. O resultado MUST ser uma proposta: nada entra no
+planejamento sem revisão, cada sugestão mostra de onde veio e a confiança, e pode ser aceita, ajustada ou descartada, uma a uma ou
+em conjunto. Sem modelo com visão configurado, o sistema MUST informar a indisponibilidade e manter o planejamento manual.
+
+#### Scenario: Revisar proposta
+- **WHEN** a análise de uma página termina com 12 pontos e 11 vãos sugeridos
+- **THEN** as sugestões aparecem sobre a folha com aparência distinta dos pontos reais, e só as aceitas são gravadas
+
+#### Scenario: Número já usado
+- **WHEN** a análise sugere um ponto cujo número já existe na obra
+- **THEN** a sugestão vem marcada como conflito e não é gravada até o usuário definir outro número
+
+#### Scenario: Leitura incerta
+- **WHEN** o modelo devolve um kit candidato com baixa confiança ou que não existe no contrato
+- **THEN** o kit não vem marcado para aceite e o texto lido da folha continua visível para decisão do usuário

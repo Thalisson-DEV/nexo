@@ -81,6 +81,29 @@ public class CopilotoApiAdapter implements CopilotoApi {
     }
 
     @Override
+    public boolean visaoDisponivel() {
+        return disponivel() && modeloVisao() != null;
+    }
+
+    @Override
+    public String modeloVisao() {
+        String modelo = properties.getLlm().getVisionModel();
+        return modelo == null || modelo.isBlank() ? null : modelo;
+    }
+
+    @Override
+    public String completarComImagens(String sistema, String usuario, List<Imagem> imagens, double temperatura, int limiteTokens) {
+        if (!visaoDisponivel()) throw new IllegalStateException("Não há modelo com visão configurado neste ambiente.");
+        List<LlmMessage> conversa = new ArrayList<>();
+        if (sistema != null && !sistema.isBlank()) conversa.add(new LlmMessage.System(sistema));
+        conversa.add(new LlmMessage.User(usuario, imagens.stream()
+                .map(imagem -> new LlmMessage.Image(imagem.tipoConteudo(), imagem.base64()))
+                .toList()));
+        return llm.complete(new LlmRequest(modeloVisao(), conversa, List.of(),
+                LlmRequest.ToolChoice.NONE, temperatura, limiteTokens, false, null)).content();
+    }
+
+    @Override
     public Analise analisar(PedidoAnalise pedido) {
         long inicio = System.nanoTime();
         if (!disponivel()) {

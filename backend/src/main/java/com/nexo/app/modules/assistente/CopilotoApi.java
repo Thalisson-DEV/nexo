@@ -23,6 +23,15 @@ public interface CopilotoApi {
     /** Uma resposta do modelo, sem ferramentas. */
     String completar(String sistema, String usuario, double temperatura, int limiteSegundos);
 
+    /** Há modelo com visão configurado para ler imagens, além do assistente ligado. */
+    boolean visaoDisponivel();
+
+    /** Nome do modelo com visão, para registro. Nulo quando não há. */
+    String modeloVisao();
+
+    /** Uma resposta do modelo com visão sobre as imagens, sem ferramentas. */
+    String completarComImagens(String sistema, String usuario, List<Imagem> imagens, double temperatura, int limiteTokens);
+
     /**
      * Pede uma análise ao agente em nome do usuário e espera a resposta. A conversa fica
      * salva no histórico do usuário (é possível continuar perguntando depois).
@@ -34,6 +43,9 @@ public interface CopilotoApi {
 
     /** Consulta estruturada (sem SQL livre) com as permissões informadas. */
     ResultadoConsulta consultar(UUID usuarioId, Set<String> permissoes, Consulta consulta);
+
+    record Imagem(String tipoConteudo, String base64) {
+    }
 
     record PedidoAnalise(UUID usuarioId, Set<String> permissoes, String nomeUsuario, String titulo, String pergunta,
                          int limiteSegundos) {

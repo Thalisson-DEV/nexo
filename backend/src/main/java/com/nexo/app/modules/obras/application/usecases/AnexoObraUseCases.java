@@ -60,9 +60,13 @@ public class AnexoObraUseCases {
         }
 
         AnexoObra anexo = obra.adicionarAnexo(tipoAnexo, nomeOriginal, contentType, tamanho, chaveStorage, observacoes);
-        obraRepository.saveAndFlush(obra);
+        // O merge em cascata grava outra instância do anexo: o id gerado fica na que voltou da obra salva.
+        AnexoObra salvo = obraRepository.saveAndFlush(obra).getAnexos().stream()
+                .filter(a -> chaveStorage.equals(a.getChaveStorage()))
+                .findFirst()
+                .orElse(anexo);
 
-        return mapper.toAnexoResponse(anexo);
+        return mapper.toAnexoResponse(salvo);
     }
 
     @Transactional(readOnly = true)

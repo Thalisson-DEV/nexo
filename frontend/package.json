@@ -51,6 +51,7 @@
     "dompurify": "^3.4.12",
     "leaflet": "^1.9.4",
     "marked": "^18.0.7",
+    "pdfjs-dist": "4.10.38",
     "primeicons": "^7.0.0",
     "primeng": "21.1.3",
     "rxjs": "~7.8.0",

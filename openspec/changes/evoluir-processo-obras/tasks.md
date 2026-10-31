@@ -57,6 +57,9 @@ referência ausente); frontend 1514 testes, 2 falhas pré-existentes (solicitaco
 - [ ] 2.11 Resumo rápido do ponto e detalhe completo (abas Kits e Orçamento)
 - [ ] 2.12 Cabeçalho de indicadores e painel Avanço por kit; estados vazio, carregando, erro e conflito
 - [ ] 2.13 Teste e2e do fluxo: anexar PDF → pontos → vão → kits → indicadores
+- [ ] 2.14 Copiloto: chamada com imagens e modelo com visão em `CopilotoApi`, render da página e análise assíncrona
+- [ ] 2.15 Copiloto: interpretação do resultado (blocos para página, duplicados, conflito de número, kits candidatos) + testes
+- [ ] 2.16 Copiloto: revisão das sugestões sobre a folha, aceite em lote e gravação pelos mesmos comandos do planejamento
 
 ## 3. Frente C: programação (depende de 2.1, 2.5)
 
