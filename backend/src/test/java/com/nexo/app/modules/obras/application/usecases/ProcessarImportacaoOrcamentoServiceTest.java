@@ -54,7 +54,7 @@ class ProcessarImportacaoOrcamentoServiceTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         service = new ProcessarImportacaoOrcamentoService(importacaoRepository, obraRepository, itemRepository,
-                contratoApi, new NormalizadorObraService(), new LeitorPlanilhaImportacao(), transacoes);
+                contratoApi, new NormalizadorObraService(), transacoes);
         importacao = new ImportacaoObra(ImportacaoObra.Tipo.ORCAMENTO, null, "orcamento.csv");
         ReflectionTestUtils.setField(importacao, "id", UUID.randomUUID());
         obra = ProcessarImportacaoCarteiraServiceTest.novaObra("3000");
@@ -84,7 +84,7 @@ class ProcessarImportacaoOrcamentoServiceTest {
                 + "3000;OUTRO-9;Serviço sem ação;M;10,5;;210,00;\n"
                 + "3000;ACAO-2;Sem valor;UN;1;;;\n"
                 + "9999;ACAO-1;Obra inexistente;UN;1;10;;\n";
-        service.processar(UUID.randomUUID(), csv.getBytes(StandardCharsets.UTF_8));
+        service.processar(UUID.randomUUID(), linhas(csv));
 
         assertThat(importacao.getStatus()).isEqualTo(ImportacaoObra.Status.CONCLUIDA);
         assertThat(importacao.getInseridos()).isEqualTo(2);
@@ -103,15 +103,19 @@ class ProcessarImportacaoOrcamentoServiceTest {
 
     @Test
     void reimportarSubstituiOsServicosAnterioresDaObra() {
-        service.processar(UUID.randomUUID(), "NUMERO;CODIGO;QUANTIDADE;VALOR_TOTAL\n3000;ACAO-1;1;100\n"
-                .getBytes(StandardCharsets.UTF_8));
+        service.processar(UUID.randomUUID(), linhas("NUMERO;CODIGO;QUANTIDADE;VALOR_TOTAL\n3000;ACAO-1;1;100\n"
+                ));
         ItemOrcamentoObra anterior = gravados.getFirst();
 
-        service.processar(UUID.randomUUID(), "NUMERO;CODIGO;QUANTIDADE;VALOR_TOTAL\n3000;ACAO-3;2;400\n"
-                .getBytes(StandardCharsets.UTF_8));
+        service.processar(UUID.randomUUID(), linhas("NUMERO;CODIGO;QUANTIDADE;VALOR_TOTAL\n3000;ACAO-3;2;400\n"
+                ));
 
         assertThat(anterior.isAtivo()).isFalse();
         assertThat(gravados.stream().filter(ItemOrcamentoObra::isAtivo))
                 .extracting(ItemOrcamentoObra::getCodigo).containsExactly("ACAO-3");
+    }
+
+    private static java.util.List<LeitorPlanilhaImportacao.Linha> linhas(String csv) {
+        return new LeitorPlanilhaImportacao().ler(csv.getBytes(StandardCharsets.UTF_8), "planilha.csv");
     }
 }

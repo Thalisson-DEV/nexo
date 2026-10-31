@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  InjectionToken,
   Injector,
   OnInit,
   computed,
@@ -46,6 +47,20 @@ import {
   toCsv,
 } from './ces-data-table.utils';
 
+/**
+ * Ajuste do texto às colunas: cada coluna tem largura mínima e o texto quebra em no máximo
+ * `maxLines` linhas (o restante fica no `title`). Quando a área é estreita, a tabela rola na
+ * horizontal em vez de espremer as colunas.
+ */
+export interface CesDataTableTextFit {
+  /** Largura mínima das colunas de texto (as numéricas usam a metade; `column.width` prevalece). */
+  readonly minColumnWidth: string;
+  readonly maxLines: number;
+}
+
+/** Padrão de ajuste para as tabelas de um contêiner (ex.: o drawer de importação). */
+export const CES_DATA_TABLE_TEXT_FIT = new InjectionToken<CesDataTableTextFit>('CES_DATA_TABLE_TEXT_FIT');
+
 let tableSequence = 0;
 const SEARCH_DEBOUNCE_MS = 300;
 const inteiro = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
@@ -85,6 +100,8 @@ const CONTROLES_INTERATIVOS =
     class: 'ces-data-table',
     '[attr.data-layout]': "compact() ? 'cards' : 'table'",
     '[attr.data-busy]': 'refreshing() || null',
+    '[attr.data-fit]': "fit() ? '' : null",
+    '[style.--ces-data-table-lines]': 'fit()?.maxLines ?? null',
   },
   styleUrl: './ces-data-table.component.css',
   templateUrl: './ces-data-table.component.html',
@@ -94,6 +111,7 @@ export class CesDataTableComponent<T = unknown> implements OnInit {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly shortcuts = inject(CES_LIST_SHORTCUTS, { optional: true });
+  private readonly textFitPadrao = inject(CES_DATA_TABLE_TEXT_FIT, { optional: true });
   protected readonly id = `ces-data-table-${++tableSequence}`;
 
   readonly columns = input.required<readonly CesDataTableColumn<T>[]>();
@@ -113,6 +131,8 @@ export class CesDataTableComponent<T = unknown> implements OnInit {
   readonly caption = input<string | undefined>();
   readonly state = input<CesContentState>('ready');
   readonly density = input<CesDensity>('compact');
+  /** Largura mínima e limite de linhas do texto das colunas; rola na horizontal em vez de espremer. */
+  readonly textFit = input<CesDataTableTextFit | undefined>();
   readonly stateTitle = input<string | undefined>();
   readonly stateDescription = input<string | undefined>();
   /** Texto do vazio por busca/filtro. Padrão: "Nenhum registro corresponde …". */
@@ -177,6 +197,7 @@ export class CesDataTableComponent<T = unknown> implements OnInit {
   protected readonly clickable = computed(() => this.rowClickable() ?? !!this.rowActionLabel());
 
   protected readonly compact = cesMediaQuery(CES_COMPACT_VIEWPORT_QUERY);
+  protected readonly fit = computed(() => this.textFit() ?? this.textFitPadrao ?? undefined);
   protected readonly server = computed(() => this.mode() === 'server');
   /** Cards no mobile (modo cliente): quantas páginas já foram carregadas por "Carregar mais". */
   protected readonly loadedPages = signal(1);
@@ -188,6 +209,13 @@ export class CesDataTableComponent<T = unknown> implements OnInit {
   private readonly loadedOnce = signal(false);
   private appendNext = false;
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Largura mínima do cabeçalho com `textFit`: `column.width` prevalece; numéricas usam a metade. */
+  protected minWidth(column: CesDataTableColumn<T>): string | null {
+    const fit = this.fit();
+    if (!fit || column.width) return null;
+    return this.isNumeric(column) ? `calc(${fit.minColumnWidth} / 2)` : fit.minColumnWidth;
+  }
 
   protected readonly searchShortcut = computed(() => (this.shortcuts?.enabled() ? '/' : undefined));
 

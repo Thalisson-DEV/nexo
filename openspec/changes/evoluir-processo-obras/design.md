@@ -113,8 +113,15 @@ migração e consumidas por `authGuard`.
 - Kit: contrato e código imutáveis após o cadastro; itens removidos são desativados (soft delete). Valor do kit usa
   `ContratoApi.listarAcoesComValor` (já com coeficiente do contrato); serviço sem valor vigente fica fora da soma e é contado
   em `servicosSemValor`.
-- Importações (kits, carteira, orçamento) usam a tabela `importacoes_obras` (histórico + erros por linha em JSONB),
-  processamento `@Async` com uma transação por kit/obra, leitura XLSX ou CSV com cabeçalho normalizado e aliases.
+- Importações (kits, carteira, orçamento) seguem o fluxo das demais importações do sistema, no `ces-import-drawer`:
+  `validacao` devolve cada linha com situação e erro sem gravar, `revalidacao` confere de novo depois de cada correção
+  na tela e `confirmacao` revalida e processa as válidas em `@Async`, com uma transação por kit/obra. A tabela
+  `importacoes_obras` guarda o histórico e os erros por linha (JSONB). Leitura XLSX ou CSV com cabeçalho normalizado e aliases.
+- `ces-import-drawer` e `ces-form-drawer` trazidos da `main` do `ces` (largura máxima redimensionável, arrastar e soltar,
+  tabela sem colunas espremidas), mais o slot `[import-params]` para parâmetros que vêm antes do arquivo (contrato).
+- A ficha da obra (`/obras/:id`) é uma página de aplicação, não A4: cabeçalho com prazo, indicadores, pontos de atenção
+  (`obra-insights.ts`, função pura), dados, solicitações, orçamento, anexos, subprojetos, mapa e histórico. As ações ficam
+  fixas no canto inferior direito; o que altera a obra fica em "Atualizar obra", e as seções mantêm seus atalhos.
 - Carteira: o "prazo" é a `dataPrevisaoFim` existente; novo só `prazoRegulado`. Status operacional reutiliza `StatusObra`
   com histórico em `historico_status_obras` (gravado pelo domínio em toda troca, inclusive no cadastro atual) + observação.
   Obra ganhou `idContrato` (opcional) para filtrar kits.

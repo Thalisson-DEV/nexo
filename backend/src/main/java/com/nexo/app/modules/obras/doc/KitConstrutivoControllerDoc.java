@@ -1,6 +1,8 @@
 package com.nexo.app.modules.obras.doc;
 
-import com.nexo.app.modules.obras.application.dto.HistoricoImportacaoResponse;
+import com.nexo.app.modules.obras.application.dto.ConfirmarImportacaoPlanilhaRequest;
+import com.nexo.app.modules.obras.application.dto.KitImportacaoLinha;
+import com.nexo.app.modules.obras.application.dto.PreviaImportacaoObraResponse;
 import com.nexo.app.modules.obras.application.dto.KitConstrutivoFilter;
 import com.nexo.app.modules.obras.application.dto.KitConstrutivoRequest;
 import com.nexo.app.modules.obras.application.dto.KitConstrutivoResponse;
@@ -45,9 +47,18 @@ public interface KitConstrutivoControllerDoc {
             description = "O kit continua visível nas obras onde já foi aplicado, mas não pode ser aplicado em novos pontos.")
     ResponseEntity<Void> desativar(UUID id);
 
-    @Operation(summary = "Importar kits de planilha (XLSX ou CSV) em segundo plano",
-            description = "Uma linha por item, agrupada por CODIGO_KIT. Cria ou atualiza por código; acompanhe o relatório em /v1/obras/importacoes/{id}.")
-    ResponseEntity<HistoricoImportacaoResponse> importar(UUID idContrato, MultipartFile arquivo);
+    @Operation(summary = "Validar a planilha de kits (XLSX ou CSV) e devolver a pré-visualização por linha",
+            description = "Uma linha por item, agrupada por CODIGO_KIT. Nada é gravado; corrija as linhas com erro e confirme.")
+    ResponseEntity<PreviaImportacaoObraResponse<KitImportacaoLinha>> validarImportacao(UUID idContrato, MultipartFile arquivo);
+
+    @Operation(summary = "Revalidar as linhas da pré-visualização de kits depois de uma correção (nada é gravado)")
+    ResponseEntity<PreviaImportacaoObraResponse<KitImportacaoLinha>> revalidarImportacao(
+            ConfirmarImportacaoPlanilhaRequest<KitImportacaoLinha> request);
+
+    @Operation(summary = "Confirmar a importação de kits",
+            description = "Revalida as linhas; as válidas são processadas em segundo plano (cria ou atualiza por código) e a importação vai para o histórico.")
+    ResponseEntity<PreviaImportacaoObraResponse<KitImportacaoLinha>> confirmarImportacao(
+            ConfirmarImportacaoPlanilhaRequest<KitImportacaoLinha> request);
 
     @Operation(summary = "Baixar o modelo XLSX de importação de kits")
     ResponseEntity<byte[]> baixarModelo();

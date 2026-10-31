@@ -69,7 +69,7 @@ class ProcessarImportacaoCarteiraServiceTest {
     void setUp() {
         service = new ProcessarImportacaoCarteiraService(importacaoRepository, obraRepository, statusRepository,
                 processoNegocioApi, baseOperacionalApi, municipioApi, centroFaturamentoApi, supervisorApi,
-                coordenadorApi, new NormalizadorObraService(), new LeitorPlanilhaImportacao(), transacoes);
+                coordenadorApi, new NormalizadorObraService(), transacoes);
         importacao = new ImportacaoObra(ImportacaoObra.Tipo.CARTEIRA, contrato, "carteira.csv");
         when(importacaoRepository.findById(any())).thenReturn(Optional.of(importacao));
         lenient().when(transacoes.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
@@ -101,7 +101,7 @@ class ProcessarImportacaoCarteiraServiceTest {
 
         String csv = "Número;Tensão;Prioridade;Lote;Valor Serviço Previsto;Latitude;Longitude\n"
                 + "1000;15 kV;Alta;;35.000,50;-9,41;-40,50\n";
-        service.processar(UUID.randomUUID(), csv.getBytes(StandardCharsets.UTF_8), "ana");
+        service.processar(UUID.randomUUID(), linhas(csv), "ana");
 
         assertThat(importacao.getStatus()).isEqualTo(ImportacaoObra.Status.CONCLUIDA);
         assertThat(importacao.getAtualizados()).isEqualTo(1);
@@ -125,7 +125,7 @@ class ProcessarImportacaoCarteiraServiceTest {
                 + "2001;Município errado;Expansão;Base 1;Inexistente;CC;Sup;Coord;01/11/2026;30/06/2027;\n"
                 + "2002;Prioridade errada;Expansão;Base 1;Cidade;CC;Sup;Coord;01/11/2026;30/06/2027;Urgentíssima\n"
                 + "2003;;Expansão;Base 1;Cidade;CC;Sup;Coord;01/11/2026;30/06/2027;\n";
-        service.processar(UUID.randomUUID(), csv.getBytes(StandardCharsets.UTF_8), "ana");
+        service.processar(UUID.randomUUID(), linhas(csv), "ana");
 
         assertThat(importacao.getStatus()).isEqualTo(ImportacaoObra.Status.CONCLUIDA);
         assertThat(importacao.getTotalLinhas()).isEqualTo(5);
@@ -143,18 +143,15 @@ class ProcessarImportacaoCarteiraServiceTest {
         assertThat(criada.getStatusObra().getNome()).isEqualTo("PLANEJADA");
     }
 
-    @Test
-    void planilhaSemLinhasFalhaComMensagem() {
-        service.processar(UUID.randomUUID(), "NUMERO;TITULO\n".getBytes(StandardCharsets.UTF_8), "ana");
-
-        assertThat(importacao.getStatus()).isEqualTo(ImportacaoObra.Status.FALHOU);
-        assertThat(importacao.getMensagem()).contains("não tem linhas");
-    }
 
     static Obra novaObra(String numero) {
         return new Obra(numero, "OBRA " + numero, null, null, null,
                 LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), null, null,
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), UUID.randomUUID(), new StatusObra("PLANEJADA", 1, false), null, null);
+    }
+
+    private static java.util.List<LeitorPlanilhaImportacao.Linha> linhas(String csv) {
+        return new LeitorPlanilhaImportacao().ler(csv.getBytes(StandardCharsets.UTF_8), "planilha.csv");
     }
 }

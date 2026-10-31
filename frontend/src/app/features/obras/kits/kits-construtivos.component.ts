@@ -48,7 +48,8 @@ import { RemoteLookup } from '../../../core/utils/remote-lookup.util';
 import { AuditDialogComponent } from '../../../shared/components/audit-dialog/audit-dialog.component';
 import { AjudaListagemComponent } from '../../../shared/listagem/ajuda-listagem.component';
 import { LIMITE_EXPORTACAO, OPCOES_STATUS, exportacaoPadrao, paginaPadrao } from '../../../shared/listagem/listagem';
-import { ImportacaoObrasDrawerComponent } from '../importacao/importacao-obras-drawer.component';
+import { ImportacaoPlanilhaObrasComponent } from '../importacao/importacao-planilha-obras.component';
+import { COLUNAS_KITS, fonteKits } from '../importacao/importacoes-obras';
 import { formatarMoeda } from '../obras-ui';
 
 /** Item em edição no drawer; `chave` identifica a linha mesmo antes de ser salva. */
@@ -98,7 +99,7 @@ const OPERACOES: CesSelectOption<OperacaoItemKit>[] = [
     CesTextInputComponent,
     AuditDialogComponent,
     AjudaListagemComponent,
-    ImportacaoObrasDrawerComponent
+    ImportacaoPlanilhaObrasComponent
   ],
   template: `
     <div class="ces-page" cesListShortcuts #atalhos="cesListShortcuts" [newAction]="podeEscrever" (newRequested)="novo()">
@@ -288,10 +289,10 @@ const OPERACOES: CesSelectOption<OperacaoItemKit>[] = [
       </div>
     </ces-form-drawer>
 
-    <app-importacao-obras-drawer [(visible)]="importacaoAberta" tipo="KITS" titulo="Importar kits"
-      descricao="Uma linha por item: o kit é identificado pelo código; reimportar substitui os itens do kit."
-      [exigeContrato]="true" [contratos]="contratoOpcoes()" [contratoInicial]="lista.filters.idContrato()"
-      (concluida)="lista.reload()"></app-importacao-obras-drawer>
+    <app-importacao-planilha-obras [(visible)]="importacaoAberta" tipo="KITS" titulo="Importar kits"
+      descricao="Uma linha por item; o kit é identificado pelo código. Reimportar um kit atualiza os dados e os itens informados."
+      [colunas]="colunasImportacao" [fonte]="fonteImportacao" [exigeContrato]="true" [contratos]="contratoOpcoes()"
+      [contratoInicial]="lista.filters.idContrato()" (processada)="lista.reload()"></app-importacao-planilha-obras>
 
     <app-audit-dialog #auditoria></app-audit-dialog>
     <app-ajuda-listagem #ajuda titulo="Kits construtivos" entidadePlural="kits" busca="código ou descrição" rotuloNovo="Novo kit" [importacao]="podeImportar"></app-ajuda-listagem>
@@ -374,6 +375,8 @@ export class KitsConstrutivosComponent {
   // Formulário do kit
   protected readonly formularioAberto = signal(false);
   protected readonly importacaoAberta = signal(false);
+  protected readonly colunasImportacao = COLUNAS_KITS;
+  protected readonly fonteImportacao = fonteKits(this.kits);
   protected readonly emEdicao = signal<KitConstrutivoResponse | null>(null);
   protected readonly carregandoKit = signal(false);
   protected readonly idContrato = signal<string | null>(null);

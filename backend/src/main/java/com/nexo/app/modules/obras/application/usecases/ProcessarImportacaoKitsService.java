@@ -44,47 +44,43 @@ import java.util.UUID;
 @Service
 public class ProcessarImportacaoKitsService {
 
-    private static final String[] COL_CODIGO_KIT = {"CODIGO_KIT", "KIT", "COD_KIT"};
-    private static final String[] COL_DESCRICAO_KIT = {"DESCRICAO_KIT", "DESCRICAO", "NOME_KIT"};
-    private static final String[] COL_GRUPO = {"GRUPO", "GRUPO_KIT"};
-    private static final String[] COL_TENSOES = {"TENSOES", "TENSAO", "CLASSE_TENSAO", "CLASSES_TENSAO"};
-    private static final String[] COL_TIPO = {"TIPO_ITEM", "TIPO"};
-    private static final String[] COL_CODIGO_ITEM = {"CODIGO_ITEM", "COD_ITEM", "ITEM", "CODIGO"};
-    private static final String[] COL_OPERACAO = {"OPERACAO", "ACAO", "INSTALAR_RETIRAR"};
-    private static final String[] COL_QUANTIDADE = {"QUANTIDADE", "QTD", "QTDE"};
-    private static final String[] COL_UNIDADE = {"UNIDADE", "UN", "UND", "UNIDADE_MEDIDA"};
+    static final String[] COL_CODIGO_KIT = {"CODIGO_KIT", "KIT", "COD_KIT"};
+    static final String[] COL_DESCRICAO_KIT = {"DESCRICAO_KIT", "DESCRICAO", "NOME_KIT"};
+    static final String[] COL_GRUPO = {"GRUPO", "GRUPO_KIT"};
+    static final String[] COL_TENSOES = {"TENSOES", "TENSAO", "CLASSE_TENSAO", "CLASSES_TENSAO"};
+    static final String[] COL_TIPO = {"TIPO_ITEM", "TIPO"};
+    static final String[] COL_CODIGO_ITEM = {"CODIGO_ITEM", "COD_ITEM", "ITEM", "CODIGO"};
+    static final String[] COL_OPERACAO = {"OPERACAO", "ACAO", "INSTALAR_RETIRAR"};
+    static final String[] COL_QUANTIDADE = {"QUANTIDADE", "QTD", "QTDE"};
+    static final String[] COL_UNIDADE = {"UNIDADE", "UN", "UND", "UNIDADE_MEDIDA"};
 
     private final ImportacaoObraRepository importacaoRepository;
     private final KitConstrutivoRepository kitRepository;
     private final ContratoApi contratoApi;
     private final EstoqueApi estoqueApi;
-    private final LeitorPlanilhaImportacao leitor;
     private final TransactionTemplate transacao;
 
     public ProcessarImportacaoKitsService(ImportacaoObraRepository importacaoRepository,
                                           KitConstrutivoRepository kitRepository,
                                           ContratoApi contratoApi,
                                           EstoqueApi estoqueApi,
-                                          LeitorPlanilhaImportacao leitor,
                                           PlatformTransactionManager transacoes) {
         this.importacaoRepository = importacaoRepository;
         this.kitRepository = kitRepository;
         this.contratoApi = contratoApi;
         this.estoqueApi = estoqueApi;
-        this.leitor = leitor;
         this.transacao = new TransactionTemplate(transacoes);
     }
 
     @Async
     @CacheEvict(cacheNames = CacheNames.OBRAS_KITS, allEntries = true)
-    public void processar(UUID idImportacao, byte[] conteudo) {
+    public void processar(UUID idImportacao, List<Linha> linhas) {
         ImportacaoObra importacao = importacaoRepository.findById(idImportacao).orElse(null);
         if (importacao == null) {
             log.warn("Importação de kits {} não encontrada para processamento", idImportacao);
             return;
         }
         try {
-            List<Linha> linhas = leitor.ler(conteudo, importacao.getNomeArquivo());
             Referencias referencias = new Referencias();
             for (Map.Entry<String, List<Linha>> grupo : agruparPorKit(linhas, importacao).entrySet()) {
                 processarKit(importacao, grupo.getKey(), grupo.getValue(), referencias);

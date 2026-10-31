@@ -1,6 +1,8 @@
 package com.nexo.app.modules.obras.infrastructure.web;
 
-import com.nexo.app.modules.obras.application.dto.HistoricoImportacaoResponse;
+import com.nexo.app.modules.obras.application.dto.ConfirmarImportacaoPlanilhaRequest;
+import com.nexo.app.modules.obras.application.dto.KitImportacaoLinha;
+import com.nexo.app.modules.obras.application.dto.PreviaImportacaoObraResponse;
 import com.nexo.app.modules.obras.application.dto.KitConstrutivoFilter;
 import com.nexo.app.modules.obras.application.dto.KitConstrutivoRequest;
 import com.nexo.app.modules.obras.application.dto.KitConstrutivoResponse;
@@ -85,11 +87,27 @@ public class KitConstrutivoController implements KitConstrutivoControllerDoc {
     }
 
     @Override
-    @PostMapping(value = "/importacoes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/importacoes/validacao", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('obras:kit:import')")
-    public ResponseEntity<HistoricoImportacaoResponse> importar(@RequestParam UUID idContrato,
-                                                                @RequestPart MultipartFile arquivo) {
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(importarKitsUseCase.iniciar(idContrato, arquivo));
+    public ResponseEntity<PreviaImportacaoObraResponse<KitImportacaoLinha>> validarImportacao(
+            @RequestParam UUID idContrato, @RequestPart MultipartFile arquivo) {
+        return ResponseEntity.ok(importarKitsUseCase.validar(idContrato, arquivo));
+    }
+
+    @Override
+    @PostMapping("/importacoes/revalidacao")
+    @PreAuthorize("hasAuthority('obras:kit:import')")
+    public ResponseEntity<PreviaImportacaoObraResponse<KitImportacaoLinha>> revalidarImportacao(
+            @Valid @RequestBody ConfirmarImportacaoPlanilhaRequest<KitImportacaoLinha> request) {
+        return ResponseEntity.ok(importarKitsUseCase.revalidar(request));
+    }
+
+    @Override
+    @PostMapping("/importacoes/confirmacao")
+    @PreAuthorize("hasAuthority('obras:kit:import')")
+    public ResponseEntity<PreviaImportacaoObraResponse<KitImportacaoLinha>> confirmarImportacao(
+            @Valid @RequestBody ConfirmarImportacaoPlanilhaRequest<KitImportacaoLinha> request) {
+        return ResponseEntity.ok(importarKitsUseCase.confirmar(request));
     }
 
     @Override

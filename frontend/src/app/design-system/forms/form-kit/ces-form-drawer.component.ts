@@ -8,6 +8,7 @@ import {
   input,
   model,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
 import { DrawerModule } from 'primeng/drawer';
@@ -23,6 +24,11 @@ const WIDTHS: Record<CesFormDrawerSize, string> = {
   lg: '42rem',
   xl: '56rem',
 };
+
+/** Largura máxima do drawer redimensionável, em % da largura da janela. */
+export const CES_FORM_DRAWER_MAX_VW = 90;
+/** Passo do redimensionamento pelo teclado (setas), em px. */
+const PASSO_TECLADO = 32;
 
 let drawerSequence = 0;
 
@@ -40,6 +46,10 @@ let drawerSequence = 0;
  * ```
  *
  * Para F5/voltar do navegador funcionarem, ligue o drawer à URL com `bindDrawerToUrl` (core/navigation).
+ *
+ * Com `resizable`, a borda esquerda vira uma alça (arrastar, setas, Home/End, duplo clique ou Enter)
+ * que alarga o painel da largura de `size` até `CES_FORM_DRAWER_MAX_VW`% da janela; com `openExpanded`,
+ * cada abertura já começa no máximo. Na tela compacta o drawer vira folha inferior e não redimensiona.
  */
 @Component({
   selector: 'ces-form-drawer',
@@ -65,6 +75,28 @@ let drawerSequence = 0;
       (onHide)="onHide()"
     >
       <ng-template #header>
+        @if (resizable() && !compact()) {
+          <div
+            class="ces-form-drawer__resize"
+            role="separator"
+            tabindex="0"
+            aria-orientation="vertical"
+            aria-label="Redimensionar painel"
+            title="Arraste para alargar o painel (duplo clique alterna entre o tamanho padrão e o máximo)"
+            [attr.aria-valuemin]="limites().min"
+            [attr.aria-valuemax]="limites().max"
+            [attr.aria-valuenow]="larguraAtual()"
+            [attr.aria-valuetext]="larguraTexto()"
+            [attr.data-resizing]="redimensionando()"
+            (pointerdown)="iniciarRedimensionamento($event)"
+            (pointermove)="redimensionar($event)"
+            (pointerup)="finalizarRedimensionamento($event)"
+            (pointercancel)="finalizarRedimensionamento($event)"
+            (lostpointercapture)="redimensionando.set(false)"
+            (dblclick)="alternarLargura()"
+            (keydown)="onResizeKey($event)"
+          ></div>
+        }
         <div class="ces-form-drawer__header">
           @if (compact()) {
             <span class="ces-drawer__handle" aria-hidden="true"></span>
@@ -115,6 +147,10 @@ export class CesFormDrawerComponent {
   readonly dirty = input(false);
   readonly loading = input(false);
   readonly discardMessage = input('As alterações feitas neste formulário serão perdidas.');
+  /** Mostra a alça na borda esquerda para alargar o painel até `CES_FORM_DRAWER_MAX_VW`% da janela. */
+  readonly resizable = input(false);
+  /** Com `resizable`: cada abertura começa na largura máxima (a alça ainda reduz até `size`). */
+  readonly openExpanded = input(false);
 
   /** Depois de fechar (por qualquer meio). */
   readonly closed = output<void>();
@@ -124,6 +160,10 @@ export class CesFormDrawerComponent {
   protected readonly compact = cesMediaQuery(CES_COMPACT_VIEWPORT_QUERY);
   private confirmando = false;
   private origemFoco: HTMLElement | null = null;
+  /** Largura escolhida pela alça, em px; `null` = largura padrão (de `size` ou a máxima). Volta ao padrão ao fechar. */
+  private readonly larguraPx = signal<number | null>(null);
+  private readonly janela = signal(typeof window === 'undefined' ? 1280 : window.innerWidth);
+  protected readonly redimensionando = signal(false);
 
   constructor() {
     // Guarda quem abriu o drawer antes de o foco entrar nele, para devolver ao fechar.
@@ -132,15 +172,33 @@ export class CesFormDrawerComponent {
     });
   }
 
-  protected readonly drawerStyle = computed<Record<string, string>>((): Record<string, string> =>
-    this.compact()
-      ? {
-          height: 'auto',
-          maxHeight: '92dvh',
-          borderTopLeftRadius: 'var(--ces-radius-lg)',
-          borderTopRightRadius: 'var(--ces-radius-lg)',
-        }
-      : { width: `min(${WIDTHS[this.size()]}, 100vw)` },
+  protected readonly drawerStyle = computed<Record<string, string>>((): Record<string, string> => {
+    if (this.compact()) {
+      return {
+        height: 'auto',
+        maxHeight: '92dvh',
+        borderTopLeftRadius: 'var(--ces-radius-lg)',
+        borderTopRightRadius: 'var(--ces-radius-lg)',
+      };
+    }
+    const largura = this.larguraPx();
+    if (largura !== null) return { width: `min(${largura}px, ${CES_FORM_DRAWER_MAX_VW}vw)` };
+    return { width: this.abreNoMaximo() ? `${CES_FORM_DRAWER_MAX_VW}vw` : `min(${WIDTHS[this.size()]}, 100vw)` };
+  });
+
+  /** Limites da alça em px: da largura de `size` (ou da janela, se menor) até o máximo. */
+  protected readonly limites = computed(() => {
+    const max = Math.round((this.janela() * CES_FORM_DRAWER_MAX_VW) / 100);
+    return { min: Math.min(remParaPx(WIDTHS[this.size()]), max), max };
+  });
+  private readonly abreNoMaximo = computed(() => this.resizable() && this.openExpanded());
+  protected readonly larguraAtual = computed(() => {
+    const { min, max } = this.limites();
+    const padrao = this.abreNoMaximo() ? max : min;
+    return Math.min(Math.max(this.larguraPx() ?? padrao, min), max);
+  });
+  protected readonly larguraTexto = computed(
+    () => `${Math.round((this.larguraAtual() / this.janela()) * 100)}% da largura da tela`,
   );
 
   /** Fecha; com alterações, pergunta antes. Use no Cancelar do rodapé. */
@@ -186,13 +244,70 @@ export class CesFormDrawerComponent {
     void this.requestClose();
   }
 
+  protected iniciarRedimensionamento(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    this.janela.set(window.innerWidth);
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    this.redimensionando.set(true);
+  }
+
+  protected redimensionar(event: PointerEvent): void {
+    if (!this.redimensionando()) return;
+    // O painel fica à direita: a largura é a distância do ponteiro até a borda direita da janela.
+    this.definirLargura(window.innerWidth - event.clientX);
+  }
+
+  protected finalizarRedimensionamento(event: PointerEvent): void {
+    if (!this.redimensionando()) return;
+    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+    this.redimensionando.set(false);
+  }
+
+  /** Alterna entre a largura de `size` e a máxima. */
+  protected alternarLargura(): void {
+    this.janela.set(window.innerWidth);
+    const { min, max } = this.limites();
+    this.definirLargura(this.larguraAtual() < max ? max : min);
+  }
+
+  protected onResizeKey(event: KeyboardEvent): void {
+    this.janela.set(window.innerWidth);
+    const { min, max } = this.limites();
+    const atual = this.larguraAtual();
+    const proxima: Record<string, number> = {
+      ArrowLeft: atual + PASSO_TECLADO,
+      ArrowRight: atual - PASSO_TECLADO,
+      Home: min,
+      End: max,
+    };
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.alternarLargura();
+    } else if (event.key in proxima) {
+      event.preventDefault();
+      this.definirLargura(proxima[event.key]);
+    }
+  }
+
+  private definirLargura(px: number): void {
+    const { min, max } = this.limites();
+    this.larguraPx.set(Math.round(Math.min(Math.max(px, min), max)));
+  }
+
   protected onShow(): void {
     setTimeout(() => this.focusFirstField());
   }
 
   protected onHide(): void {
+    this.larguraPx.set(null);
     if (this.origemFoco?.isConnected) this.origemFoco.focus();
     this.origemFoco = null;
     this.closed.emit();
   }
+}
+
+function remParaPx(valor: string): number {
+  const raiz = typeof document === 'undefined' ? 16 : parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  return Math.round(parseFloat(valor) * raiz);
 }

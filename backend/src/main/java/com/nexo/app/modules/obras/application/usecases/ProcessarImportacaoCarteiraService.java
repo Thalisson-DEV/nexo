@@ -79,7 +79,6 @@ public class ProcessarImportacaoCarteiraService {
     private final SupervisorApi supervisorApi;
     private final CoordenadorApi coordenadorApi;
     private final NormalizadorObraService normalizador;
-    private final LeitorPlanilhaImportacao leitor;
     private final TransactionTemplate transacao;
 
     public ProcessarImportacaoCarteiraService(ImportacaoObraRepository importacaoRepository,
@@ -92,7 +91,6 @@ public class ProcessarImportacaoCarteiraService {
                                               SupervisorApi supervisorApi,
                                               CoordenadorApi coordenadorApi,
                                               NormalizadorObraService normalizador,
-                                              LeitorPlanilhaImportacao leitor,
                                               PlatformTransactionManager transacoes) {
         this.importacaoRepository = importacaoRepository;
         this.obraRepository = obraRepository;
@@ -104,20 +102,18 @@ public class ProcessarImportacaoCarteiraService {
         this.supervisorApi = supervisorApi;
         this.coordenadorApi = coordenadorApi;
         this.normalizador = normalizador;
-        this.leitor = leitor;
         this.transacao = new TransactionTemplate(transacoes);
     }
 
     @Async
     @CacheEvict(cacheNames = CacheNames.OBRAS, allEntries = true)
-    public void processar(UUID idImportacao, byte[] conteudo, String usuario) {
+    public void processar(UUID idImportacao, List<Linha> linhas, String usuario) {
         ImportacaoObra importacao = importacaoRepository.findById(idImportacao).orElse(null);
         if (importacao == null) {
             log.warn("Importação de carteira {} não encontrada para processamento", idImportacao);
             return;
         }
         try {
-            List<Linha> linhas = leitor.ler(conteudo, importacao.getNomeArquivo());
             Resolvedor resolvedor = new Resolvedor();
             for (Linha linha : linhas) {
                 processarLinha(importacao, linha, resolvedor, usuario);

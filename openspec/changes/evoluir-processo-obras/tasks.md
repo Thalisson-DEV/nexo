@@ -30,15 +30,15 @@ referência ausente); frontend 1514 testes, 2 falhas pré-existentes (solicitaco
            leitura de medição, documentação e central. Rótulos no catálogo de permissões do frontend.
            PermissoesObrasMigrationContractTest garante que toda permissão obras:* dos controllers existe em migração. -->
 - [x] 1.11 Frontend: tela de kits (lista padrão, drawer de kit e itens, importação) e serviço `obras-kit.service`
-      <!-- /obras/cadastros/kits (obras:kit:read), KitsConstrutivosComponent, ObrasKitService, ImportacaoObrasDrawerComponent
-           (importação assíncrona compartilhada: envio, acompanhamento por polling, relatório por linha, histórico).
-           Pendente: conferência visual no navegador (ambiente local do Nexo não estava no ar). -->
+      <!-- /obras/cadastros/kits (obras:kit:read), KitsConstrutivosComponent, ObrasKitService, ImportacaoPlanilhaObrasComponent
+           sobre o ces-import-drawer (validação, correção na tela, revalidação e confirmação). Conferido no navegador. -->
 - [x] 1.12 Frontend: campos de carteira no form/detalhe da obra, colunas e indicadores na listagem, obras próximas, importações
       <!-- Listagem: faixa de indicadores do recorte, colunas de carteira (tensão, prioridade, prazo regulado, situação,
-           valores previstos; ordenação no backend), "Importar" com escolha cadastro/carteira/orçamento. Ficha: ObraCarteiraComponent
-           (carteira com edição em drawer, deslocamento com recalcular, histórico de status, obras próximas com raio, orçamento)
-           e observação no diálogo de status (usa status-operacional). Carteira é editada na ficha, não no form de cadastro,
-           para não mexer no fluxo do ObraRequest. Pendente: conferência visual no navegador. -->
+           valores previstos; ordenação no backend), "Importar" com escolha cadastro/carteira/orçamento. Ficha refeita em
+           obra-detalhe (carteira em drawer, deslocamento, histórico, obras próximas, orçamento, pontos de atenção em
+           obra-insights.ts). Carteira é editada na ficha, não no form de cadastro, para não mexer no fluxo do ObraRequest.
+           Conferidos no navegador: importação de kits, ficha nos dois temas, ações. Ainda não: importações de carteira e
+           orçamento no fluxo novo, drawers de status/anexo/vínculo, ficha com anexos e subprojetos reais, impressão. -->
 
 ## 2. Frente B: planejamento sobre o PDF (depende de 1.2–1.6)
 

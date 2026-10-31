@@ -1,548 +1,581 @@
-<div class="min-h-screen bg-white dark:bg-[var(--ces-canvas)] text-slate-900 dark:text-[var(--ces-foreground)] p-4 md:p-8 print:p-0">
-
-  <!-- LOADING -->
-  @if (loading()) {
-    <div class="flex flex-col items-center justify-center min-h-[600px] gap-4">
-      <ces-async-state state="loading" title="Carregando relatório da obra..." description="Buscando informações da obra, subprojetos, equipes e anexos..."></ces-async-state>
-    </div>
-  }
-
-  <!-- RELATÓRIO CONTÍNUO DE PÁGINA ÚNICA (SEM CONTAINER/BORDA) -->
-  @else if (obra(); as o) {
-    <div class="max-w-5xl mx-auto pb-24 print:max-w-full rise print:animate-none">
-
-      <!-- CABEÇALHO CORPORATIVO OFICIAL -->
-      <div class="grid grid-cols-3 items-center border-b border-gray-200 dark:border-slate-800 pb-6 mb-6 print:pb-2 print:mb-2" aria-label="Cabeçalho institucional">
-        <div class="flex justify-start">
-          <img src="logo_vertical.svg" alt="Logo" class="h-16 print:h-14" onerror="this.style.display='none'">
-        </div>
-        <div class="text-center flex flex-col gap-1">
-          <h1 class="text-xs font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider">NOME DA EMPRESA</h1>
-          <p class="text-[9px] text-slate-700 dark:text-slate-300 font-bold uppercase tracking-widest">Engenharia e Obras</p>
-          <p class="text-[9px] text-slate-600 dark:text-slate-400 font-medium">Serviços prestados à Concessionária</p>
-        </div>
-        <div class="flex justify-end">
-          <img src="logo_vertical.svg" alt="Logo Cliente" class="h-16 print:h-14 grayscale opacity-25" onerror="this.style.display='none'">
-        </div>
-      </div>
-
-      <!-- TÍTULO CENTRALIZADO DO RELATÓRIO -->
-      <div class="py-4 text-center border-y border-gray-100 dark:border-slate-800 my-4 print:py-2 print:my-2">
-        <h2 class="text-base font-bold text-gray-800 dark:text-slate-100 tracking-tight uppercase">Relatório Técnico da Obra</h2>
-        <p class="text-[10px] text-gray-500 dark:text-slate-400 font-medium mt-1 uppercase tracking-widest">
-          Nº {{ o.numero }} · {{ o.titulo }} · Emissão: {{ dataEmissao | date:'dd/MM/yyyy HH:mm' }}
+@if (carregando()) {
+  <div class="obra-estado">
+    <ces-async-state state="loading" title="Carregando a obra" description="Cadastro, carteira, solicitações, orçamento e anexos."></ces-async-state>
+  </div>
+} @else if (erro()) {
+  <div class="obra-estado">
+    <ces-async-state state="error" title="Não foi possível abrir a obra" [description]="erro()!" actionLabel="Voltar para as obras" (action)="voltar()"></ces-async-state>
+  </div>
+} @else if (obra(); as o) {
+  <div class="obra">
+    <!-- Cabeçalho: identidade, situação e prazo -->
+    <section class="obra-hero" aria-labelledby="obra-titulo">
+      <div class="obra-hero__identidade">
+        <p class="obra-hero__sobre">
+          <span>Obra {{ o.numero }}</span>
+          @if (o.tipoObra && o.tipoObra !== 'OBRA') { <span>· {{ o.tipoObra }}</span> }
+          @if (o.processoNome) { <span>· {{ o.processoNome }}</span> }
         </p>
-        <div class="mt-4 print:hidden">
-          <app-analisar-com-copiloto origem="Detalhe da obra" tipo="obra" [entidade]="o.id"
-            [rotulo]="o.numero" [filtros]="{ obra: o.id }" size="sm"
-            pergunta="Faça um resumo desta obra: situação, materiais solicitados, reservados e movimentados, e pendências." />
-        </div>
-      </div>
-
-      <!-- BANNER DE SUBPROJETO VINCULADO (se for subprojeto) -->
-      @if (o.obraPaiId) {
-        <div class="flex items-center justify-between gap-3 rounded-lg border border-blue-200 dark:border-blue-800/60 bg-blue-50/60 dark:bg-blue-950/30 px-4 py-3 mb-4 print:mb-2">
-          <div class="flex items-center gap-2.5">
-            <i class="pi pi-link text-primary-500 text-sm"></i>
-            <div class="flex flex-col gap-0.5">
-              <span class="text-[11px] font-bold text-slate-900 dark:text-slate-100">Subprojeto {{ o.tipoVinculoPai || 'KIT' }} vinculado à obra principal</span>
-              <span class="text-[10px] text-slate-600 dark:text-slate-400"><strong>{{ o.obraPaiNumero }}</strong> — {{ o.obraPaiTitulo }}</span>
-            </div>
-          </div>
-          <a [routerLink]="['/obras', o.obraPaiId]" class="text-[11px] font-bold text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1 print:hidden">
-            Ver obra principal <i class="pi pi-arrow-right text-[9px]"></i>
-          </a>
-        </div>
-      }
-
-      <!-- DADOS GERAIS AGRUPADOS EM 3 COLUNAS (.KV) -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6 bg-slate-50/30 dark:bg-slate-800/20 p-4 rounded-lg border border-slate-100/50 dark:border-slate-800 print:grid-cols-3 print:gap-3 print:mb-2 print:p-2">
-        <!-- Coluna 1: Enquadramento & Identificação -->
-        <div class="flex flex-col gap-3">
-          <div class="flex items-center gap-2 border-b border-gray-100 dark:border-slate-800 pb-2">
-            <i class="pi pi-tag text-primary-500 text-xs"></i>
-            <span class="text-[10px] font-medium text-gray-700 dark:text-slate-300 uppercase tracking-widest">Identificação</span>
-          </div>
-          <div class="kv"><span class="kv-l">Processo</span><span class="kv-v" [title]="o.processoNome">{{ o.processoNome || '-' }}</span></div>
-          <div class="kv"><span class="kv-l">Base</span><span class="kv-v" [title]="o.baseOperacionalNome">{{ o.baseOperacionalNome || '-' }}</span></div>
-          <div class="kv"><span class="kv-l">Município</span><span class="kv-v" [title]="o.municipioNome">{{ o.municipioNome || '-' }}</span></div>
-          <div class="kv"><span class="kv-l">Centro Custo</span><span class="kv-v" [title]="o.centroCustoNome">{{ o.centroCustoNome || '-' }}</span></div>
-          <div class="kv"><span class="kv-l">Nota da Obra</span><span class="kv-v">{{ o.notaObra || '-' }}</span></div>
-        </div>
-
-        <!-- Coluna 2: Liderança & Contexto -->
-        <div class="flex flex-col gap-3 md:border-x md:border-gray-100/70 dark:md:border-slate-800 md:px-6">
-          <div class="flex items-center gap-2 border-b border-gray-100 dark:border-slate-800 pb-2">
-            <i class="pi pi-sitemap text-primary-500 text-xs"></i>
-            <span class="text-[10px] font-medium text-gray-700 dark:text-slate-300 uppercase tracking-widest">Liderança</span>
-          </div>
-          <div class="kv"><span class="kv-l">Supervisor</span><span class="kv-v" [title]="o.supervisorNome">{{ o.supervisorNome || '-' }}</span></div>
-          <div class="kv"><span class="kv-l">Coordenador</span><span class="kv-v" [title]="o.coordenadorNome">{{ o.coordenadorNome || '-' }}</span></div>
-          <div class="kv"><span class="kv-l">Fiscal</span><span class="kv-v" [title]="o.agenteResponsavelNome">{{ o.agenteResponsavelNome || '-' }}</span></div>
-          @if (o.agenteResponsavelEmail) {
-            <div class="kv"><span class="kv-l">E-mail Fiscal</span><span class="kv-v text-[10px]"><a [href]="'mailto:' + o.agenteResponsavelEmail" class="text-primary-600 dark:text-primary-400 hover:underline">{{ o.agenteResponsavelEmail }}</a></span></div>
+        <h1 id="obra-titulo" class="obra-hero__titulo">{{ o.titulo }}</h1>
+        <div class="obra-hero__chips">
+          <ces-status [tone]="statusTone(o.statusNome, o.statusConcluida)" [icon]="statusIcon(o.statusNome)">{{ o.statusNome }}</ces-status>
+          @if (carteira()?.classeTensaoRotulo) {
+            <ces-status tone="brand" icon="pi-bolt">{{ carteira()!.classeTensaoRotulo }}</ces-status>
+          } @else {
+            <ces-status tone="warning" emphasis="outline" icon="pi-bolt">Tensão não informada</ces-status>
           }
-          <div class="kv">
-            <span class="kv-l">Status</span>
-            <button type="button" class="text-[10px] font-medium px-2 py-0.5 rounded-md uppercase tracking-tight cursor-pointer hover:opacity-85" [ngClass]="statusClass(o.statusNome, o.statusConcluida)" (click)="podeEscrever ? abrirAlteracaoStatus() : null" [title]="podeEscrever ? 'Clique para alterar status' : o.statusNome">
-              {{ o.statusNome }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Coluna 3: Cronograma & Resumo Financeiro -->
-        <div class="flex flex-col gap-3">
-          <div class="flex items-center gap-2 border-b border-gray-100 dark:border-slate-800 pb-2">
-            <i class="pi pi-chart-bar text-primary-500 text-xs"></i>
-            <span class="text-[10px] font-medium text-gray-700 dark:text-slate-300 uppercase tracking-widest">Cronograma & Resumo</span>
-          </div>
-          <div class="kv"><span class="kv-l">Início</span><span class="kv-v">{{ o.dataInicio || '-' }}</span></div>
-          <div class="kv"><span class="kv-l">Previsão</span><span class="kv-v">{{ o.dataPrevisaoFim || '-' }}</span></div>
-          <div class="kv"><span class="kv-l">Conclusão</span><span class="kv-v" [class.text-emerald-600]="!!o.dataFimEfetiva">{{ o.dataFimEfetiva || 'Em andamento' }}</span></div>
-          <div class="kv"><span class="kv-l">Valor Projeto</span><span class="kv-v font-bold text-primary-600 dark:text-primary-400">{{ formatarMoeda(o.valorProjeto) }}</span></div>
-          <div class="kv"><span class="kv-l">Subprojetos</span><span class="kv-v">{{ o.subprojetos.length || 0 }}</span></div>
-        </div>
-      </div>
-
-      @if (o.descricao) {
-        <div class="mb-6 flex flex-col gap-1 px-1">
-          <span class="text-[9px] font-medium text-gray-400 dark:text-slate-500 uppercase tracking-widest">Descrição da Obra</span>
-          <p class="text-[11px] text-gray-600 dark:text-slate-300 leading-relaxed">{{ o.descricao }}</p>
-        </div>
-      }
-
-      <!-- CARTEIRA: TENSÃO, PRAZOS, VALORES PREVISTOS, DESLOCAMENTO, STATUS, PRÓXIMAS E ORÇAMENTO -->
-      <div class="mb-6 px-1 print:mb-3">
-        <app-obra-carteira [obra]="o" [podeEscrever]="podeEscrever" (alterada)="carregarObra(o.id)"></app-obra-carteira>
-      </div>
-
-      <!-- EQUIPES OPERACIONAIS (PADRÃO ENXUTO: APENAS NOME/CÓDIGO E TIPO) -->
-      <div class="mb-6 px-1 print:mb-3">
-        <div class="flex items-center justify-between mb-3 border-l-2 border-primary-500 pl-3">
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] font-medium uppercase tracking-tight text-gray-800 dark:text-slate-200">Equipes Operacionais Alocadas</span>
-            <span class="text-[9px] text-slate-500 font-medium">({{ o.equipes.length || 0 }})</span>
-          </div>
-          @if (podeEscrever) {
-            <button type="button" (click)="editar()" class="text-[10px] font-medium text-primary-600 dark:text-primary-400 uppercase tracking-widest cursor-pointer print:hidden flex items-center gap-1 hover:underline">
-              <i class="pi pi-pencil text-[9px]"></i> Gerenciar
-            </button>
+          @if (rotuloPrioridade()) {
+            <ces-status [tone]="tomPrioridade()" icon="pi-flag">Prioridade {{ rotuloPrioridade()!.toLowerCase() }}</ces-status>
+          }
+          @if (nomeContrato()) {
+            <ces-status tone="neutral" emphasis="outline" icon="pi-briefcase">{{ nomeContrato() }}</ces-status>
+          }
+          @if (o.obraPaiId) {
+            <a class="obra-hero__vinculo" [routerLink]="['/obras', o.obraPaiId]"><i class="pi pi-link" aria-hidden="true"></i> Subprojeto de {{ o.obraPaiNumero }}</a>
           }
         </div>
-        @if (equipesDetalhadas().length > 0) {
-          <div class="flex flex-wrap gap-2">
-            @for (eq of equipesDetalhadas(); track eq.id) {
-              <span class="inline-flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-medium px-2.5 py-1 rounded-md">
-                <i class="pi pi-users text-[9px] text-primary-500"></i>
-                <span>{{ eq.codigo }}</span>
-                @if (eq.tipoEquipe) {
-                  <span class="text-[9px] text-slate-500 dark:text-slate-400 font-normal">· {{ eq.tipoEquipe.nome }}</span>
+        @if (o.descricao) {
+          <p class="obra-hero__descricao">{{ o.descricao }}</p>
+        }
+        @if (carteira()?.observacaoStatus) {
+          <p class="obra-hero__observacao"><i class="pi pi-comment" aria-hidden="true"></i> {{ carteira()!.observacaoStatus }}</p>
+        }
+      </div>
+
+      @if (prazo(); as p) {
+        <div class="obra-prazo" aria-label="Prazo da obra">
+          <div class="obra-prazo__topo">
+            <span class="obra-prazo__rotulo">Prazo</span>
+            <ces-status [tone]="p.situacao.tom" [icon]="p.situacao.icone">{{ p.situacao.texto }}</ces-status>
+          </div>
+          <div class="obra-prazo__trilho" role="img" [attr.aria-label]="p.decorrido + '% do prazo previsto decorrido'">
+            <div class="obra-prazo__preenchido" [style.width.%]="p.preenchimento" [attr.data-tom]="p.situacao.tom"></div>
+            @for (m of p.marcos; track m.tipo) {
+              <span class="obra-prazo__marco" [style.left.%]="m.posicao" [attr.data-tipo]="m.tipo" [title]="m.rotulo + ': ' + m.data"></span>
+            }
+          </div>
+          <ul class="obra-prazo__legenda">
+            @for (m of p.marcos; track m.tipo) {
+              <li [attr.data-tipo]="m.tipo"><span class="obra-prazo__ponto" aria-hidden="true"></span>{{ m.rotulo }} <strong>{{ m.data }}</strong></li>
+            }
+          </ul>
+          <p class="obra-prazo__decorrido">{{ p.decorrido }}% do prazo previsto decorrido</p>
+        </div>
+      }
+    </section>
+
+    <!-- Indicadores -->
+    <section class="ces-kpis obra-kpis" aria-label="Indicadores da obra">
+      <div class="ces-kpi" data-tone="info">
+        <span class="ces-kpi__icon"><i class="pi pi-wallet" aria-hidden="true"></i></span>
+        <span class="ces-kpi__body"><span class="ces-kpi__label">Valor de projeto</span><span class="ces-kpi__value">{{ moeda(o.valorProjeto) }}</span></span>
+      </div>
+      <div class="ces-kpi">
+        <span class="ces-kpi__icon"><i class="pi pi-box" aria-hidden="true"></i></span>
+        <span class="ces-kpi__body"><span class="ces-kpi__label">Material previsto</span><span class="ces-kpi__value">{{ moeda(carteira()?.valorMaterialPrevisto) }}</span></span>
+      </div>
+      <div class="ces-kpi">
+        <span class="ces-kpi__icon"><i class="pi pi-wrench" aria-hidden="true"></i></span>
+        <span class="ces-kpi__body"><span class="ces-kpi__label">Serviço previsto</span><span class="ces-kpi__value">{{ moeda(carteira()?.valorServicoPrevisto) }}</span>
+          @if (dados(orcamento())?.importado) {
+            <span class="ces-kpi__detail">{{ moeda(dados(orcamento())!.totalServicosImportados) }} no orçamento importado</span>
+          }
+        </span>
+      </div>
+      <div class="ces-kpi" [attr.data-tone]="carteira()?.deslocamentoEstimado ? 'warning' : 'neutral'">
+        <span class="ces-kpi__icon"><i class="pi pi-car" aria-hidden="true"></i></span>
+        <span class="ces-kpi__body"><span class="ces-kpi__label">Deslocamento da base</span>
+          <span class="ces-kpi__value">{{ carteira()?.distanciaBaseKm != null ? km(carteira()!.distanciaBaseKm) : '—' }}</span>
+          <span class="ces-kpi__detail">
+            @if (carteira()?.distanciaBaseKm != null) {
+              {{ duracao(carteira()!.tempoDeslocamentoMin) }} de {{ o.baseOperacionalNome }}{{ carteira()!.deslocamentoEstimado ? ' · estimado' : '' }}
+            } @else if (!temCoordenadas()) {
+              Sem coordenadas da obra
+            } @else {
+              Ainda não calculado
+            }
+          </span>
+        </span>
+      </div>
+      <div class="ces-kpi">
+        <span class="ces-kpi__icon"><i class="pi pi-cart-plus" aria-hidden="true"></i></span>
+        <span class="ces-kpi__body"><span class="ces-kpi__label">Solicitações de material</span><span class="ces-kpi__value">{{ listaSolicitacoes().length }}</span>
+          <span class="ces-kpi__detail">{{ o.anexos.length }} {{ o.anexos.length === 1 ? 'anexo' : 'anexos' }} · {{ o.subprojetos.length }} {{ o.subprojetos.length === 1 ? 'subprojeto' : 'subprojetos' }}</span>
+        </span>
+      </div>
+    </section>
+
+    <!-- Pontos de atenção -->
+    @if (insights().length) {
+      <section class="obra-atencao" aria-labelledby="atencao-titulo">
+        <header class="obra-atencao__cabecalho">
+          <h2 id="atencao-titulo">Pontos de atenção</h2>
+          @if (resumoInsights()) {
+            <span class="obra-atencao__resumo">{{ resumoInsights() }}</span>
+          }
+          @if (insightsOcultos() > 0) {
+            <button type="button" class="obra-atencao__mais" [attr.aria-expanded]="todosInsights()" (click)="todosInsights.set(!todosInsights())">
+              {{ todosInsights() ? 'Ver menos' : 'Ver todos (' + insights().length + ')' }}
+            </button>
+          }
+        </header>
+        <ul class="obra-atencao__lista">
+          @for (i of insightsExibidos(); track i.titulo) {
+            <li class="obra-destaque" [attr.data-tone]="i.tom">
+              <span class="obra-destaque__icone" aria-hidden="true"><i [class]="i.icone"></i></span>
+              <span class="obra-destaque__corpo">
+                <span class="obra-destaque__titulo">{{ i.titulo }}</span>
+                <span class="obra-destaque__texto">{{ i.texto }}</span>
+                @if (i.acao; as acao) {
+                  <button type="button" class="obra-destaque__acao" (click)="acionarInsight(acao.tipo)">{{ acao.rotulo }} <i class="pi pi-arrow-right" aria-hidden="true"></i></button>
                 }
               </span>
-            }
-          </div>
-        } @else {
-          <div class="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
-            <i class="pi pi-info-circle text-slate-400"></i> Nenhuma equipe vinculada a esta obra.
-          </div>
-        }
-      </div>
-
-      <!-- SUBPROJETOS VINCULADOS -->
-      <div class="mb-6 px-1 print:mb-3">
-        <div class="flex items-center justify-between mb-3 border-l-2 border-primary-500 pl-3">
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] font-medium uppercase tracking-tight text-gray-800 dark:text-slate-200">Subprojetos Vinculados</span>
-            <span class="text-[9px] text-slate-500 font-medium">({{ o.subprojetos.length || 0 }})</span>
-          </div>
-          @if (podeEscrever) {
-            <button type="button" (click)="abrirModalVincularSubprojeto()" class="text-[10px] font-medium text-primary-600 dark:text-primary-400 uppercase tracking-widest cursor-pointer print:hidden flex items-center gap-1 hover:underline">
-              <i class="pi pi-plus text-[9px]"></i> Vincular
-            </button>
+            </li>
           }
-        </div>
-        @if (o.subprojetos && o.subprojetos.length > 0) {
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            @for (sub of o.subprojetos; track sub.id) {
-              <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 px-4 py-3 flex flex-col gap-2">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex items-center gap-2">
-                    <span class="text-[10px] font-bold text-primary-600 dark:text-primary-400">{{ sub.numero }}</span>
-                    <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">{{ sub.tipoVinculo }}</span>
-                  </div>
-                  <span class="text-[10px] font-medium px-2 py-0.5 rounded-md uppercase" [ngClass]="statusClass(sub.statusNome)">{{ sub.statusNome }}</span>
-                </div>
-                <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase truncate" [title]="sub.titulo">{{ sub.titulo }}</span>
-                <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                  <span>{{ sub.dataInicio }} → {{ sub.dataPrevisaoFim }}</span>
-                  <span class="font-bold text-slate-800 dark:text-slate-200">{{ formatarMoeda(sub.valorProjeto) }}</span>
-                </div>
-                @if (podeEscrever) {
-                  <div class="flex items-center justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 print:hidden">
-                    <a [routerLink]="['/obras', sub.id]" class="text-[10px] font-medium text-primary-600 dark:text-primary-400 hover:underline">Abrir</a>
-                    <button type="button" (click)="desvincularSubprojeto(sub)" class="text-[10px] font-medium text-red-500 hover:underline cursor-pointer">Desvincular</button>
-                  </div>
-                }
-              </div>
+        </ul>
+      </section>
+    }
+
+    <div class="obra-corpo">
+      <main class="obra-principal">
+        <!-- Dados da obra -->
+        <section class="obra-card" aria-labelledby="dados-titulo">
+          <header class="obra-card__cabecalho">
+            <h2 id="dados-titulo"><i class="pi pi-id-card" aria-hidden="true"></i> Dados da obra</h2>
+            @if (podeEscrever) {
+              <ces-button variant="ghost" size="sm" icon="pi pi-pencil" label="Editar carteira" (pressed)="abrirCarteira()"></ces-button>
             }
+          </header>
+          <div class="obra-dados">
+            <dl class="obra-dados__grupo">
+              <dt class="obra-dados__titulo">Identificação</dt>
+              <div><dt>Processo</dt><dd>{{ o.processoNome || '—' }}</dd></div>
+              <div><dt>Base operacional</dt><dd>{{ o.baseOperacionalNome || '—' }}</dd></div>
+              <div><dt>Município</dt><dd>{{ o.municipioNome || '—' }}</dd></div>
+              <div><dt>Centro de custo</dt><dd>{{ o.centroCustoNome || '—' }}</dd></div>
+              <div><dt>Nota da obra</dt><dd>{{ o.notaObra || '—' }}</dd></div>
+            </dl>
+            <dl class="obra-dados__grupo">
+              <dt class="obra-dados__titulo">Responsáveis</dt>
+              <div><dt>Supervisor</dt><dd>{{ o.supervisorNome || '—' }}</dd></div>
+              <div><dt>Coordenador</dt><dd>{{ o.coordenadorNome || '—' }}</dd></div>
+              <div><dt>Fiscal</dt>
+                <dd>{{ o.agenteResponsavelNome || '—' }}
+                  @if (o.agenteResponsavelEmail) { <a class="obra-dados__link" [href]="'mailto:' + o.agenteResponsavelEmail">{{ o.agenteResponsavelEmail }}</a> }
+                </dd>
+              </div>
+            </dl>
+            <dl class="obra-dados__grupo">
+              <dt class="obra-dados__titulo">Carteira</dt>
+              <div><dt>Contrato</dt><dd>{{ nomeContrato() || 'Não informado' }}</dd></div>
+              <div><dt>Classe de tensão</dt>
+                <dd>{{ carteira()?.classeTensaoRotulo || 'Não informada' }}
+                  @if (carteira()?.classeTensaoInformadaPor) {
+                    <span class="obra-dados__nota">por {{ carteira()!.classeTensaoInformadaPor }} em {{ dataHora(carteira()!.classeTensaoInformadaEm) }}</span>
+                  }
+                </dd>
+              </div>
+              <div><dt>Lote previsto</dt><dd>{{ carteira()?.lotePrevisto || '—' }}</dd></div>
+              <div><dt>Situação na carteira</dt><dd>{{ carteira()?.situacaoCarteira || '—' }}</dd></div>
+              <div><dt>Prazo regulado</dt><dd>{{ carteira()?.prazoRegulado || '—' }}</dd></div>
+            </dl>
           </div>
-        } @else {
-          <div class="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
-            <i class="pi pi-info-circle text-slate-400"></i> Nenhum subprojeto vinculado a esta obra principal.
-          </div>
-        }
-      </div>
+        </section>
 
-      <!-- SOLICITAÇÕES DE MATERIAL DA OBRA -->
-      <div class="mb-6 px-1 print:mb-3">
-        <div class="flex items-center justify-between mb-3 border-l-2 border-primary-500 pl-3">
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] font-medium uppercase tracking-tight text-gray-800 dark:text-slate-200">Solicitações de Material</span>
-            <span class="text-[9px] text-slate-500 font-medium">({{ totalSolicitacoesObra() }})</span>
-          </div>
-          <button type="button" (click)="solicitarMateriais()" class="text-[10px] font-medium text-primary-600 dark:text-primary-400 uppercase tracking-widest cursor-pointer print:hidden flex items-center gap-1 hover:underline">
-            <i class="pi pi-plus text-[9px]"></i> Nova Solicitação
-          </button>
-        </div>
+        <!-- Solicitações de material -->
+        <section class="obra-card" aria-labelledby="solicitacoes-titulo">
+          <header class="obra-card__cabecalho">
+            <h2 id="solicitacoes-titulo"><i class="pi pi-cart-plus" aria-hidden="true"></i> Solicitações de material <span class="obra-card__contagem">{{ listaSolicitacoes().length }}</span></h2>
+            <ces-button variant="ghost" size="sm" icon="pi pi-plus" label="Nova solicitação" (pressed)="solicitarMateriais()"></ces-button>
+          </header>
+          @switch (solicitacoes().estado) {
+            @case ('loading') { <ces-async-state state="loading" [compact]="true" title="Carregando as solicitações"></ces-async-state> }
+            @case ('error') {
+              <ces-async-state state="error" [compact]="true" title="Não foi possível carregar as solicitações" [description]="mensagem(solicitacoes())"
+                actionLabel="Tentar de novo" (action)="carregarSolicitacoes()"></ces-async-state>
+            }
+            @default {
+              @if (listaSolicitacoes().length) {
+                <ul class="obra-lista">
+                  @for (s of listaSolicitacoes(); track s.id) {
+                    <li class="obra-lista__item">
+                      <span class="obra-lista__icone" [attr.data-tom]="tipoTecnicoEhAdicao(s.tipo) ? 'success' : 'danger'" aria-hidden="true"><i [class]="tipoTecnicoIcon(s.tipo)"></i></span>
+                      <span class="obra-lista__corpo">
+                        <a class="obra-lista__titulo" [routerLink]="['/almoxarifado/solicitacoes-tecnicas', s.id]">{{ tipoTecnicoLabel(s.tipo) }} · {{ s.id.slice(0, 8) }}</a>
+                        <span class="obra-lista__detalhe">
+                          {{ s.quantidadeSolicitada }} {{ s.quantidadeSolicitada === 1 ? 'item solicitado' : 'itens solicitados' }}
+                          @if (s.quantidadePendente) { · {{ s.quantidadePendente }} pendente(s) }
+                          @if (s.dataPrevista) { · previsto para {{ s.dataPrevista | date: 'dd/MM/yyyy' }} }
+                          @if (s.ocorrencia) { · ocorrência {{ s.ocorrencia }} }
+                        </span>
+                      </span>
+                      <ces-status [tone]="statusSolicitacaoTone(s.status)">{{ statusSolicitacaoLabel(s.status) }}</ces-status>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <ces-async-state state="empty" [compact]="true" icon="pi pi-cart-plus" title="Nenhuma solicitação de material"
+                  description="As solicitações técnicas vinculadas a esta obra aparecem aqui."></ces-async-state>
+              }
+            }
+          }
+        </section>
 
-        @if (solicitacoesLoading()) {
-          <div class="py-3 text-center text-xs text-slate-400">
-            <i class="pi pi-spin pi-spinner mr-2"></i> Carregando solicitações da obra...
-          </div>
-        } @else if (solicitacoesObra(); as proj) {
-          @if (proj.ocorrencias && proj.ocorrencias.length > 0) {
-            <!-- Obras Corretivas / Preventivas: agrupadas por ocorrência -->
-            <div class="flex flex-col gap-3">
-              @for (oc of proj.ocorrencias; track (oc.id || oc.codigo || $index)) {
-                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 p-3 flex flex-col gap-2">
-                  <div class="flex items-center gap-2">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Ocorrência:</span>
-                    <span class="text-[11px] font-bold text-primary-600 dark:text-primary-400 font-mono">{{ oc.codigo || 'Geral' }}</span>
-                    <span class="text-[9px] text-slate-400">({{ oc.solicitacoes.length }} solicitação(ões))</span>
+        <!-- Orçamento previsto -->
+        <section class="obra-card" aria-labelledby="orcamento-titulo">
+          <header class="obra-card__cabecalho">
+            <h2 id="orcamento-titulo"><i class="pi pi-calculator" aria-hidden="true"></i> Orçamento previsto</h2>
+            @if (dados(orcamento())?.importado) {
+              <span class="obra-card__meta">Importado em {{ dataHora(dados(orcamento())!.dataImportacao) }}</span>
+            }
+          </header>
+          @switch (orcamento().estado) {
+            @case ('loading') { <ces-async-state state="loading" [compact]="true" title="Carregando o orçamento"></ces-async-state> }
+            @case ('error') {
+              <ces-async-state state="error" [compact]="true" title="Não foi possível carregar o orçamento" [description]="mensagem(orcamento())"
+                actionLabel="Tentar de novo" (action)="carregarOrcamento()"></ces-async-state>
+            }
+            @default {
+              @if (dados(orcamento()); as orc) {
+                @if (orc.importado) {
+                  <ces-data-table caption="Serviços previstos" [columns]="colunasOrcamento" [rows]="orc.itens" [rowKey]="chave"
+                    searchPlaceholder="Código ou descrição do serviço" [pageSizeOptions]="[10, 25, 50]">
+                    <ng-template cesCell="codigo" let-row>
+                      <span class="ces-cell-strong">{{ row.codigo }}</span>
+                      <span class="ces-cell-muted">{{ row.descricao }}</span>
+                      @if (!row.idAcao) {
+                        <ces-status tone="warning" icon="pi-exclamation-triangle">Sem ação no contrato</ces-status>
+                      }
+                    </ng-template>
+                  </ces-data-table>
+                  <p class="obra-card__rodape">Total dos serviços importados: <strong>{{ moeda(orc.totalServicosImportados) }}</strong></p>
+                } @else {
+                  <ces-async-state state="empty" [compact]="true" icon="pi pi-calculator" title="Não há orçamento importado"
+                    description="Importe os serviços previstos pela listagem de obras (Importar · Serviços e orçamento previstos)."></ces-async-state>
+                }
+              }
+            }
+          }
+        </section>
+
+        <!-- Anexos -->
+        <section class="obra-card" aria-labelledby="anexos-titulo">
+          <header class="obra-card__cabecalho">
+            <h2 id="anexos-titulo"><i class="pi pi-paperclip" aria-hidden="true"></i> Anexos <span class="obra-card__contagem">{{ o.anexos.length }}</span></h2>
+            @if (podeAnexar) {
+              <ces-button variant="ghost" size="sm" icon="pi pi-upload" label="Adicionar anexo" (pressed)="abrirAnexo()"></ces-button>
+            }
+          </header>
+          @if (o.anexos.length) {
+            <ul class="obra-anexos">
+              @for (a of o.anexos; track a.id) {
+                <li class="obra-anexo">
+                  <button type="button" class="obra-anexo__abrir" (click)="visualizarAnexo(a)" [attr.aria-label]="'Visualizar ' + a.nomeArquivo">
+                    <span class="obra-anexo__icone" aria-hidden="true"><i class="pi" [class]="'pi ' + iconeArquivo(a.nomeArquivo)"></i></span>
+                    <span class="obra-anexo__texto">
+                      <span class="obra-anexo__nome" [title]="a.nomeArquivo">{{ a.nomeArquivo }}</span>
+                      <span class="obra-anexo__meta">{{ a.tipoAnexoNome }} · {{ bytes(a.tamanhoBytes) }}</span>
+                    </span>
+                  </button>
+                  <span class="obra-anexo__acoes">
+                    <ces-icon-button icon="pi pi-download" [label]="'Baixar ' + a.nomeArquivo" size="icon-sm" (pressed)="baixarAnexo(a)"></ces-icon-button>
+                    @if (podeAnexar) {
+                      <ces-icon-button icon="pi pi-trash" [label]="'Remover ' + a.nomeArquivo" size="icon-sm" (pressed)="removerAnexo(a)"></ces-icon-button>
+                    }
+                  </span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <ces-async-state state="empty" [compact]="true" icon="pi pi-paperclip" title="Nenhum anexo"
+              description="Projetos, plantas, memoriais e fotos da obra ficam aqui."></ces-async-state>
+          }
+        </section>
+
+        <!-- Subprojetos -->
+        <section class="obra-card" aria-labelledby="subprojetos-titulo">
+          <header class="obra-card__cabecalho">
+            <h2 id="subprojetos-titulo"><i class="pi pi-sitemap" aria-hidden="true"></i> Subprojetos <span class="obra-card__contagem">{{ o.subprojetos.length }}</span></h2>
+            @if (podeEscrever && !o.obraPaiId) {
+              <ces-button variant="ghost" size="sm" icon="pi pi-link" label="Vincular subprojeto" (pressed)="abrirVinculo()"></ces-button>
+            }
+          </header>
+          @if (o.subprojetos.length) {
+            <ul class="obra-subprojetos">
+              @for (sub of o.subprojetos; track sub.id) {
+                <li class="obra-subprojeto">
+                  <div class="obra-subprojeto__topo">
+                    <a class="obra-subprojeto__numero" [routerLink]="['/obras', sub.id]">{{ sub.numero }}</a>
+                    <ces-status tone="neutral" emphasis="outline">{{ sub.tipoVinculo }}</ces-status>
+                    <ces-status [tone]="statusTone(sub.statusNome)">{{ sub.statusNome }}</ces-status>
                   </div>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                    @for (sol of oc.solicitacoes; track sol.id) {
-                      <div class="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 p-2.5 flex flex-col gap-1.5 shadow-2xs">
-                        <div class="flex items-center justify-between gap-2">
-                          <div class="flex items-center gap-1.5">
-                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded text-white" [ngClass]="tipoTecnicoEhAdicao(sol.tipo) ? 'bg-emerald-600' : 'bg-rose-600'">
-                              <i [class]="tipoTecnicoIcon(sol.tipo)" class="text-[8px] mr-0.5"></i>
-                              {{ tipoTecnicoLabel(sol.tipo) }}
-                            </span>
-                            <span class="text-[10px] font-mono text-slate-500">{{ sol.id.slice(0, 8) }}</span>
-                          </div>
-                          <ces-status [tone]="statusSolicitacaoTone(sol.status)">{{ statusSolicitacaoLabel(sol.status) }}</ces-status>
-                        </div>
-                        <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                          <span>{{ sol.dataPrevista | date:'dd/MM/yyyy' }} · {{ sol.quantidadeSolicitada }} solicitado(s)</span>
-                          <a [routerLink]="['/almoxarifado/solicitacoes-tecnicas', sol.id]" class="font-medium text-primary-600 dark:text-primary-400 hover:underline">Abrir Detalhes</a>
-                        </div>
-                      </div>
+                  <span class="obra-subprojeto__titulo" [title]="sub.titulo">{{ sub.titulo }}</span>
+                  <div class="obra-subprojeto__rodape">
+                    <span>{{ sub.dataInicio }} → {{ sub.dataPrevisaoFim }}</span>
+                    <strong>{{ moeda(sub.valorProjeto) }}</strong>
+                    @if (podeEscrever) {
+                      <ces-icon-button icon="pi pi-times" [label]="'Desvincular ' + sub.numero" size="icon-sm" (pressed)="desvincular(sub)"></ces-icon-button>
                     }
                   </div>
-                </div>
+                </li>
               }
-            </div>
-          } @else if (proj.solicitacoes && proj.solicitacoes.length > 0) {
-            <!-- Obras Convencionais / LPT: lista direta -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-              @for (sol of proj.solicitacoes; track sol.id) {
-                <div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-3 flex flex-col gap-2 shadow-2xs">
-                  <div class="flex items-center justify-between gap-2">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-[9px] font-bold px-1.5 py-0.5 rounded text-white" [ngClass]="tipoTecnicoEhAdicao(sol.tipo) ? 'bg-emerald-600' : 'bg-rose-600'">
-                        <i [class]="tipoTecnicoIcon(sol.tipo)" class="text-[8px] mr-0.5"></i>
-                        {{ tipoTecnicoLabel(sol.tipo) }}
-                      </span>
-                      <span class="text-[10px] font-mono text-slate-500">{{ sol.id.slice(0, 8) }}</span>
-                    </div>
-                    <ces-status [tone]="statusSolicitacaoTone(sol.status)">{{ statusSolicitacaoLabel(sol.status) }}</ces-status>
-                  </div>
-                  <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                    <span>{{ sol.dataPrevista | date:'dd/MM/yyyy' }} · {{ sol.quantidadeSolicitada }} solicitado(s)</span>
-                    <a [routerLink]="['/almoxarifado/solicitacoes-tecnicas', sol.id]" class="font-medium text-primary-600 dark:text-primary-400 hover:underline">Abrir Detalhes</a>
-                  </div>
-                </div>
-              }
-            </div>
+            </ul>
           } @else {
-            <div class="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
-              <i class="pi pi-info-circle text-slate-400"></i> Nenhuma solicitação de material registrada para esta obra.
-            </div>
+            <ces-async-state state="empty" [compact]="true" icon="pi pi-sitemap" title="Nenhum subprojeto"
+              [description]="o.obraPaiId ? 'Esta obra já é subprojeto de outra.' : 'Kits e medidores ligados a esta obra aparecem aqui.'"></ces-async-state>
           }
-        } @else {
-          <div class="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
-            <i class="pi pi-info-circle text-slate-400"></i> Nenhuma solicitação de material registrada para esta obra.
-          </div>
-        }
-      </div>
+        </section>
+      </main>
 
-      <!-- CUSTÓDIA DOCUMENTAL E ANEXOS TÉCNICOS -->
-      <div class="mb-6 px-1 print:mb-3">
-        <div class="flex items-center justify-between mb-3 border-l-2 border-primary-500 pl-3">
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] font-medium uppercase tracking-tight text-gray-800 dark:text-slate-200">Custódia Documental & Anexos Técnicos</span>
-            <span class="text-[9px] text-slate-500 font-medium">({{ o.anexos.length || 0 }})</span>
-          </div>
-          @if (podeAnexar) {
-            <button type="button" (click)="abrirModalAnexo()" class="text-[10px] font-medium text-primary-600 dark:text-primary-400 uppercase tracking-widest cursor-pointer print:hidden flex items-center gap-1 hover:underline">
-              <i class="pi pi-upload text-[9px]"></i> Adicionar
-            </button>
-          }
-        </div>
-        @if (o.anexos && o.anexos.length > 0) {
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-            @for (anx of o.anexos; track anx.id) {
-              <div class="flex items-center justify-between bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/60 rounded-lg p-2.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
-                <div class="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
-                  <div class="w-8 h-8 rounded bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-100 dark:border-slate-700 cursor-pointer" (click)="visualizarAnexo(anx)">
-                    <i class="pi text-base" [ngClass]="anx.nomeArquivo.toLowerCase().endsWith('.pdf') ? 'pi-file-pdf text-red-500' : 'pi-image text-blue-500'"></i>
-                  </div>
-                  <div class="flex flex-col min-w-0 pr-1 flex-1">
-                    <button type="button" (click)="visualizarAnexo(anx)" class="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate block w-full text-left hover:text-primary-600 cursor-pointer" [title]="anx.nomeArquivo">{{ anx.nomeArquivo }}</button>
-                    <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium uppercase">{{ anx.tipoAnexoNome }} · {{ formatarBytes(anx.tamanhoBytes) }}</span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-1 shrink-0 print:hidden">
-                  <button type="button" (click)="visualizarAnexo(anx)" class="w-7 h-7 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/40 transition-colors cursor-pointer" pTooltip="Visualizar">
-                    <i class="pi pi-eye text-xs"></i>
-                  </button>
-                  <button type="button" (click)="baixarAnexo(anx)" class="w-7 h-7 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/40 transition-colors cursor-pointer" pTooltip="Baixar">
-                    <i class="pi pi-download text-xs"></i>
-                  </button>
-                  @if (podeAnexar) {
-                    <button type="button" (click)="removerAnexo(anx)" class="w-7 h-7 flex items-center justify-center rounded-full text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer" pTooltip="Remover">
-                      <i class="pi pi-trash text-xs"></i>
-                    </button>
-                  }
-                </div>
-              </div>
+      <aside class="obra-lateral" aria-label="Localização, histórico e equipe">
+        <!-- Localização -->
+        <section class="obra-card" aria-labelledby="local-titulo">
+          <header class="obra-card__cabecalho">
+            <h2 id="local-titulo"><i class="pi pi-map-marker" aria-hidden="true"></i> Localização</h2>
+            @if (podeEscrever && temCoordenadas()) {
+              <ces-icon-button icon="pi pi-refresh" label="Recalcular o deslocamento da base" size="icon-sm" [loading]="recalculando()" (pressed)="recalcularDeslocamento()"></ces-icon-button>
             }
-          </div>
-        } @else {
-          <div class="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
-            <i class="pi pi-info-circle text-slate-400"></i> Nenhum anexo técnico registrado para esta obra.
-          </div>
-        }
-      </div>
-
-      <!-- GEOLOCALIZAÇÃO E MAPA (Oculto na Impressão) -->
-      @if (o.latitude != null && o.longitude != null) {
-        <div class="mb-6 px-1 print:hidden">
-          <div class="flex items-center gap-2 mb-3 border-l-2 border-slate-400 pl-3">
-            <span class="text-[11px] font-medium uppercase tracking-tight text-gray-800 dark:text-slate-200">Geolocalização</span>
-          </div>
-          <div class="text-[11px] text-gray-600 dark:text-slate-400 font-medium mb-3 flex items-center gap-2">
-            <i class="pi pi-map-marker text-primary-500"></i> Lat: {{ o.latitude.toFixed(5) }} · Lon: {{ o.longitude.toFixed(5) }}
-          </div>
-          <div class="w-full h-[350px] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 isolate">
-            <div #mapEl class="w-full h-full"></div>
-          </div>
-        </div>
-      }
-
-      <!-- AUDITORIA & RODAPÉ DE EMISSÃO -->
-      <footer class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[10px] text-slate-500 dark:text-slate-400 print:mt-4 print:pt-2">
-        <div class="flex flex-col gap-0.5">
-          <span>Criado em: <strong>{{ formatarDataHora(o.dataCriacao) }}</strong> @if (o.usuarioCriacao) { por {{ o.usuarioCriacao }} }</span>
-          @if (o.dataUltimaAlteracao) {
-            <span>Última alteração: <strong>{{ formatarDataHora(o.dataUltimaAlteracao) }}</strong> @if (o.usuarioUltimaAlteracao) { por {{ o.usuarioUltimaAlteracao }} }</span>
+          </header>
+          @if (temCoordenadas()) {
+            <div #mapa class="obra-mapa" role="img" [attr.aria-label]="'Mapa da obra ' + o.numero + ' e das obras próximas'"></div>
+            <p class="obra-card__meta obra-mapa__coordenadas"><i class="pi pi-compass" aria-hidden="true"></i> {{ o.latitude!.toFixed(5) }}, {{ o.longitude!.toFixed(5) }}</p>
+          } @else {
+            <ces-async-state state="empty" [compact]="true" icon="pi pi-map-marker" title="Sem coordenadas"
+              description="Informe latitude e longitude no cadastro para ver o mapa, o deslocamento e as obras próximas."></ces-async-state>
           }
-        </div>
-        <div class="text-right sm:text-right font-medium text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
-          Documento emitido eletronicamente via Sistema Nexo · Engenharia
-        </div>
-      </footer>
+        </section>
 
-    </div>
-
-    <!-- AÇÕES FLUTUANTES (Fora do container do relatório, no canto inferior direito da página) -->
-    <div class="fixed bottom-8 right-8 md:right-12 flex items-center gap-3 print:hidden animate-in slide-in-from-right-4 duration-500 z-50">
-      <p-button icon="pi pi-arrow-left" label="VOLTAR" (onClick)="voltar()" styleClass="!rounded-lg !bg-white dark:!bg-slate-800 !border-gray-200 dark:!border-slate-700 !text-gray-600 dark:!text-slate-200 !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-slate-50 cursor-pointer"></p-button>
-      <p-button icon="pi pi-print" label="IMPRIMIR" (onClick)="imprimir()" styleClass="!rounded-lg !bg-slate-900 dark:!bg-slate-700 !border-slate-900 dark:!border-slate-700 !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-lg hover:!bg-slate-800 cursor-pointer"></p-button>
-      <p-button icon="pi pi-cart-plus" label="SOLICITAR MATERIAIS" (onClick)="solicitarMateriais()" styleClass="!rounded-lg !bg-white dark:!bg-slate-800 !border-gray-200 dark:!border-slate-700 !text-primary-600 dark:!text-primary-400 !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-primary-50 cursor-pointer"></p-button>
-      @if (podeEscrever) {
-        <p-button icon="pi pi-sync" label="ALTERAR STATUS" (onClick)="abrirAlteracaoStatus()" styleClass="!rounded-lg !bg-white dark:!bg-slate-800 !border-gray-200 dark:!border-slate-700 !text-gray-600 dark:!text-slate-200 !font-medium !text-[10px] !px-8 !py-2.5 !shadow-sm hover:!bg-slate-50 cursor-pointer"></p-button>
-        <p-button icon="pi pi-pencil" label="EDITAR OBRA" (onClick)="editar()" styleClass="!rounded-lg !bg-primary-600 !border-primary-600 !text-white !font-medium !text-[10px] !px-8 !py-2.5 !shadow-lg hover:!bg-primary-700 cursor-pointer"></p-button>
-      }
-    </div>
-  }
-</div>
-
-
-<!-- MODAL: ALTERAÇÃO DE STATUS -->
-<ces-dialog-shell
-  [(visible)]="statusDialogVisible"
-  title="Alterar Status da Obra"
-  description="Atualize o status operacional. Se a obra for concluída, registre a data real de término."
-  size="sm"
-  [loading]="statusDialogLoading()"
-  loadingLabel="Atualizando status..."
->
-  @if (obra(); as o) {
-    <div class="flex flex-col gap-4 py-2">
-      <div class="flex items-center justify-between p-3 bg-[var(--ces-surface-subtle)] rounded-xl border border-[var(--ces-border)]">
-        <div class="flex flex-col gap-0.5">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-[var(--ces-foreground-muted)]">Obra</span>
-          <span class="font-bold text-sm text-[var(--ces-brand)]">{{ o.numero }}</span>
-        </div>
-        <div class="flex flex-col items-end gap-0.5">
-          <span class="text-[10px] text-[var(--ces-foreground-muted)] font-medium">Status atual</span>
-          <span class="text-[10px] font-medium px-2 py-0.5 rounded-md uppercase" [ngClass]="statusClass(o.statusNome, o.statusConcluida)">{{ o.statusNome }}</span>
-        </div>
-      </div>
-      <div class="flex flex-col gap-1.5">
-        <label class="form-label">Novo Status <span aria-label="obrigatório" class="text-[var(--ces-foreground-muted)]">*</span></label>
-        <p-select [(ngModel)]="novoStatusId" [options]="statusList()" optionLabel="nome" optionValue="id"
-          placeholder="Selecione o novo status..." class="custom-select w-full" appendTo="body" />
-      </div>
-      @if (statusSelecionadoEhConcluido()) {
-        <div class="flex flex-col gap-1.5">
-          <label class="form-label">
-            Data de Conclusão Real
-            <span class="text-[10px] font-normal text-[var(--ces-foreground-muted)] block">(Deixe em branco para registrar a data de hoje)</span>
-          </label>
-          <p-datepicker [(ngModel)]="novaDataFimEfetiva" dateFormat="dd/mm/yy" mask="99/99/9999"
-            [showClear]="true" [showIcon]="true" iconDisplay="input" placeholder="dd/mm/aaaa"
-            class="custom-date w-full" appendTo="body" />
-        </div>
-      }
-      <div class="flex flex-col gap-1.5">
-        <label class="form-label" for="observacao-status">Observação</label>
-        <textarea pTextarea id="observacao-status" [(ngModel)]="observacaoStatus" rows="3" maxlength="1000" class="w-full"
-          aria-describedby="observacao-status-dica"></textarea>
-        <p id="observacao-status-dica" class="m-0 text-[11px] text-[var(--ces-foreground-muted)]">
-          Fica no histórico do status. Pode ser registrada mesmo sem trocar o status.
-        </p>
-      </div>
-    </div>
-  }
-  <div dialog-footer>
-    <ces-button label="Cancelar" variant="ghost" (pressed)="statusDialogVisible.set(false)"></ces-button>
-    <ces-button label="Salvar Alteração" icon="pi pi-check" variant="primary"
-      [disabled]="!novoStatusId" [loading]="statusDialogLoading()" (pressed)="salvarAlteracaoStatus()"></ces-button>
-  </div>
-</ces-dialog-shell>
-
-
-<!-- MODAL: VINCULAR SUBPROJETO -->
-<ces-dialog-shell
-  [(visible)]="vincularDialogVisible"
-  title="Vincular Obra como Subprojeto"
-  description="Selecione uma obra cadastrada para associá-la como subprojeto (KIT ou MEDIDOR) desta obra principal."
-  size="md"
-  [loading]="vincularLoading()"
-  loadingLabel="Vinculando subprojeto..."
->
-  <div class="flex flex-col gap-4 py-2">
-    <div class="flex flex-col gap-1.5">
-      <label class="form-label">Obra Filha <span aria-label="obrigatório" class="text-[var(--ces-foreground-muted)]">*</span></label>
-      <p-autoComplete [(ngModel)]="obraFilhaSelecionada" [suggestions]="obrasParaVinculo()"
-        (completeMethod)="buscarObrasParaFilha($event)" optionLabel="numero"
-        placeholder="Digite o número ou título da obra..." [forceSelection]="true"
-        class="custom-autocomplete w-full" appendTo="body">
-        <ng-template let-obra #item>
-          <div class="flex flex-col py-0.5">
-            <span class="font-bold text-xs text-[var(--ces-brand)]">{{ obra.numero }}</span>
-            <span class="text-[11px] text-[var(--ces-foreground-muted)] uppercase truncate">{{ obra.titulo }}</span>
-          </div>
-        </ng-template>
-      </p-autoComplete>
-    </div>
-    <div class="flex flex-col gap-1.5">
-      <label class="form-label">Tipo de Vínculo <span aria-label="obrigatório" class="text-[var(--ces-foreground-muted)]">*</span></label>
-      <p-select [(ngModel)]="tipoVinculoSelecionado" [options]="tipoVinculoOptions"
-        optionLabel="label" optionValue="value" placeholder="Selecione o tipo de vínculo..."
-        class="custom-select w-full" appendTo="body" />
-    </div>
-  </div>
-  <div dialog-footer>
-    <ces-button label="Cancelar" variant="ghost" (pressed)="vincularDialogVisible.set(false)"></ces-button>
-    <ces-button label="Confirmar Vínculo" icon="pi pi-check" variant="primary"
-      [disabled]="!obraFilhaSelecionada()" [loading]="vincularLoading()" (pressed)="vincularSubprojeto()"></ces-button>
-  </div>
-</ces-dialog-shell>
-
-
-<!-- MODAL: UPLOAD DE ANEXO -->
-<ces-dialog-shell
-  [(visible)]="anexoDialogVisible"
-  title="Adicionar Anexo Técnico"
-  description="Selecione o documento (planta, memorial, foto ou laudo) para custódia digital vinculada a esta obra."
-  size="md"
-  [loading]="anexoUploading()"
-  loadingLabel="Enviando arquivo..."
->
-  <div class="flex flex-col gap-4 py-2">
-    <div class="flex flex-col gap-1.5">
-      <label class="form-label">Tipo de Documento <span aria-label="obrigatório" class="text-[var(--ces-foreground-muted)]">*</span></label>
-      <p-select [(ngModel)]="anexoTipoId" [options]="tiposAnexosList()" optionLabel="nome" optionValue="id"
-        placeholder="Selecione o tipo de anexo..." class="custom-select w-full" appendTo="body" />
-    </div>
-    <div class="flex flex-col gap-1.5">
-      <label class="form-label" for="obra-file-input">Arquivo <span aria-label="obrigatório" class="text-[var(--ces-foreground-muted)]">*</span></label>
-      <label class="obra-file-picker" [class.obra-file-picker--selected]="!!anexoArquivoSelecionado" for="obra-file-input">
-        <input id="obra-file-input" type="file" class="sr-only" (change)="onArquivoSelecionado($event)" aria-label="Selecionar arquivo para upload" />
-        @if (anexoArquivoSelecionado) {
-          <div class="obra-file-picker__selected">
-            <i class="pi pi-file-check obra-file-picker__selected-icon" aria-hidden="true"></i>
-            <div class="obra-file-picker__selected-info">
-              <span class="obra-file-picker__selected-name">{{ anexoArquivoSelecionado.name }}</span>
-              <span class="obra-file-picker__selected-size">{{ formatarBytes(anexoArquivoSelecionado.size) }}</span>
-            </div>
-          </div>
-        } @else {
-          <div class="obra-file-picker__placeholder">
-            <i class="pi pi-upload obra-file-picker__placeholder-icon" aria-hidden="true"></i>
-            <span class="obra-file-picker__placeholder-text">Clique ou arraste um arquivo aqui</span>
-            <span class="obra-file-picker__placeholder-hint">PDF, CAD, imagens ou documentos técnicos</span>
-          </div>
+        <!-- Obras próximas -->
+        @if (temCoordenadas()) {
+          <section class="obra-card" aria-labelledby="proximas-titulo">
+            <header class="obra-card__cabecalho">
+              <h2 id="proximas-titulo"><i class="pi pi-th-large" aria-hidden="true"></i> Obras próximas</h2>
+              <div class="obra-card__filtro">
+                <ces-select label="Raio" [labelVisible]="false" [options]="raios" [value]="raio()" (valueChange)="raio.set($event ?? 10)"></ces-select>
+              </div>
+            </header>
+            @switch (proximas().estado) {
+              @case ('loading') { <ces-async-state state="loading" [compact]="true" title="Buscando obras próximas"></ces-async-state> }
+              @case ('error') {
+                <ces-async-state state="error" [compact]="true" title="Não foi possível buscar" [description]="mensagem(proximas())"
+                  actionLabel="Tentar de novo" (action)="carregarProximas()"></ces-async-state>
+              }
+              @default {
+                @if (dados(proximas())?.length) {
+                  <ul class="obra-lista obra-lista--compacta">
+                    @for (p of dados(proximas()); track p.id) {
+                      <li class="obra-lista__item">
+                        <span class="obra-lista__corpo">
+                          <a class="obra-lista__titulo" [routerLink]="['/obras', p.id]">{{ p.numero }}</a>
+                          <span class="obra-lista__detalhe" [title]="p.titulo">{{ p.titulo }}</span>
+                          <span class="obra-lista__detalhe">{{ p.statusNome }}{{ p.municipioNome ? ' · ' + p.municipioNome : '' }}</span>
+                        </span>
+                        <span class="obra-lista__valor">{{ km(p.distanciaKm) }}</span>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="obra-card__vazio">Nenhuma obra ativa em até {{ raio() }} km.</p>
+                }
+              }
+            }
+          </section>
         }
-      </label>
-    </div>
-    <div class="flex flex-col gap-1.5">
-      <label class="form-label">Observações <span class="text-[10px] font-normal text-[var(--ces-foreground-muted)]">(Opcional)</span></label>
-      <textarea pTextarea [(ngModel)]="anexoObservacoes" rows="3" maxlength="500"
-        placeholder="Ex: Revisão aprovada pelo engenheiro responsável em 10/08/2026..."
-        class="custom-textarea" aria-label="Observações sobre o anexo"></textarea>
-    </div>
-  </div>
-  <div dialog-footer>
-    <ces-button label="Cancelar" variant="ghost" (pressed)="anexoDialogVisible.set(false)"></ces-button>
-    <ces-button label="Enviar Anexo" icon="pi pi-upload" variant="primary"
-      [disabled]="!anexoArquivoSelecionado || !anexoTipoId" [loading]="anexoUploading()" (pressed)="salvarAnexo()"></ces-button>
-  </div>
-</ces-dialog-shell>
 
+        <!-- Histórico do status -->
+        <section class="obra-card" aria-labelledby="historico-titulo">
+          <header class="obra-card__cabecalho">
+            <h2 id="historico-titulo"><i class="pi pi-history" aria-hidden="true"></i> Histórico do status</h2>
+          </header>
+          @switch (historico().estado) {
+            @case ('loading') { <ces-async-state state="loading" [compact]="true" title="Carregando o histórico"></ces-async-state> }
+            @case ('error') {
+              <ces-async-state state="error" [compact]="true" title="Não foi possível carregar" [description]="mensagem(historico())"
+                actionLabel="Tentar de novo" (action)="carregarHistorico()"></ces-async-state>
+            }
+            @default {
+              @if (dados(historico())?.length) {
+                <ol class="obra-linha-tempo">
+                  @for (h of dados(historico()); track h.id; let primeiro = $first) {
+                    <li class="obra-linha-tempo__item" [class.obra-linha-tempo__item--atual]="primeiro">
+                      <span class="obra-linha-tempo__marca" aria-hidden="true"></span>
+                      <div class="obra-linha-tempo__corpo">
+                        <span class="obra-linha-tempo__titulo">
+                          @if (h.statusAnteriorNome && h.statusAnteriorNome !== h.statusNovoNome) {
+                            {{ h.statusAnteriorNome }} <i class="pi pi-arrow-right" aria-label="para"></i> {{ h.statusNovoNome }}
+                          } @else {
+                            {{ h.statusNovoNome }}
+                          }
+                        </span>
+                        @if (h.observacao) {
+                          <span class="obra-linha-tempo__observacao">{{ h.observacao }}</span>
+                        }
+                        <span class="obra-linha-tempo__meta">{{ dataHora(h.data) }}{{ h.usuario ? ' · ' + h.usuario : '' }}</span>
+                      </div>
+                    </li>
+                  }
+                </ol>
+              } @else {
+                <p class="obra-card__vazio">Sem mudanças de status registradas.</p>
+              }
+            }
+          }
+        </section>
 
-<!-- MODAL: PRÉ-VISUALIZAÇÃO DE ANEXO -->
-<ces-dialog-shell
-  [(visible)]="showPreviewModal"
-  [title]="previewNomeArquivo()"
-  description="Pré-visualização do documento técnico anexado à obra."
-  size="xl"
-  [loading]="loadingPreview()"
-  loadingLabel="Carregando visualização..."
->
-  <div class="flex flex-col items-center justify-center min-h-[350px] max-h-[75vh] w-full bg-slate-900/5 dark:bg-slate-900/40 rounded-lg overflow-hidden relative">
-    @if (previewUrl()) {
-      @if (previewTipo() === 'pdf') {
-        <iframe [src]="previewUrl()" class="w-full h-[70vh] border-0 rounded-b-lg" title="Visualização de PDF"></iframe>
-      } @else if (previewTipo() === 'image') {
-        <div class="p-4 flex items-center justify-center max-h-[70vh] overflow-auto">
-          <img [src]="previewUrl()" [alt]="previewNomeArquivo()" class="max-w-full max-h-[65vh] object-contain rounded shadow-md" />
-        </div>
-      } @else {
-        <div class="flex flex-col items-center gap-3 p-8 text-center">
-          <i class="pi pi-file text-4xl text-slate-400"></i>
-          <p class="text-xs text-slate-600 dark:text-slate-300">Este formato não possui pré-visualização direta integrada.</p>
-          <ces-button label="Abrir em Nova Aba" icon="pi pi-external-link" size="sm" (pressed)="abrirPreviewNovaAba()"></ces-button>
-        </div>
+        <!-- Equipes -->
+        <section class="obra-card" aria-labelledby="equipes-titulo">
+          <header class="obra-card__cabecalho">
+            <h2 id="equipes-titulo"><i class="pi pi-users" aria-hidden="true"></i> Equipes <span class="obra-card__contagem">{{ o.equipes.length }}</span></h2>
+            @if (podeEscrever) {
+              <ces-icon-button icon="pi pi-pencil" label="Gerenciar equipes na edição da obra" size="icon-sm" (pressed)="editar()"></ces-icon-button>
+            }
+          </header>
+          @if (equipes().length) {
+            <ul class="obra-equipes">
+              @for (eq of equipes(); track eq.id) {
+                <li class="obra-equipe">
+                  <span class="obra-equipe__avatar" aria-hidden="true">{{ iniciais(eq.codigo) }}</span>
+                  <span class="obra-lista__corpo">
+                    <span class="obra-lista__titulo">{{ eq.codigo }}</span>
+                    <span class="obra-lista__detalhe">{{ eq.tipoEquipe.nome || 'Tipo não informado' }}{{ eq.baseOperacional.nome ? ' · ' + eq.baseOperacional.nome : '' }}</span>
+                  </span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="obra-card__vazio">Nenhuma equipe vinculada.</p>
+          }
+        </section>
+
+        <!-- Registro -->
+        <section class="obra-card obra-card--sutil" aria-label="Registro">
+          <dl class="obra-registro">
+            <div><dt>Cadastrada</dt><dd>{{ dataHora(o.dataCriacao) }}{{ o.usuarioCriacao ? ' · ' + o.usuarioCriacao : '' }}</dd></div>
+            @if (o.dataUltimaAlteracao) {
+              <div><dt>Última alteração</dt><dd>{{ dataHora(o.dataUltimaAlteracao) }}{{ o.usuarioUltimaAlteracao ? ' · ' + o.usuarioUltimaAlteracao : '' }}</dd></div>
+            }
+            <div class="obra-registro__emissao"><dt>Emitido em</dt><dd>{{ emissao | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+          </dl>
+        </section>
+      </aside>
+    </div>
+
+    <!-- Ações da obra: fixas no canto inferior direito, como nos demais relatórios -->
+    <div class="obra-acoes" role="toolbar" aria-label="Ações da obra">
+      <ces-button variant="ghost" size="sm" icon="pi pi-arrow-left" label="Voltar" (pressed)="voltar()"></ces-button>
+      <ces-icon-button icon="pi pi-print" label="Imprimir relatório" size="icon-sm" (pressed)="imprimir()"></ces-icon-button>
+      <span class="obra-acoes__divisor" aria-hidden="true"></span>
+      <app-analisar-com-copiloto origem="Detalhe da obra" tipo="obra" [entidade]="o.id" [rotulo]="o.numero" [filtros]="{ obra: o.id }" size="sm" variant="ghost" label="Copiloto"
+        pergunta="Faça um resumo desta obra: situação, prazo, carteira, materiais solicitados e pendências."></app-analisar-com-copiloto>
+      @if (!o.statusConcluida) {
+        <ces-button variant="outline" size="sm" icon="pi pi-cart-plus" label="Solicitar materiais" (pressed)="solicitarMateriais()"></ces-button>
       }
-    }
+      @if (acoesAtualizar().length) {
+        <span (click)="menuAtualizar.toggle($event)">
+          <ces-button size="sm" icon="pi pi-chevron-up" label="Atualizar obra"></ces-button>
+        </span>
+        <p-menu #menuAtualizar [model]="acoesAtualizar()" [popup]="true" appendTo="body"></p-menu>
+      }
+    </div>
   </div>
-  <div dialog-footer>
-    <ces-button label="Abrir em Nova Aba" icon="pi pi-external-link" variant="ghost" size="sm" (pressed)="abrirPreviewNovaAba()"></ces-button>
-    <ces-button label="Fechar" variant="secondary" size="sm" (pressed)="fecharPreviewModal()"></ces-button>
-  </div>
-</ces-dialog-shell>
+
+  <!-- Drawer: status operacional -->
+  <ces-form-drawer [(visible)]="statusAberto" title="Alterar status" [description]="o.numero + ' · status atual ' + o.statusNome" size="sm"
+    [dirty]="novoStatusId() !== o.statusId || !!observacaoStatus().trim()">
+    <ces-form-section title="Status operacional" icon="pi pi-sync">
+      <div class="ces-form-stack">
+        <ces-select label="Novo status" [required]="true" [options]="opcoesStatus()" [(value)]="novoStatusId" [filter]="true"></ces-select>
+        @if (statusConcluido()) {
+          <ces-datepicker label="Data de conclusão" [(value)]="novaDataFim" [clearable]="true" description="Em branco, vale a data de hoje."></ces-datepicker>
+        }
+        <ces-textarea label="Observação" [(value)]="observacaoStatus" [rows]="3" [maxlength]="1000"
+          description="Fica no histórico do status. Pode ser registrada mesmo sem trocar o status."></ces-textarea>
+      </div>
+    </ces-form-section>
+    <div drawer-footer class="ces-actions-row">
+      <ces-button variant="ghost" label="Cancelar" (pressed)="statusAberto.set(false)"></ces-button>
+      <ces-button icon="pi pi-check" label="Registrar status" [disabled]="!novoStatusId()" [loading]="salvandoStatus()" (pressed)="salvarStatus()"></ces-button>
+    </div>
+  </ces-form-drawer>
+
+  <!-- Drawer: carteira -->
+  <ces-form-drawer [(visible)]="carteiraAberta" title="Editar carteira" [description]="o.numero + ' · ' + o.titulo" [dirty]="carteiraAlterada()" size="md">
+    <ces-form-section title="Enquadramento" icon="pi pi-briefcase">
+      <div class="ces-form-grid">
+        <ces-select label="Contrato" [options]="contratoOpcoes()" [(value)]="cIdContrato" [filter]="true" [clearable]="true"
+          description="Define os kits disponíveis no planejamento."></ces-select>
+        <ces-select label="Classe de tensão" [options]="tensoes" [(value)]="cTensao" [clearable]="true"
+          description="Guarda quem informou e quando; filtra os kits aplicáveis."></ces-select>
+        <ces-select label="Prioridade" [options]="prioridades" [(value)]="cPrioridade" [clearable]="true"></ces-select>
+        <ces-datepicker label="Prazo regulado" [(value)]="cPrazoRegulado" [clearable]="true"></ces-datepicker>
+        <ces-text-input label="Lote previsto" [(value)]="cLote" [maxlength]="40"></ces-text-input>
+        <ces-text-input label="Situação na carteira" [(value)]="cSituacao" [maxlength]="60" placeholder="Ex.: Liberada, Aguardando licença"></ces-text-input>
+      </div>
+    </ces-form-section>
+    <ces-form-section title="Valores previstos" icon="pi pi-wallet">
+      <div class="ces-form-grid">
+        <ces-number-input label="Valor de projeto" mode="currency" [min]="0" [(value)]="cValorProjeto"></ces-number-input>
+        <ces-number-input label="Material previsto" mode="currency" [min]="0" [(value)]="cMaterial"></ces-number-input>
+        <ces-number-input label="Serviço previsto" mode="currency" [min]="0" [(value)]="cServico"></ces-number-input>
+      </div>
+    </ces-form-section>
+    <div drawer-footer class="ces-actions-row">
+      <ces-button variant="ghost" label="Cancelar" (pressed)="carteiraAberta.set(false)"></ces-button>
+      <ces-button icon="pi pi-check" label="Salvar carteira" [loading]="salvandoCarteira()" (pressed)="salvarCarteira()"></ces-button>
+    </div>
+  </ces-form-drawer>
+
+  <!-- Drawer: anexo -->
+  <ces-form-drawer [(visible)]="anexoAberto" title="Adicionar anexo" [description]="'Obra ' + o.numero" size="md" [dirty]="!!anexoArquivo()">
+    <ces-form-section title="Documento" icon="pi pi-paperclip">
+      <div class="ces-form-stack">
+        <ces-select label="Tipo de documento" [required]="true" [options]="tiposAnexo()" [(value)]="anexoTipo" [filter]="true"></ces-select>
+        <ces-file-input label="Arquivo" [required]="true" [(file)]="anexoArquivo" [maxBytes]="50 * 1024 * 1024"
+          description="PDF, CAD, imagens ou documentos técnicos, até 50 MB."></ces-file-input>
+        <ces-textarea label="Observação" [(value)]="anexoObservacao" [rows]="3" [maxlength]="500"
+          placeholder="Ex.: revisão aprovada pelo engenheiro responsável"></ces-textarea>
+      </div>
+    </ces-form-section>
+    <div drawer-footer class="ces-actions-row">
+      <ces-button variant="ghost" label="Cancelar" (pressed)="anexoAberto.set(false)"></ces-button>
+      <ces-button icon="pi pi-upload" label="Enviar anexo" [disabled]="!anexoArquivo() || !anexoTipo()" [loading]="enviandoAnexo()" (pressed)="salvarAnexo()"></ces-button>
+    </div>
+  </ces-form-drawer>
+
+  <!-- Drawer: vincular subprojeto -->
+  <ces-form-drawer [(visible)]="vinculoAberto" title="Vincular subprojeto" [description]="'Obra principal ' + o.numero" size="md" [dirty]="!!obraFilha()">
+    <ces-form-section title="Subprojeto" icon="pi pi-sitemap">
+      <div class="ces-form-stack">
+        <ces-select label="Obra" [required]="true" [options]="opcoesObrasVinculo()" [(value)]="obraFilha" [filter]="true"
+          placeholder="Busque pelo número ou título" [loading]="buscandoObras()" (search)="buscarObrasVinculo($event)"
+          description="Só obras principais que ainda não são subprojeto desta."></ces-select>
+        <ces-select label="Tipo de vínculo" [required]="true" [options]="tiposVinculo" [(value)]="tipoVinculo"></ces-select>
+      </div>
+    </ces-form-section>
+    <div drawer-footer class="ces-actions-row">
+      <ces-button variant="ghost" label="Cancelar" (pressed)="vinculoAberto.set(false)"></ces-button>
+      <ces-button icon="pi pi-link" label="Vincular" [disabled]="!obraFilha()" [loading]="vinculando()" (pressed)="vincular()"></ces-button>
+    </div>
+  </ces-form-drawer>
+
+  <!-- Pré-visualização de anexo -->
+  <ces-dialog-shell [visible]="previewAberto()" (visibleChange)="!$event && fecharPreview()" [title]="previewNome()"
+    description="Pré-visualização do anexo da obra." size="xl" [loading]="carregandoPreview()" loadingLabel="Carregando o arquivo">
+    <div class="obra-preview">
+      @if (previewUrl()) {
+        @if (previewTipo() === 'pdf') {
+          <iframe [src]="previewUrl()" class="obra-preview__pdf" [title]="previewNome()"></iframe>
+        } @else if (previewTipo() === 'image') {
+          <img [src]="previewUrl()" [alt]="previewNome()" class="obra-preview__imagem" />
+        } @else {
+          <ces-async-state state="empty" icon="pi pi-file" title="Sem pré-visualização para este formato"
+            description="Abra o arquivo em outra aba ou baixe-o." actionLabel="Abrir em nova aba" (action)="abrirPreviewNovaAba()"></ces-async-state>
+        }
+      }
+    </div>
+    <div dialog-footer>
+      <ces-button variant="ghost" size="sm" icon="pi pi-external-link" label="Abrir em nova aba" (pressed)="abrirPreviewNovaAba()"></ces-button>
+      <ces-button variant="secondary" size="sm" label="Fechar" (pressed)="fecharPreview()"></ces-button>
+    </div>
+  </ces-dialog-shell>
+}

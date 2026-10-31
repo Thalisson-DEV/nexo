@@ -58,7 +58,7 @@ class ProcessarImportacaoKitsServiceTest {
     @BeforeEach
     void setUp() {
         service = new ProcessarImportacaoKitsService(importacaoRepository, kitRepository, contratoApi, estoqueApi,
-                new LeitorPlanilhaImportacao(), transacoes);
+                transacoes);
         importacao = new ImportacaoObra(ImportacaoObra.Tipo.KITS, contrato, "kits.csv");
         when(importacaoRepository.findById(any())).thenReturn(Optional.of(importacao));
         lenient().when(transacoes.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
@@ -96,7 +96,7 @@ class ProcessarImportacaoKitsServiceTest {
                     .append(tipo).append(';').append(item).append(";Instalar;1,5;UN\n");
         }
 
-        service.processar(UUID.randomUUID(), csv.toString().getBytes(StandardCharsets.UTF_8));
+        service.processar(UUID.randomUUID(), linhas(csv.toString()));
 
         assertThat(importacao.getStatus()).isEqualTo(ImportacaoObra.Status.CONCLUIDA);
         assertThat(importacao.getTotalLinhas()).isEqualTo(100);
@@ -116,12 +116,12 @@ class ProcessarImportacaoKitsServiceTest {
     @Test
     void reimportarAtualizaItensExistentes() {
         String csv = "CODIGO_KIT;DESCRICAO_KIT;TIPO_ITEM;CODIGO_ITEM;QUANTIDADE\nK1;Kit 1;SERVICO;ACAO-1;1\n";
-        service.processar(UUID.randomUUID(), csv.getBytes(StandardCharsets.UTF_8));
+        service.processar(UUID.randomUUID(), linhas(csv));
 
         ImportacaoObra segunda = new ImportacaoObra(ImportacaoObra.Tipo.KITS, contrato, "kits.csv");
         when(importacaoRepository.findById(any())).thenReturn(Optional.of(segunda));
-        service.processar(UUID.randomUUID(), "CODIGO_KIT;TIPO_ITEM;CODIGO_ITEM;QUANTIDADE\nK1;S;ACAO-1;3\n"
-                .getBytes(StandardCharsets.UTF_8));
+        service.processar(UUID.randomUUID(), linhas("CODIGO_KIT;TIPO_ITEM;CODIGO_ITEM;QUANTIDADE\nK1;S;ACAO-1;3\n"
+                ));
 
         assertThat(segunda.getAtualizados()).isEqualTo(1);
         assertThat(segunda.getInseridos()).isZero();
@@ -134,7 +134,7 @@ class ProcessarImportacaoKitsServiceTest {
     void kitNovoSemDescricaoRejeitaTodasAsLinhasDoKit() {
         String csv = "CODIGO_KIT;TIPO_ITEM;CODIGO_ITEM;QUANTIDADE\nK9;SERVICO;ACAO-1;1\nK9;MATERIAL;MAT-1;1\n";
 
-        service.processar(UUID.randomUUID(), csv.getBytes(StandardCharsets.UTF_8));
+        service.processar(UUID.randomUUID(), linhas(csv));
 
         assertThat(importacao.getErros()).isEqualTo(2);
         assertThat(importacao.getDetalheErros()).allSatisfy(e -> assertThat(e.motivo()).contains("sem descrição"));
@@ -159,19 +159,15 @@ class ProcessarImportacaoKitsServiceTest {
             wb.write(saida);
         }
 
-        service.processar(UUID.randomUUID(), saida.toByteArray());
+        service.processar(UUID.randomUUID(), new LeitorPlanilhaImportacao().ler(saida.toByteArray(), "kits.xlsx"));
 
         assertThat(importacao.getInseridos()).isEqualTo(1);
         assertThat(kitsGravados.get("K-XLSX").getItensAtivos()).singleElement()
                 .satisfies(i -> assertThat(i.getOperacao().name()).isEqualTo("RETIRAR"));
     }
 
-    @Test
-    void planilhaIlegivelMarcaImportacaoComoFalha() {
-        service.processar(UUID.randomUUID(), new byte[0]);
 
-        ArgumentCaptor<ImportacaoObra> captor = ArgumentCaptor.forClass(ImportacaoObra.class);
-        verify(importacaoRepository).save(captor.capture());
-        assertThat(captor.getValue().getStatus()).isEqualTo(ImportacaoObra.Status.FALHOU);
+    private static java.util.List<LeitorPlanilhaImportacao.Linha> linhas(String csv) {
+        return new LeitorPlanilhaImportacao().ler(csv.getBytes(StandardCharsets.UTF_8), "planilha.csv");
     }
 }

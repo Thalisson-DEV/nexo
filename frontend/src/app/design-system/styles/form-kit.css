@@ -313,6 +313,32 @@
   .ces-form-drawer .p-drawer-content { padding: 1.25rem; }
   .ces-form-drawer .p-drawer-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--ces-form-card-border); }
   .ces-form-drawer__header { display: flex; align-items: flex-start; gap: 0.75rem; width: 100%; }
+  /* Alça de redimensionamento (`resizable`): faixa na borda esquerda; o .p-drawer é o contêiner posicionado. */
+  .ces-form-drawer__resize {
+    position: absolute;
+    z-index: 1;
+    inset-block: 0;
+    inset-inline-start: -0.25rem;
+    width: 0.5rem;
+    cursor: col-resize;
+    touch-action: none;
+  }
+  .ces-form-drawer__resize::after {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: calc(50% - 1px);
+    width: 2px;
+    background: transparent;
+    content: '';
+    transition: background-color 0.15s;
+  }
+  .ces-form-drawer__resize:hover::after,
+  .ces-form-drawer__resize[data-resizing='true']::after { background: var(--ces-brand); }
+  .ces-form-drawer__resize:focus-visible { outline: none; }
+  .ces-form-drawer__resize:focus-visible::after { width: 4px; inset-inline-start: calc(50% - 2px); background: var(--ces-focus-ring); }
+  @media (prefers-reduced-motion: reduce) {
+    .ces-form-drawer__resize::after { transition: none; }
+  }
   .ces-form-drawer__heading { display: grid; flex: 1; gap: 0.15rem; min-width: 0; }
   .ces-form-drawer__title {
     margin: 0;

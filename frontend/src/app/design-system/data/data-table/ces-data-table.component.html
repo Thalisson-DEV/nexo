@@ -215,6 +215,7 @@
             <th
               scope="col"
               [style.width]="column.width"
+              [style.min-width]="minWidth(column)"
               [class.ces-data-table__numeric]="isNumeric(column)"
               [attr.aria-sort]="ariaSort(column.key)"
             >
@@ -290,6 +291,8 @@
               <td [class.ces-data-table__numeric]="isNumeric(column)">
                 @if (templates().get(column.key); as tpl) {
                   <ng-container *ngTemplateOutlet="tpl; context: { $implicit: row, index: i }"></ng-container>
+                } @else if (fit()) {
+                  <span class="ces-data-table__clamp" [attr.title]="text(column, row)">{{ text(column, row) }}</span>
                 } @else {
                   {{ text(column, row) }}
                 }

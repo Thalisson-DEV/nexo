@@ -780,6 +780,18 @@
     color: var(--ces-foreground) !important;
   }
 
+  /* PrimeNG 21: p-menu-item-* */
+  .p-menu-item-link,
+  .p-menu-item-label,
+  .p-menu-item-icon {
+    color: var(--ces-foreground) !important;
+  }
+
+  .p-menu-item-content:hover,
+  .p-menu-item.p-focus > .p-menu-item-content {
+    background: var(--ces-surface-muted) !important;
+  }
+
   /* PrimeNG Tooltip */
   .p-tooltip .p-tooltip-text {
     background: var(--ces-surface-muted) !important;

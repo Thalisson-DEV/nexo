@@ -47,7 +47,9 @@ import { AuditDialogComponent } from '../../../shared/components/audit-dialog/au
 import { AjudaListagemComponent } from '../../../shared/listagem/ajuda-listagem.component';
 import { CHAVE_LINHA_IMPORTACAO, importacaoListagem } from '../../../shared/listagem/importacao-listagem';
 import { dataIso, dataLocal } from '../../../shared/listagem/listagem';
-import { ImportacaoObrasDrawerComponent } from '../importacao/importacao-obras-drawer.component';
+import { ImportacaoPlanilhaObrasComponent } from '../importacao/importacao-planilha-obras.component';
+import { COLUNAS_CARTEIRA, COLUNAS_ORCAMENTO, fonteCarteira, fonteOrcamento } from '../importacao/importacoes-obras';
+import { ObrasKitService } from '../../../core/services/obras-kit.service';
 import { formatarDataParaApi, formatarMoeda, parseDataBrParaDate, sanitizarNumeroObra, sanitizarTituloObra, statusIcon, statusTone } from '../obras-ui';
 
 export type ObraImportRow = ObraImportacaoDTO & { editing?: boolean };
@@ -115,7 +117,7 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
     CesTextInputComponent,
     AuditDialogComponent,
     AjudaListagemComponent,
-    ImportacaoObrasDrawerComponent
+    ImportacaoPlanilhaObrasComponent
   ],
   template: `
     <div class="ces-page" cesListShortcuts #atalhos="cesListShortcuts" [newAction]="podeEscrever" (newRequested)="novaObra()">
@@ -345,12 +347,13 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
       </div>
     </ces-form-drawer>
 
-    <app-importacao-obras-drawer [(visible)]="importacaoCarteiraAberta" tipo="CARTEIRA" titulo="Importar carteira"
-      descricao="Obras existentes são atualizadas pelo número; célula vazia mantém o valor atual. Planejamento, programação e medições não são alterados."
-      [exigeContrato]="true" [contratos]="contratoOpcoes()" rotuloInseridos="Obras criadas" (concluida)="lista.reload()"></app-importacao-obras-drawer>
-    <app-importacao-obras-drawer [(visible)]="importacaoOrcamentoAberta" tipo="ORCAMENTO" titulo="Importar serviços e orçamento previstos"
+    <app-importacao-planilha-obras [(visible)]="importacaoCarteiraAberta" tipo="CARTEIRA" titulo="Importar carteira"
+      descricao="Obras existentes são atualizadas pelo número (célula vazia mantém o valor atual); obras novas são criadas. Planejamento, programação e medições não são alterados."
+      [colunas]="colunasCarteira" [fonte]="fonteCarteira" [exigeContrato]="true" [contratos]="contratoOpcoes()"
+      (processada)="lista.reload()"></app-importacao-planilha-obras>
+    <app-importacao-planilha-obras [(visible)]="importacaoOrcamentoAberta" tipo="ORCAMENTO" titulo="Importar serviços e orçamento previstos"
       descricao="Uma linha por serviço, identificada pelo número da obra. Os serviços previstos anteriores de cada obra da planilha são substituídos."
-      rotuloInseridos="Serviços gravados" (concluida)="lista.reload()"></app-importacao-obras-drawer>
+      [colunas]="colunasOrcamento" [fonte]="fonteOrcamento" (processada)="lista.reload()"></app-importacao-planilha-obras>
 
     <app-audit-dialog #auditoria></app-audit-dialog>
     <app-ajuda-listagem #ajuda titulo="Obras e projetos" artigoPlural="as" entidadePlural="obras" busca="número, título ou nota da obra"
@@ -476,6 +479,11 @@ export class ObrasListComponent {
   protected readonly escolhaImportacaoAberta = signal(false);
   protected readonly importacaoCarteiraAberta = signal(false);
   protected readonly importacaoOrcamentoAberta = signal(false);
+  private readonly importacoesObras = inject(ObrasKitService);
+  protected readonly colunasCarteira = COLUNAS_CARTEIRA;
+  protected readonly colunasOrcamento = COLUNAS_ORCAMENTO;
+  protected readonly fonteCarteira = fonteCarteira(this.importacoesObras);
+  protected readonly fonteOrcamento = fonteOrcamento(this.importacoesObras);
   protected readonly contratoOpcoes = toSignal(
     this.contratos.listarContratosAtivos().pipe(
       map((p) => p.content.map((c) => ({ label: `${c.numeroContrato} · ${c.cliente}`, value: c.id }))),

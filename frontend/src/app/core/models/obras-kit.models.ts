@@ -84,27 +84,80 @@ export interface KitConstrutivoFilter {
 }
 
 export type TipoImportacaoObra = 'KITS' | 'CARTEIRA' | 'ORCAMENTO';
-export type StatusImportacaoObra = 'PROCESSANDO' | 'CONCLUIDA' | 'FALHOU';
+export type SituacaoLinhaImportacao = 'AGUARDANDO_PROCESSAMENTO' | 'COM_ERRO' | 'EM_PROCESSAMENTO' | 'CONCLUIDO';
 
-export interface ErroLinhaImportacao {
-  linha: number;
-  referencia?: string | null;
-  motivo: string;
+/** Campos comuns de toda linha da pré-visualização (formato de `CesImportRow`). */
+interface LinhaImportacaoBase {
+  linha?: number;
+  status?: SituacaoLinhaImportacao;
+  mensagemErro?: string | null;
+  editing?: boolean;
 }
 
-export interface HistoricoImportacaoObraResponse {
-  id: string;
-  tipo: TipoImportacaoObra;
+/** Uma linha da planilha de kits: um item de um kit. */
+export interface KitImportacaoLinha extends LinhaImportacaoBase {
+  codigoKit?: string | null;
+  descricaoKit?: string | null;
+  grupo?: string | null;
+  tensoes?: string | null;
+  tipoItem?: string | null;
+  codigoItem?: string | null;
+  operacao?: string | null;
+  quantidade?: string | null;
+  unidade?: string | null;
+}
+
+/** Uma linha da carteira: uma obra (existente ou nova). */
+export interface CarteiraImportacaoLinha extends LinhaImportacaoBase {
+  numero?: string | null;
+  titulo?: string | null;
+  tensao?: string | null;
+  prazo?: string | null;
+  prazoRegulado?: string | null;
+  prioridade?: string | null;
+  lotePrevisto?: string | null;
+  situacaoCarteira?: string | null;
+  valorProjeto?: string | null;
+  valorMaterialPrevisto?: string | null;
+  valorServicoPrevisto?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
+  processoNegocio?: string | null;
+  baseOperacional?: string | null;
+  municipio?: string | null;
+  centroCusto?: string | null;
+  supervisor?: string | null;
+  coordenador?: string | null;
+  statusObra?: string | null;
+  dataInicio?: string | null;
+  tipoObra?: string | null;
+  /** Preenchido pela validação: a obra ainda não existe e será criada. */
+  obraNova?: boolean | null;
+}
+
+/** Uma linha do orçamento previsto: um serviço de uma obra. */
+export interface OrcamentoImportacaoLinha extends LinhaImportacaoBase {
+  numeroObra?: string | null;
+  codigoServico?: string | null;
+  descricao?: string | null;
+  unidade?: string | null;
+  quantidade?: string | null;
+  valorUnitario?: string | null;
+  valorTotal?: string | null;
+  valorMaterialPrevisto?: string | null;
+  valorServicoPrevisto?: string | null;
+}
+
+export interface PreviaImportacaoObraResponse<T> {
+  registros: T[];
+  totalProcessados: number;
+  totalSucesso: number;
+  totalFalha: number;
+  idImportacao?: string | null;
+}
+
+export interface ConfirmarImportacaoPlanilhaRequest<T> {
   idContrato?: string | null;
-  nomeArquivo: string;
-  status: StatusImportacaoObra;
-  totalLinhas: number;
-  inseridos: number;
-  atualizados: number;
-  erros: number;
-  detalheErros: ErroLinhaImportacao[];
-  mensagem?: string | null;
-  usuarioCriacao?: string | null;
-  dataCriacao?: string | null;
-  dataConclusao?: string | null;
+  nomeArquivo?: string | null;
+  registros: T[];
 }

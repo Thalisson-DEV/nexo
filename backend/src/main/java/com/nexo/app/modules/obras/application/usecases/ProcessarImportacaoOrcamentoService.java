@@ -39,20 +39,19 @@ import java.util.UUID;
 @Service
 public class ProcessarImportacaoOrcamentoService {
 
-    private static final String[] COL_OBRA = ProcessarImportacaoCarteiraService.COL_NUMERO;
-    private static final String[] COL_CODIGO = {"CODIGO_SERVICO", "CODIGO", "SERVICO", "COD_SERVICO"};
-    private static final String[] COL_DESCRICAO = {"DESCRICAO", "DESCRICAO_SERVICO"};
-    private static final String[] COL_UNIDADE = {"UNIDADE", "UN", "UND"};
-    private static final String[] COL_QUANTIDADE = {"QUANTIDADE", "QTD", "QTDE"};
-    private static final String[] COL_VALOR_UNITARIO = {"VALOR_UNITARIO", "PRECO", "PRECO_UNITARIO"};
-    private static final String[] COL_VALOR_TOTAL = {"VALOR_TOTAL", "TOTAL"};
+    static final String[] COL_OBRA = ProcessarImportacaoCarteiraService.COL_NUMERO;
+    static final String[] COL_CODIGO = {"CODIGO_SERVICO", "CODIGO", "SERVICO", "COD_SERVICO"};
+    static final String[] COL_DESCRICAO = {"DESCRICAO", "DESCRICAO_SERVICO"};
+    static final String[] COL_UNIDADE = {"UNIDADE", "UN", "UND"};
+    static final String[] COL_QUANTIDADE = {"QUANTIDADE", "QTD", "QTDE"};
+    static final String[] COL_VALOR_UNITARIO = {"VALOR_UNITARIO", "PRECO", "PRECO_UNITARIO"};
+    static final String[] COL_VALOR_TOTAL = {"VALOR_TOTAL", "TOTAL"};
 
     private final ImportacaoObraRepository importacaoRepository;
     private final ObraRepository obraRepository;
     private final ItemOrcamentoObraRepository itemRepository;
     private final ContratoApi contratoApi;
     private final NormalizadorObraService normalizador;
-    private final LeitorPlanilhaImportacao leitor;
     private final TransactionTemplate transacao;
 
     public ProcessarImportacaoOrcamentoService(ImportacaoObraRepository importacaoRepository,
@@ -60,27 +59,24 @@ public class ProcessarImportacaoOrcamentoService {
                                                ItemOrcamentoObraRepository itemRepository,
                                                ContratoApi contratoApi,
                                                NormalizadorObraService normalizador,
-                                               LeitorPlanilhaImportacao leitor,
                                                PlatformTransactionManager transacoes) {
         this.importacaoRepository = importacaoRepository;
         this.obraRepository = obraRepository;
         this.itemRepository = itemRepository;
         this.contratoApi = contratoApi;
         this.normalizador = normalizador;
-        this.leitor = leitor;
         this.transacao = new TransactionTemplate(transacoes);
     }
 
     @Async
     @CacheEvict(cacheNames = CacheNames.OBRAS, allEntries = true)
-    public void processar(UUID idImportacao, byte[] conteudo) {
+    public void processar(UUID idImportacao, List<Linha> linhas) {
         ImportacaoObra importacao = importacaoRepository.findById(idImportacao).orElse(null);
         if (importacao == null) {
             log.warn("Importação de orçamento {} não encontrada para processamento", idImportacao);
             return;
         }
         try {
-            List<Linha> linhas = leitor.ler(conteudo, importacao.getNomeArquivo());
             Map<String, List<Linha>> porObra = new LinkedHashMap<>();
             for (Linha linha : linhas) {
                 String numero = normalizador.normalizarNumero(linha.valor(COL_OBRA));

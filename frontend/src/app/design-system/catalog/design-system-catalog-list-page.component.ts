@@ -4,6 +4,7 @@ import { CesDataTableColumn, CesDataTableComponent, CesCellDirective } from '../
 import { CesMultiSelectComponent, CesSelectComponent, CesSelectOption, CesTextInputComponent } from '../forms';
 import { CesFormDrawerComponent } from '../forms/form-kit';
 import { CesFilterPanelComponent } from '../patterns/filter-panel';
+import { CesImportDrawerComponent, CesImportRow, cesImportStatus } from '../patterns/import-drawer';
 import { CesListShortcutsDirective } from '../patterns/list-shortcuts';
 import { CesListRequest, cesFilter, cesListState } from '../patterns/list-state';
 import { CesPageHeaderComponent } from '../patterns/page-header';
@@ -35,6 +36,23 @@ const REGISTROS: Registro[] = Array.from({ length: 240 }, (_, i) => ({
   km: 12000 + i * 731,
 }));
 
+interface LinhaImportada extends CesImportRow {
+  placa: string;
+  base: string;
+  observacao: string;
+}
+
+/** Pré-visualização simulada: textos longos para mostrar a largura mínima e o limite de 3 linhas. */
+const LINHAS_IMPORTADAS: LinhaImportada[] = Array.from({ length: 6 }, (_, i) => ({
+  linha: i + 2,
+  status: i === 2 ? 'COM_ERRO' : 'AGUARDANDO_PROCESSAMENTO',
+  mensagemErro: i === 2 ? 'Base operacional não encontrada. Confira o código da base na planilha ou cadastre a base antes de importar.' : null,
+  placa: `NEX${2000 + i}`,
+  base: BASES[i % 3].label,
+  observacao:
+    'Veículo transferido da base anterior com documentação em dia, aguardando vistoria de entrada, troca de pneus dianteiros e instalação do rastreador da nova operadora.',
+}));
+
 type Filtros = { bases: string[]; situacao: Registro['situacao'] | null };
 
 /** Servidor simulado: filtra, busca, ordena e pagina com atraso de rede. */
@@ -64,6 +82,7 @@ function servidor(pedido: CesListRequest<Filtros>): Observable<{ content: Regist
     CesDataTableComponent,
     CesFilterPanelComponent,
     CesFormDrawerComponent,
+    CesImportDrawerComponent,
     CesListShortcutsDirective,
     CesMultiSelectComponent,
     CesPageHeaderComponent,
@@ -83,6 +102,7 @@ function servidor(pedido: CesListRequest<Filtros>): Observable<{ content: Regist
         [breadcrumb]="[{ label: 'Catálogo' }, { label: 'Listagem' }]"
       >
         <ces-status status tone="info" icon="pi-info-circle">Servidor simulado</ces-status>
+        <ces-button actions variant="outline" icon="pi pi-upload" label="Importar" (pressed)="importando.set(true)"></ces-button>
         <ces-button actions icon="pi pi-plus" label="Novo veículo" [keyShortcut]="atalhos.newShortcut()" (pressed)="novo.set(true)"></ces-button>
       </ces-page-header>
 
@@ -144,6 +164,22 @@ function servidor(pedido: CesListRequest<Filtros>): Observable<{ content: Regist
       </ces-data-table>
     </div>
 
+    <ces-import-drawer [(visible)]="importando" title="Importar veículos"
+      description="Exemplo: selecione ou arraste qualquer .csv para carregar a pré-visualização simulada."
+      [rows]="linhasImportadas()" (fileSelected)="linhasImportadas.set(exemploImportacao)"
+      (cleared)="linhasImportadas.set([])" (processed)="linhasImportadas.set([]); importando.set(false)">
+      <ces-select import-params label="Base de destino" [options]="bases" placeholder="Selecione a base"
+        description="Parâmetro da importação (slot import-params), escolhido antes do arquivo."></ces-select>
+      @if (linhasImportadas().length) {
+        <ces-data-table caption="Pré-visualização da importação" [searchable]="false" [columns]="colunasImportacao" [rows]="linhasImportadas()">
+          <ng-template cesCell="status" let-row>
+            @let situacao = situacaoImportacao(row.status);
+            <ces-status [tone]="situacao.tone" [icon]="situacao.icon">{{ situacao.label }}</ces-status>
+          </ng-template>
+        </ces-data-table>
+      }
+    </ces-import-drawer>
+
     <ces-form-drawer [(visible)]="novo" title="Novo veículo" description="Exemplo de cadastro em drawer." size="md">
       <div class="ces-form-grid">
         <ces-text-input label="Placa" [required]="true"></ces-text-input>
@@ -160,6 +196,18 @@ export class DesignSystemCatalogListPageComponent {
   protected readonly bases = BASES;
   protected readonly situacoes = SITUACOES;
   protected readonly novo = signal(false);
+  protected readonly importando = signal(false);
+  protected readonly linhasImportadas = signal<readonly LinhaImportada[]>([]);
+  protected readonly exemploImportacao = LINHAS_IMPORTADAS;
+  protected readonly situacaoImportacao = cesImportStatus;
+  protected readonly colunasImportacao: CesDataTableColumn<LinhaImportada>[] = [
+    { key: 'linha', header: 'Linha', type: 'integer' },
+    { key: 'status', header: 'Situação', type: 'custom', value: (r) => r.status },
+    { key: 'placa', header: 'Placa' },
+    { key: 'base', header: 'Base' },
+    { key: 'observacao', header: 'Observação' },
+    { key: 'mensagemErro', header: 'Erro', display: (r) => r.mensagemErro ?? '—' },
+  ];
   protected readonly selecionados = signal<readonly Registro[]>([]);
 
   protected readonly lista = cesListState({
