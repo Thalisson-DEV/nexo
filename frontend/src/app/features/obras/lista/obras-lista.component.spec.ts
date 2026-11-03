@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImportacaoStatus, ObraResumoResponse } from '../../../core/models/obras.models';
 import { AuthService } from '../../../core/services/auth.service';
+import { ObrasProgramacaoService } from '../../../core/services/obras-programacao.service';
 import { ContratoService } from '../../../core/services/contrato.service';
 import { ObrasKitService } from '../../../core/services/obras-kit.service';
 import { ObrasService } from '../../../core/services/obras.service';
@@ -42,6 +43,7 @@ describe('ObrasListComponent', () => {
     abrirListagem(ObrasListComponent, 'lista', url, [
       { provide: ObrasService, useValue: servico },
       { provide: AuthService, useValue: { currentUser: () => ({ permissoes }) } },
+      { provide: ObrasProgramacaoService, useValue: { resumos: vi.fn(() => of([])) } },
       { provide: ObrasKitService, useValue: { listarImportacoes: vi.fn(() => paginaTeste([])) } },
       { provide: ContratoService, useValue: { listarContratosAtivos: () => paginaTeste([{ id: 'c1', numeroContrato: 'CT-01', cliente: 'Cliente' }]) } },
       {
@@ -139,13 +141,14 @@ describe('ObrasListComponent', () => {
     expect(servico['listarObras'].mock.calls.length).toBeGreaterThan(chamadas);
   });
 
-  it('desativar pede confirmação; ações de navegação levam aos destinos certos', async () => {
+  it('desativar pede confirmação; editar e solicitar abrem em drawer; a ficha abre em outra aba', async () => {
     const { componente } = await abrir();
     const tela = componente as unknown as {
       desativarObra(o: ObraResumoResponse): Promise<void>;
       solicitarMateriais(o: ObraResumoResponse): void;
       editarObra(o: ObraResumoResponse): void;
       visualizarObra(o: ObraResumoResponse): void;
+      solicitandoObra(): string | null;
     };
     const confirmar = vi.spyOn(TestBed.inject(CesConfirmationService), 'confirm').mockResolvedValue(false);
     await tela.desativarObra(obra);
@@ -156,9 +159,10 @@ describe('ObrasListComponent', () => {
 
     const navegar = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     tela.solicitarMateriais(obra);
-    expect(navegar).toHaveBeenLastCalledWith(['/almoxarifado/solicitacoes-tecnicas/nova'], { queryParams: { idObra: 'obra-1' } });
+    expect(tela.solicitandoObra()).toBe('obra-1');
+    expect(navegar).not.toHaveBeenCalled();
     tela.editarObra(obra);
-    expect(navegar).toHaveBeenLastCalledWith(['/obras', 'obra-1', 'editar']);
+    expect(navegar).toHaveBeenLastCalledWith([], expect.objectContaining({ queryParams: expect.objectContaining({ editar: 'obra-1' }) }));
     const abrirAba = vi.spyOn(window, 'open').mockReturnValue(null);
     tela.visualizarObra(obra);
     expect(abrirAba).toHaveBeenCalledWith('/obras/obra-1', '_blank');

@@ -18,6 +18,9 @@ public interface ObraRepository
 
     Optional<Obra> findFirstByAtivoTrueOrderByIdAsc();
 
+    @Query("select distinct o.idProcesso from Obra o where o.ativo = true")
+    List<UUID> listarProcessosComObras();
+
     Optional<Obra> findByNumeroIgnoreCaseAndAtivoTrue(String numero);
 
     Optional<Obra> findByNumeroIgnoreCase(String numero);
@@ -46,6 +49,12 @@ public interface ObraRepository
     List<Obra> buscarNoRetangulo(@Param("idIgnorado") UUID idIgnorado,
                                  @Param("latMin") double latMin, @Param("latMax") double latMax,
                                  @Param("lngMin") double lngMin, @Param("lngMax") double lngMax);
+
+    /** Obras ativas que não estão em status de encerramento, para listas de trabalho como o pré-fechamento. */
+    @Query("SELECT o FROM Obra o JOIN FETCH o.statusObra s WHERE o.ativo = true AND s.concluida = false")
+    List<Obra> listarEmAberto();
+
+    List<Obra> findByNumeroInAndAtivoTrue(java.util.Collection<String> numeros);
 
     @Modifying
     @Query(value = "INSERT INTO obras_equipes (id_obra, id_equipe) VALUES (:idObra, :idEquipe) "

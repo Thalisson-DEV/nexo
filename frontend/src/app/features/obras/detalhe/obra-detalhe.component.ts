@@ -58,12 +58,18 @@ import {
 } from '../../../core/models/obras.models';
 import { EquipeResponse } from '../../../core/models/rh.models';
 import { getErrorMessage } from '../../../core/models/shared.models';
-import { ProjecaoObraSolicitacoesResponse, SolicitacaoResumoObra } from '../../../core/models/solicitacao-material-tecnica.models';
+import { MovimentacaoResumoObra, ProjecaoObraSolicitacoesResponse, SolicitacaoResumoObra } from '../../../core/models/solicitacao-material-tecnica.models';
 import { AuthService } from '../../../core/services/auth.service';
 import { ContratoService } from '../../../core/services/contrato.service';
 import { ObrasService } from '../../../core/services/obras.service';
+import { ObraDocumentacaoComponent } from '../documentacao/obra-documentacao.component';
 import { RhService } from '../../../core/services/rh.service';
 import { SolicitacaoMaterialTecnicaService } from '../../../core/services/solicitacao-material-tecnica.service';
+import { DevolucaoTecnicaFormComponent } from '../../almoxarifado/solicitacoes-material/devolucao-tecnica-form/devolucao-tecnica-form.component';
+import { SolicitacaoTecnicaFormComponent } from '../../almoxarifado/solicitacoes-material/solicitacao-tecnica-form/solicitacao-tecnica-form.component';
+import { ObraFormComponent } from '../form/obra-form.component';
+import { ButtonModule } from 'primeng/button';
+import { CargaSaldoObra, ObraMateriaisComponent } from './obra-materiais.component';
 import { ThemeService } from '../../../core/services/theme.service';
 import { AnalisarComCopilotoComponent } from '../../../shared/components/analisar-com-copiloto/analisar-com-copiloto.component';
 import {
@@ -84,6 +90,10 @@ import {
   statusTone
 } from '../obras-ui';
 import { AcaoInsightObra, insightsDaObra } from './obra-insights';
+import { ProgramacaoDetalhe, ResumoPlanejamentoObra } from '../../../core/models/obras-programacao.models';
+import { ObrasProgramacaoService } from '../../../core/services/obras-programacao.service';
+import { ProgramacaoDetalheComponent } from '../programacao/programacao-detalhe.component';
+import { ROTULO_TURNO, SITUACAO_PROGRAMACAO, formatarNumero } from '../programacao/programacao.logic';
 
 declare var L: any;
 
@@ -118,7 +128,14 @@ interface MarcoPrazo {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ObraDocumentacaoComponent,
+    DevolucaoTecnicaFormComponent,
+    ObraFormComponent,
+    SolicitacaoTecnicaFormComponent,
     DatePipe,
+    ButtonModule,
+    ObraMateriaisComponent,
+    ProgramacaoDetalheComponent,
     RouterLink,
     MenuModule,
     CesAsyncStateComponent,
@@ -155,9 +172,24 @@ export class ObraDetalheComponent {
   private readonly mapEl = viewChild<ElementRef<HTMLDivElement>>('mapa');
   private leafletMap: any = null;
 
+  protected readonly editando = signal(false);
+  protected readonly solicitando = signal(false);
+  protected readonly devolvendo = signal(false);
   private readonly permissoes = inject(AuthService).currentUser()?.permissoes ?? [];
   protected readonly podeEscrever = this.permissoes.includes('obras:obra:write');
+  protected readonly podeDevolver = this.permissoes.includes('estoque:movimentacao:write');
+  private readonly podeVerSaldo = this.permissoes.includes('estoque:saldo:read');
   protected readonly podePlanejar = this.permissoes.includes('obras:planejamento:read');
+  protected readonly podeVerProgramacao = this.permissoes.includes('obras:programacao:read');
+  protected readonly podeVerDocumentacao = this.permissoes.includes('obras:documentacao:read');
+  private readonly apiProgramacao = inject(ObrasProgramacaoService);
+  protected readonly programacoes = signal<ProgramacaoDetalhe[]>([]);
+  protected readonly resumoPlanejamento = signal<ResumoPlanejamentoObra | null>(null);
+  protected readonly programacaoAberta = signal(false);
+  protected readonly idProgramacao = signal<string | null>(null);
+  protected readonly situacaoProgramacao = SITUACAO_PROGRAMACAO;
+  protected readonly rotuloTurno = ROTULO_TURNO;
+  protected readonly numeroProgramacao = formatarNumero;
   protected readonly podeAnexar = this.permissoes.includes('obras:anexos:write');
 
   // Helpers de template
@@ -188,6 +220,7 @@ export class ObraDetalheComponent {
   protected readonly statusList = signal<StatusObraResponse[]>([]);
   protected readonly tiposAnexo = signal<CesSelectOption<string>[]>([]);
   protected readonly solicitacoes = signal<Carga<ProjecaoObraSolicitacoesResponse | null>>({ estado: 'loading' });
+  protected readonly saldoObra = signal<CargaSaldoObra>(null);
   protected readonly historico = signal<Carga<HistoricoStatusObraResponse[]>>({ estado: 'loading' });
   protected readonly proximas = signal<Carga<ObraProximaResponse[]>>({ estado: 'loading' });
   protected readonly orcamento = signal<Carga<OrcamentoObraResponse>>({ estado: 'loading' });
@@ -224,6 +257,15 @@ export class ObraDetalheComponent {
       return proj.ocorrencias.flatMap((oc) => oc.solicitacoes.map((s) => ({ ...s, ocorrencia: oc.codigo || 'Geral' })));
     }
     return proj.solicitacoes ?? [];
+  });
+
+  protected readonly listaMovimentacoes = computed<MovimentacaoResumoObra[]>(() => {
+    const carga = this.solicitacoes();
+    return carga.estado === 'ready' ? (carga.dados?.movimentacoes ?? []) : [];
+  });
+  protected readonly movimentacoesTruncadas = computed(() => {
+    const carga = this.solicitacoes();
+    return carga.estado === 'ready' && !!carga.dados?.movimentacoesTruncadas;
   });
 
   /** Linha do tempo do prazo: início, hoje, previsão de fim, prazo regulado e conclusão. */
@@ -335,7 +377,6 @@ export class ObraDetalheComponent {
   protected readonly cPrioridade = signal<PrioridadeObra | null>(null);
   protected readonly cPrazoRegulado = signal<Date | null>(null);
   protected readonly cLote = signal('');
-  protected readonly cSituacao = signal('');
   protected readonly cValorProjeto = signal<number | null>(null);
   protected readonly cMaterial = signal<number | null>(null);
   protected readonly cServico = signal<number | null>(null);
@@ -429,6 +470,7 @@ export class ObraDetalheComponent {
         this.carregarSolicitacoes(dados.id);
         this.carregarHistorico(dados.id);
         this.carregarOrcamento(dados.id);
+        this.carregarProgramacoes(dados.id);
         if (dados.latitude != null && dados.longitude != null) {
           this.carregarProximas(dados.id, this.raio());
         } else {
@@ -448,11 +490,32 @@ export class ObraDetalheComponent {
     if (id) this.carregarObra(id, true);
   }
 
+  protected carregarProgramacoes(id = this.obra()!.id): void {
+    if (!this.podeVerProgramacao) return;
+    this.apiProgramacao.listarDaObra(id).pipe(catchError(() => of([]))).subscribe((lista) => this.programacoes.set(lista));
+    this.apiProgramacao.resumos([id]).pipe(catchError(() => of([]))).subscribe(([resumo]) => this.resumoPlanejamento.set(resumo ?? null));
+  }
+
+  protected abrirProgramacao(id: string): void {
+    this.idProgramacao.set(id);
+    this.programacaoAberta.set(true);
+  }
+
   protected carregarSolicitacoes(id = this.obra()!.id): void {
     this.solicitacoes.set({ estado: 'loading' });
     this.solicitacaoService.obterProjecaoObra(id).subscribe({
       next: (dados) => this.solicitacoes.set({ estado: 'ready', dados }),
       error: (e) => this.solicitacoes.set({ estado: 'error', mensagem: getErrorMessage(e) })
+    });
+    this.carregarSaldo(id);
+  }
+
+  protected carregarSaldo(id = this.obra()!.id): void {
+    if (!this.podeVerSaldo) return;
+    this.saldoObra.set({ estado: 'loading' });
+    this.solicitacaoService.obterSaldoObra(id).subscribe({
+      next: (dados) => this.saldoObra.set({ estado: 'ready', dados }),
+      error: (e) => this.saldoObra.set({ estado: 'error', mensagem: getErrorMessage(e) })
     });
   }
 
@@ -544,8 +607,7 @@ export class ObraDetalheComponent {
   // ═══════════════════════════════════════════════════════════════════════
 
   protected editar(): void {
-    const id = this.obra()?.id;
-    if (id) void this.router.navigate(['/obras', id, 'editar']);
+    if (this.obra()) this.editando.set(true);
   }
 
   protected planejar(): void {
@@ -558,8 +620,7 @@ export class ObraDetalheComponent {
   }
 
   protected solicitarMateriais(): void {
-    const id = this.obra()?.id;
-    if (id) void this.router.navigate(['/almoxarifado/solicitacoes-tecnicas/nova'], { queryParams: { idObra: id } });
+    if (this.obra()) this.solicitando.set(true);
   }
 
   protected imprimir(): void {
@@ -655,7 +716,6 @@ export class ObraDetalheComponent {
     this.cPrioridade.set(c?.prioridade ?? null);
     this.cPrazoRegulado.set(parseDataBrParaDate(c?.prazoRegulado));
     this.cLote.set(c?.lotePrevisto ?? '');
-    this.cSituacao.set(c?.situacaoCarteira ?? '');
     this.cValorProjeto.set(o.valorProjeto ?? null);
     this.cMaterial.set(c?.valorMaterialPrevisto ?? null);
     this.cServico.set(c?.valorServicoPrevisto ?? null);
@@ -666,7 +726,7 @@ export class ObraDetalheComponent {
   private assinaturaCarteira(): string {
     return JSON.stringify([
       this.cIdContrato(), this.cTensao(), this.cPrioridade(), formatarDataParaApi(this.cPrazoRegulado()) ?? null,
-      this.cLote(), this.cSituacao(), this.cValorProjeto(), this.cMaterial(), this.cServico()
+      this.cLote(), this.cValorProjeto(), this.cMaterial(), this.cServico()
     ]);
   }
 
@@ -679,7 +739,6 @@ export class ObraDetalheComponent {
       prioridade: this.cPrioridade(),
       prazoRegulado: formatarDataParaApi(this.cPrazoRegulado()) ?? null,
       lotePrevisto: this.cLote().trim() || null,
-      situacaoCarteira: this.cSituacao().trim() || null,
       valorProjeto: this.cValorProjeto(),
       valorMaterialPrevisto: this.cMaterial(),
       valorServicoPrevisto: this.cServico()

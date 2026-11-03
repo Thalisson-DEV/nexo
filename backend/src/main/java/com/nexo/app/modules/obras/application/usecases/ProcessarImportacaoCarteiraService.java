@@ -37,8 +37,8 @@ import java.util.function.Function;
 /**
  * Processa a planilha da carteira em segundo plano, uma obra por linha, identificada pelo número.
  *
- * <p>Obra existente: atualiza só os dados de carteira e coordenadas presentes na linha (célula vazia mantém o
- * valor atual); planejamento, programação e medições não são tocados. Obra nova: exige os mesmos dados do
+ * <p>Obra existente: atualiza só os dados de carteira, o status e as coordenadas presentes na linha (célula vazia
+ * mantém o valor atual); planejamento, programação e medições não são tocados. Obra nova: exige os mesmos dados do
  * cadastro (título, processo de negócio, base, município, centro de custo, supervisor, coordenador e datas).
  * Cada linha é gravada na própria transação.</p>
  */
@@ -53,7 +53,6 @@ public class ProcessarImportacaoCarteiraService {
     static final String[] COL_PRAZO_REGULADO = {"PRAZO_REGULADO"};
     static final String[] COL_PRIORIDADE = {"PRIORIDADE"};
     static final String[] COL_LOTE = {"LOTE_PREVISTO", "LOTE"};
-    static final String[] COL_SITUACAO = {"SITUACAO_CARTEIRA", "SITUACAO"};
     static final String[] COL_VALOR_PROJETO = {"VALOR_PROJETO", "VALOR"};
     static final String[] COL_VALOR_MATERIAL = {"VALOR_MATERIAL_PREVISTO", "VALOR_MATERIAL", "MATERIAL_PREVISTO"};
     static final String[] COL_VALOR_SERVICO = {"VALOR_SERVICO_PREVISTO", "VALOR_SERVICO", "SERVICO_PREVISTO"};
@@ -65,7 +64,7 @@ public class ProcessarImportacaoCarteiraService {
     static final String[] COL_CENTRO_CUSTO = {"CENTRO_CUSTO", "CENTRO_DE_CUSTO"};
     static final String[] COL_SUPERVISOR = {"SUPERVISOR"};
     static final String[] COL_COORDENADOR = {"COORDENADOR"};
-    static final String[] COL_STATUS = {"STATUS"};
+    static final String[] COL_STATUS = {"STATUS", "STATUS_OBRA", "SITUACAO_CARTEIRA", "SITUACAO"};
     static final String[] COL_DATA_INICIO = {"DATA_INICIO", "INICIO"};
     static final String[] COL_TIPO_OBRA = {"TIPO_OBRA"};
 
@@ -167,7 +166,6 @@ public class ProcessarImportacaoCarteiraService {
                 prazoRegulado != null ? prazoRegulado : obra.getPrazoRegulado(),
                 prioridade != null ? prioridade : obra.getPrioridade(),
                 manter(linha.valor(COL_LOTE), obra.getLotePrevisto()),
-                manter(linha.valor(COL_SITUACAO), obra.getSituacaoCarteira()),
                 valorProjeto,
                 material != null ? material : obra.getValorMaterialPrevisto(),
                 servico != null ? servico : obra.getValorServicoPrevisto());
@@ -181,6 +179,13 @@ public class ProcessarImportacaoCarteiraService {
         Double longitude = normalizador.parseCoordenada(linha.valor(COL_LONGITUDE));
         if (latitude != null && longitude != null) {
             obra.atualizarLocalizacao(latitude, longitude);
+        }
+        String status = linha.valor(COL_STATUS);
+        if (status != null && existente.isPresent()) {
+            StatusObra novoStatus = resolverStatus(status);
+            if (!novoStatus.equals(obra.getStatusObra())) {
+                obra.alterarStatus(novoStatus, obra.getDataFimEfetiva());
+            }
         }
         obraRepository.save(obra);
         return existente.isEmpty();

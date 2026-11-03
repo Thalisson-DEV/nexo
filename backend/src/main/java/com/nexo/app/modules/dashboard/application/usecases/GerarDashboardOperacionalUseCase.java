@@ -4,13 +4,15 @@ import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalFilter
 import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse;
 import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse.Equipe;
 import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse.ProducaoDia;
+import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse.ProducaoPorObra;
 import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse.Resumo;
 import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse.SituacaoMeta;
 import com.nexo.app.modules.dashboard.domain.CalendarioOperacional;
-import com.nexo.app.modules.execucao.ExecucaoComercialApi;
 import com.nexo.app.modules.execucao.TurnoApi;
 import com.nexo.app.modules.execucao.application.dto.LancamentoResumido;
 import com.nexo.app.modules.execucao.application.dto.TurnoResponse;
+import com.nexo.app.modules.obras.ExecucaoObrasApi;
+import com.nexo.app.modules.obras.ExecucaoObrasApi.ExecutadoNoDia;
 import com.nexo.app.modules.rh.CronogramaMetaFaturamento;
 import com.nexo.app.modules.rh.EquipeResponse;
 import com.nexo.app.modules.rh.MetaFaturamentoApi;
@@ -39,13 +41,11 @@ import java.util.stream.Collectors;
 import static com.nexo.app.modules.dashboard.domain.CalendarioOperacional.percentual;
 
 /**
- * Monta o dashboard operacional: produção do período por equipe, comparada à meta
- * proporcional e ao ritmo necessário para fechá-la.
+ * Monta o dashboard operacional do processo de obras: produção do período por equipe (o executado apontado nas
+ * obras, o mesmo que o boletim soma), comparada à meta proporcional e ao ritmo necessário para fechá-la.
  *
- * <p>Os lançamentos chegam numa projeção leve (sem hidratar ações e materiais) e são
- * agrupados por dia de São Paulo aqui mesmo — agrupar no banco exigiria fixar o fuso
- * na consulta e não reduziria o volume de forma relevante para os recortes de até um
- * ano que a tela permite.</p>
+ * <p>Entram só as equipes dos processos que têm obras. O executado chega já somado por obra, equipe e dia; o
+ * resto da agregação é feito aqui.</p>
  */
 @Service
 public class GerarDashboardOperacionalUseCase {
@@ -53,28 +53,23 @@ public class GerarDashboardOperacionalUseCase {
     static final int PERIODO_MAXIMO_DIAS = 366;
 
     private final EquipesDoRecorte equipesDoRecorte;
-    private final ExecucaoComercialApi execucaoApi;
+    private final ExecucaoObrasApi execucaoObrasApi;
     private final TurnoApi turnoApi;
-    private final TiposServicoDosLancamentos tiposServico;
     private final MetaFaturamentoApi metaFaturamentoApi;
     private final Clock clock;
 
     @Autowired
-    public GerarDashboardOperacionalUseCase(EquipesDoRecorte equipesDoRecorte, ExecucaoComercialApi execucaoApi,
-                                            TurnoApi turnoApi, TiposServicoDosLancamentos tiposServico,
-                                            MetaFaturamentoApi metaFaturamentoApi) {
-        this(equipesDoRecorte, execucaoApi, turnoApi, tiposServico, metaFaturamentoApi,
-                Clock.system(CalendarioOperacional.FUSO));
+    public GerarDashboardOperacionalUseCase(EquipesDoRecorte equipesDoRecorte, ExecucaoObrasApi execucaoObrasApi,
+                                            TurnoApi turnoApi, MetaFaturamentoApi metaFaturamentoApi) {
+        this(equipesDoRecorte, execucaoObrasApi, turnoApi, metaFaturamentoApi, Clock.system(CalendarioOperacional.FUSO));
     }
 
-    GerarDashboardOperacionalUseCase(EquipesDoRecorte equipesDoRecorte, ExecucaoComercialApi execucaoApi,
-                                     TurnoApi turnoApi, TiposServicoDosLancamentos tiposServico,
-                                     MetaFaturamentoApi metaFaturamentoApi, Clock clock) {
-        this.metaFaturamentoApi = metaFaturamentoApi;
+    GerarDashboardOperacionalUseCase(EquipesDoRecorte equipesDoRecorte, ExecucaoObrasApi execucaoObrasApi,
+                                     TurnoApi turnoApi, MetaFaturamentoApi metaFaturamentoApi, Clock clock) {
         this.equipesDoRecorte = equipesDoRecorte;
-        this.execucaoApi = execucaoApi;
+        this.execucaoObrasApi = execucaoObrasApi;
         this.turnoApi = turnoApi;
-        this.tiposServico = tiposServico;
+        this.metaFaturamentoApi = metaFaturamentoApi;
         this.clock = clock;
     }
 
@@ -85,17 +80,20 @@ public class GerarDashboardOperacionalUseCase {
         LocalDate fim = filter.fim() != null ? filter.fim() : hoje;
         validarPeriodo(inicio, fim);
 
-        List<EquipeResponse> equipes = equipesDoRecorte.listar(filter.idBaseOperacional(), filter.idProcesso());
+        Set<UUID> processosDeObras = execucaoObrasApi.processosComObras();
+        List<EquipeResponse> equipes = equipesDoRecorte.listar(filter.idBaseOperacional(), filter.idProcesso()).stream()
+                .filter(e -> e.processo() != null && processosDeObras.contains(e.processo().id()))
+                .toList();
         Set<UUID> ids = equipes.stream().map(EquipeResponse::id).collect(Collectors.toSet());
 
+        List<ExecutadoNoDia> executado = execucaoObrasApi.executadoPorDia(ids, inicio, fim);
         OffsetDateTime de = CalendarioOperacional.inicioDoDia(inicio);
         OffsetDateTime ate = CalendarioOperacional.inicioDoDia(fim.plusDays(1));
-        List<LancamentoResumido> lancamentos = execucaoApi.listarLancamentosResumidos(de, ate, ids);
-        List<TurnoResponse> turnos = turnoApi.listarSobrepostosAoPeriodo(de, ate, ids);
+        List<TurnoResponse> turnos = ids.isEmpty() ? List.of() : turnoApi.listarSobrepostosAoPeriodo(de, ate, ids);
 
         long diasNoPeriodo = ChronoUnit.DAYS.between(inicio, fim) + 1;
-        BigDecimal producaoAnterior = soma(execucaoApi.listarLancamentosResumidos(
-                CalendarioOperacional.inicioDoDia(inicio.minusDays(diasNoPeriodo)), de, ids));
+        BigDecimal producaoAnterior = somaExecutado(execucaoObrasApi.executadoPorDia(ids,
+                inicio.minusDays(diasNoPeriodo), inicio.minusDays(1)));
 
         // Dias úteis já encerrados: até ontem, sem passar do fim do período.
         LocalDate ultimoDiaEncerrado = minimo(fim, hoje.minusDays(1));
@@ -103,8 +101,8 @@ public class GerarDashboardOperacionalUseCase {
         int diasUteisEncerrados = CalendarioOperacional.diasUteis(inicio, ultimoDiaEncerrado);
         int diasUteisFuturos = CalendarioOperacional.diasUteis(maximo(inicio, hoje.plusDays(1)), fim);
 
-        Map<UUID, List<LancamentoResumido>> lancamentosPorEquipe = lancamentos.stream()
-                .collect(Collectors.groupingBy(LancamentoResumido::idEquipe));
+        Map<UUID, List<ExecutadoNoDia>> executadoPorEquipe = executado.stream()
+                .collect(Collectors.groupingBy(ExecutadoNoDia::idEquipe));
         Map<UUID, Set<LocalDate>> diasComTurnoPorEquipe = new HashMap<>();
         for (TurnoResponse turno : turnos) {
             LocalDate dia = CalendarioOperacional.diaDe(turno.dataInicio());
@@ -118,13 +116,12 @@ public class GerarDashboardOperacionalUseCase {
         Contexto contexto = new Contexto(inicio, fim, ultimoDiaEncerrado, diasUteisEncerrados, diasUteisFuturos,
                 referencia);
         Map<UUID, CronogramaMetaFaturamento> metas = metaFaturamentoApi.cronogramas(ids);
-        TiposServicoDosLancamentos.Agrupador porTipo = tiposServico.agrupador();
         List<Equipe> resumosEquipes = equipes.stream()
                 .map(equipe -> resumirEquipe(equipe,
                         metas.getOrDefault(equipe.id(), CronogramaMetaFaturamento.vazio()),
-                        lancamentosPorEquipe.getOrDefault(equipe.id(), List.of()),
+                        executadoPorEquipe.getOrDefault(equipe.id(), List.of()),
                         diasComTurnoPorEquipe.getOrDefault(equipe.id(), Set.of()).size(),
-                        contexto, porTipo))
+                        contexto))
                 .sorted(Comparator.comparing(Equipe::codigo, Comparator.nullsLast(String::compareToIgnoreCase)))
                 .toList();
 
@@ -134,28 +131,27 @@ public class GerarDashboardOperacionalUseCase {
                 OffsetDateTime.now(clock),
                 diasUteisPeriodo,
                 diasUteisEncerrados,
-                resumir(resumosEquipes, lancamentos, producaoAnterior),
-                producaoDiariaGeral(lancamentos, resumosEquipes, inicio, fim),
-                porTipo.agrupar(lancamentos),
+                resumir(resumosEquipes, executado, producaoAnterior),
+                producaoDiariaGeral(executado, resumosEquipes, inicio, fim),
+                porObra(executado),
                 resumosEquipes);
     }
 
     private Equipe resumirEquipe(EquipeResponse equipe, CronogramaMetaFaturamento metas,
-                                 List<LancamentoResumido> lancamentos, long diasComTurno,
-                                 Contexto contexto, TiposServicoDosLancamentos.Agrupador porTipo) {
-        BigDecimal producao = soma(lancamentos);
-        long notas = lancamentos.size();
+                                 List<ExecutadoNoDia> executado, long diasComTurno, Contexto contexto) {
+        BigDecimal producao = somaExecutado(executado);
+        long obras = obrasDistintas(executado);
         BigDecimal metaPeriodo = metas.metaProporcional(contexto.inicio(), contexto.fim());
-        List<ProducaoDia> diaria = producaoDiaria(lancamentos, contexto.inicio(), contexto.fim(),
+        List<ProducaoDia> diaria = producaoDiaria(executado, contexto.inicio(), contexto.fim(),
                 metaPeriodo == null ? null : metas);
-        long diasComProducao = diaria.stream().filter(d -> d.notas() > 0).count();
+        long diasComProducao = diaria.stream().filter(d -> d.obras() > 0).count();
 
-        // Meta da janela (ciclo comercial ou mês) vigente na data de referência.
+        // Meta da janela (ciclo ou mês) vigente na data de referência.
         BigDecimal metaDaJanela = metas.valorDaJanelaEm(contexto.referencia());
         BigDecimal metaEsperada = metaPeriodo == null ? null
                 : metas.metaProporcional(contexto.inicio(), contexto.ultimoDiaEncerrado());
-        BigDecimal producaoAteOntem = soma(lancamentos.stream()
-                .filter(l -> !CalendarioOperacional.diaDe(l.dataLancamento()).isAfter(contexto.ultimoDiaEncerrado()))
+        BigDecimal producaoAteOntem = somaExecutado(executado.stream()
+                .filter(e -> !e.data().isAfter(contexto.ultimoDiaEncerrado()))
                 .toList());
 
         return new Equipe(
@@ -166,8 +162,9 @@ public class GerarDashboardOperacionalUseCase {
                 equipe.tipoEquipe() != null ? equipe.tipoEquipe().nome() : null,
                 equipe.veiculo() != null ? equipe.veiculo().placa() : null,
                 producao,
-                notas,
-                media(producao, notas),
+                obras,
+                media(producao, obras),
+                servicos(executado),
                 diasComTurno,
                 diasComProducao,
                 media(producao, diasComProducao),
@@ -177,9 +174,9 @@ public class GerarDashboardOperacionalUseCase {
                 percentual(producao, metaPeriodo),
                 projetar(producao, producaoAteOntem, contexto),
                 situacao(producao, metaPeriodo, metaEsperada),
-                lancamentos.isEmpty() ? null : lancamentos.getLast().dataLancamento(),
+                executado.stream().map(ExecutadoNoDia::data).max(Comparator.naturalOrder()).orElse(null),
                 diaria,
-                porTipo.agrupar(lancamentos));
+                porObra(executado));
     }
 
     static SituacaoMeta situacao(BigDecimal producao, BigDecimal metaPeriodo, BigDecimal metaEsperada) {
@@ -213,9 +210,10 @@ public class GerarDashboardOperacionalUseCase {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
-    private static Resumo resumir(List<Equipe> equipes, List<LancamentoResumido> lancamentos,
+    private static Resumo resumir(List<Equipe> equipes, List<ExecutadoNoDia> executado,
                                   BigDecimal producaoAnterior) {
-        BigDecimal producao = soma(lancamentos);
+        BigDecimal producao = somaExecutado(executado);
+        long obras = obrasDistintas(executado);
         List<Equipe> comMeta = equipes.stream().filter(e -> e.metaPeriodo() != null).toList();
         BigDecimal metaPeriodo = comMeta.isEmpty() ? null : comMeta.stream()
                 .map(Equipe::metaPeriodo).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -234,10 +232,11 @@ public class GerarDashboardOperacionalUseCase {
                 producao,
                 producaoAnterior,
                 variacao,
-                lancamentos.size(),
-                media(producao, lancamentos.size()),
+                obras,
+                media(producao, obras),
+                servicos(executado),
                 equipes.size(),
-                (int) equipes.stream().filter(e -> e.notas() > 0).count(),
+                (int) equipes.stream().filter(e -> e.producao().signum() > 0 || e.servicos() > 0).count(),
                 comMeta.size(),
                 metaPeriodo,
                 producaoComMeta,
@@ -247,24 +246,24 @@ public class GerarDashboardOperacionalUseCase {
     }
 
     /** Produção por dia; sem cronograma de metas, a meta de cada dia fica nula. */
-    private static List<ProducaoDia> producaoDiaria(List<LancamentoResumido> lancamentos, LocalDate inicio,
+    private static List<ProducaoDia> producaoDiaria(List<ExecutadoNoDia> executado, LocalDate inicio,
                                                     LocalDate fim, CronogramaMetaFaturamento metas) {
-        Map<LocalDate, List<LancamentoResumido>> porDia = lancamentos.stream()
-                .collect(Collectors.groupingBy(l -> CalendarioOperacional.diaDe(l.dataLancamento())));
+        Map<LocalDate, List<ExecutadoNoDia>> porDia = executado.stream()
+                .collect(Collectors.groupingBy(ExecutadoNoDia::data));
         List<ProducaoDia> dias = new ArrayList<>();
         for (LocalDate dia = inicio; !dia.isAfter(fim); dia = dia.plusDays(1)) {
-            List<LancamentoResumido> doDia = porDia.getOrDefault(dia, List.of());
+            List<ExecutadoNoDia> doDia = porDia.getOrDefault(dia, List.of());
             BigDecimal meta = metas == null ? null
                     : Objects.requireNonNullElse(metas.metaDiaria(dia), BigDecimal.ZERO);
-            dias.add(new ProducaoDia(dia, doDia.size(), soma(doDia), meta));
+            dias.add(new ProducaoDia(dia, obrasDistintas(doDia), servicos(doDia), somaExecutado(doDia), meta));
         }
         return dias;
     }
 
     /** Série do recorte inteiro: produção de todas as equipes e meta somada das equipes com meta. */
-    private static List<ProducaoDia> producaoDiariaGeral(List<LancamentoResumido> lancamentos, List<Equipe> equipes,
+    private static List<ProducaoDia> producaoDiariaGeral(List<ExecutadoNoDia> executado, List<Equipe> equipes,
                                                          LocalDate inicio, LocalDate fim) {
-        List<ProducaoDia> producao = producaoDiaria(lancamentos, inicio, fim, null);
+        List<ProducaoDia> producao = producaoDiaria(executado, inicio, fim, null);
         List<Equipe> comMeta = equipes.stream().filter(e -> e.metaPeriodo() != null).toList();
         if (comMeta.isEmpty()) {
             return producao;
@@ -277,9 +276,37 @@ public class GerarDashboardOperacionalUseCase {
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             ProducaoDia dia = producao.get(i);
-            dias.add(new ProducaoDia(dia.data(), dia.notas(), dia.valor(), meta));
+            dias.add(new ProducaoDia(dia.data(), dia.obras(), dia.servicos(), dia.valor(), meta));
         }
         return dias;
+    }
+
+    /** Obras do recorte, da maior produção para a menor (empate: número da obra). */
+    static List<ProducaoPorObra> porObra(List<ExecutadoNoDia> executado) {
+        if (executado.isEmpty()) {
+            return List.of();
+        }
+        BigDecimal total = somaExecutado(executado);
+        Map<UUID, List<ExecutadoNoDia>> porObra = executado.stream()
+                .collect(Collectors.groupingBy(ExecutadoNoDia::idObra));
+        return porObra.values().stream()
+                .map(daObra -> {
+                    ExecutadoNoDia primeiro = daObra.getFirst();
+                    BigDecimal producao = somaExecutado(daObra);
+                    return new ProducaoPorObra(
+                            primeiro.idObra(),
+                            primeiro.numeroObra(),
+                            primeiro.tituloObra(),
+                            (int) daObra.stream().map(ExecutadoNoDia::idEquipe).distinct().count(),
+                            servicos(daObra),
+                            daObra.stream().map(ExecutadoNoDia::data).distinct().count(),
+                            producao,
+                            total.signum() > 0 ? percentual(producao, total) : BigDecimal.ZERO,
+                            daObra.stream().map(ExecutadoNoDia::data).max(Comparator.naturalOrder()).orElse(null));
+                })
+                .sorted(Comparator.comparing(ProducaoPorObra::producao, Comparator.reverseOrder())
+                        .thenComparing(ProducaoPorObra::numero, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .toList();
     }
 
     private static void validarPeriodo(LocalDate inicio, LocalDate fim) {
@@ -291,12 +318,29 @@ public class GerarDashboardOperacionalUseCase {
         }
     }
 
+    static BigDecimal somaExecutado(List<ExecutadoNoDia> executado) {
+        return executado.stream()
+                .map(ExecutadoNoDia::valor)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** Soma de lançamentos de notas, usada pelos painéis do comercial. */
     static BigDecimal soma(List<LancamentoResumido> lancamentos) {
         return lancamentos.stream()
                 .map(LancamentoResumido::valor)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private static long obrasDistintas(List<ExecutadoNoDia> executado) {
+        return executado.stream().map(ExecutadoNoDia::idObra).distinct().count();
+    }
+
+    private static long servicos(List<ExecutadoNoDia> executado) {
+        return executado.stream().mapToLong(ExecutadoNoDia::servicos).sum();
     }
 
     static BigDecimal media(BigDecimal total, long quantidade) {

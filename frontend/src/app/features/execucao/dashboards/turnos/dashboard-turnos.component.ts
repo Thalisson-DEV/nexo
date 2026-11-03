@@ -63,7 +63,7 @@ import {
   tomDaMeta
 } from '../execucao-dashboards.utils';
 import { RecorteDashboardService } from '../recorte-dashboard.service';
-import { chaveTipo } from '../analise/analise-operacional';
+import { chaveTipo } from '../analise/analise-comum';
 import { graficosDaAnalise } from '../analise/analise-copiloto';
 import { visaoTurnos } from '../analise/visao-gerencial';
 import { vistaTurnos } from '../analise/analise-turnos';

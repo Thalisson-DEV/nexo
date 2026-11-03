@@ -189,9 +189,6 @@ public class Obra extends BaseEntity {
     @Column(name = "lote_previsto", length = 40)
     private String lotePrevisto;
 
-    @Column(name = "situacao_carteira", length = 60)
-    private String situacaoCarteira;
-
     @Column(name = "valor_material_previsto", precision = 15, scale = 2)
     private BigDecimal valorMaterialPrevisto;
 
@@ -382,7 +379,7 @@ public class Obra extends BaseEntity {
     }
 
     public void informarCarteira(UUID idContrato, LocalDate prazoRegulado, PrioridadeObra prioridade,
-                                 String lotePrevisto, String situacaoCarteira, BigDecimal valorProjeto,
+                                 String lotePrevisto, BigDecimal valorProjeto,
                                  BigDecimal valorMaterialPrevisto, BigDecimal valorServicoPrevisto) {
         validarAtivo();
         validarNaoNegativo(valorProjeto, "O valor de projeto");
@@ -392,7 +389,6 @@ public class Obra extends BaseEntity {
         this.prazoRegulado = prazoRegulado;
         this.prioridade = prioridade;
         this.lotePrevisto = textoOpcional(lotePrevisto, 40, "O lote previsto");
-        this.situacaoCarteira = textoOpcional(situacaoCarteira, 60, "A situação na carteira");
         if (valorProjeto != null) {
             this.valorProjeto = valorProjeto;
         }

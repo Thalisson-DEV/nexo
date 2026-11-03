@@ -74,7 +74,6 @@ export const COLUNAS_CARTEIRA: ColunaPlanilha[] = [
   { key: 'prazo', header: 'Prazo' },
   { key: 'prazoRegulado', header: 'Prazo regulado' },
   { key: 'lotePrevisto', header: 'Lote' },
-  { key: 'situacaoCarteira', header: 'Situação na carteira' },
   { key: 'valorProjeto', header: 'Valor de projeto' },
   { key: 'valorMaterialPrevisto', header: 'Material previsto' },
   { key: 'valorServicoPrevisto', header: 'Serviço previsto' },

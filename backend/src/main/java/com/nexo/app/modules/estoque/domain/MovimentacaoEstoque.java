@@ -229,6 +229,62 @@ public class MovimentacaoEstoque extends BaseEntity {
         return movimentacao;
     }
 
+    public static MovimentacaoEstoque criarDevolucaoTecnica(
+            Estoque origemObra,
+            Estoque destinoFisico,
+            Material material,
+            BigDecimal quantidade,
+            CondicaoMaterial condicao,
+            ContextoDevolucaoTecnica contexto,
+            UUID idUsuarioOperador,
+            UUID idReferenciaOperacao,
+            String numeroSerie
+    ) {
+        MovimentacaoEstoque movimentacao = new MovimentacaoEstoque(
+                origemObra, destinoFisico, material, quantidade, TipoMovimentacao.DEVOLUCAO, condicao,
+                idUsuarioOperador, idReferenciaOperacao, numeroSerie);
+        movimentacao.aplicar(contexto);
+        return movimentacao;
+    }
+
+    /** Material devolvido que o sistema não sabia estar na obra: entra nela antes de sair. */
+    public static MovimentacaoEstoque criarEntradaPorDevolucaoTecnica(
+            Estoque estoqueObra,
+            Material material,
+            BigDecimal quantidade,
+            CondicaoMaterial condicao,
+            ContextoDevolucaoTecnica contexto,
+            UUID idUsuarioOperador,
+            UUID idReferenciaOperacao,
+            String numeroSerie
+    ) {
+        MovimentacaoEstoque movimentacao = new MovimentacaoEstoque(
+                null, estoqueObra, material, quantidade, TipoMovimentacao.ENTRADA_AVULSA, condicao,
+                idUsuarioOperador, idReferenciaOperacao, numeroSerie);
+        movimentacao.aplicar(contexto);
+        return movimentacao;
+    }
+
+    private void aplicar(ContextoDevolucaoTecnica contexto) {
+        this.tipoTecnico = contexto.tipoTecnico();
+        this.idObra = contexto.idObra();
+        this.tipoObraSnapshot = contexto.tipoObra();
+        this.idOcorrencia = contexto.idOcorrencia();
+        this.ocorrencia = contexto.ocorrencia();
+        this.idEquipe = contexto.idEquipe();
+    }
+
+    /** O que liga a movimentação direta à obra, já que não há solicitação por trás. */
+    public record ContextoDevolucaoTecnica(
+            TipoSolicitacaoTecnica tipoTecnico,
+            UUID idObra,
+            TipoObraSnapshot tipoObra,
+            UUID idOcorrencia,
+            String ocorrencia,
+            UUID idEquipe
+    ) {
+    }
+
     private void validarMovimentacao(Estoque origem, Estoque destino, Material material, BigDecimal quantidade, 
                                      TipoMovimentacao tipo, CondicaoMaterial condicao, UUID idUsuarioOperador, String numSerie) {
         if (material == null) throw new IllegalArgumentException("Material é obrigatório");

@@ -24,6 +24,14 @@ describe('módulos ocultos da distribuição white label', () => {
     expect(menu[0].items?.map((item) => item.label)).toEqual(['Gestão']);
   });
 
+  it('tira o comercial do menu sem bloquear os endereços que os dashboards usam', () => {
+    const menu = removerModulosOcultos([{ label: 'Execução', items: [{ label: 'Comercial', items: [] }, { label: 'Obras', items: [] }] }]);
+
+    expect(menu[0].items?.map((item) => item.label)).toEqual(['Obras']);
+    expect(rotaOculta('/execucao/comercial')).toBe(false);
+    expect(rotaOculta('/execucao/turnos')).toBe(false);
+  });
+
   it('bloqueia o endereço direto e as subrotas, sem pegar rotas vizinhas', () => {
     expect(rotaOculta('/sst/governanca/cipa/painel')).toBe(true);
     expect(rotaOculta('mural/123?origem=aviso')).toBe(true);
@@ -33,6 +41,19 @@ describe('módulos ocultos da distribuição white label', () => {
     expect(rotaOculta('/sst/inspecoes')).toBe(false);
     expect(rotaOculta('/notificacoes')).toBe(false);
     expect(rotaOculta('/manuais-extra')).toBe(false);
+  });
+
+  it('oculta o processo comercial e mantém o técnico', () => {
+    expect(rotaOculta('/almoxarifado/solicitacoes')).toBe(true);
+    expect(rotaOculta('/almoxarifado/solicitacoes/nova')).toBe(true);
+    expect(rotaOculta('/almoxarifado/solicitacoes/kanban')).toBe(true);
+    expect(rotaOculta('/almoxarifado/devolucao-comercial')).toBe(true);
+    expect(rotaOculta('/almoxarifado/dashboard/solicitacoes/comercial')).toBe(true);
+
+    expect(rotaOculta('/almoxarifado/solicitacoes-tecnicas')).toBe(false);
+    expect(rotaOculta('/almoxarifado/solicitacoes-tecnicas/calendario')).toBe(false);
+    expect(rotaOculta('/almoxarifado/solicitacoes/tecnicas/abc')).toBe(false);
+    expect(rotaOculta('/almoxarifado/dashboard/solicitacoes')).toBe(false);
   });
 
   it('o router aceita as rotas do app com o bloqueio aplicado', () => {

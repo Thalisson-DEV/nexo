@@ -24,6 +24,7 @@ import {
   PlanejamentoSolicitacaoTecnicaApiResponse,
   PlanejamentoSolicitacaoTecnicaResponse,
   PlanejarSolicitacaoTecnicaRequest,
+  SaldoObra,
   ProjecaoObraSolicitacoesResponse,
   ProjetoRelacionadoSolicitacao,
   RegistrarReservaTecnicaRequest,
@@ -288,6 +289,10 @@ export class SolicitacaoMaterialTecnicaService {
       request,
       { headers: this.headers(chaveIdempotencia) },
     );
+  }
+
+  obterSaldoObra(idObra: string): Observable<SaldoObra> {
+    return this.http.get<SaldoObra>(`${environment.apiUrl}/v1/obras/${idObra}/saldo-material`);
   }
 
   obterProjecaoObra(idObra: string): Observable<ProjecaoObraSolicitacoesResponse> {

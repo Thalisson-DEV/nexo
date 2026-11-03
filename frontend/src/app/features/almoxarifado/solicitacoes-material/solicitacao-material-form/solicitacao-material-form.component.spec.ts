@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { CUSTOM_ELEMENTS_SCHEMA, NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,7 +18,6 @@ try {
 describe('SolicitacaoMaterialFormComponent (Comercial)', () => {
   let fixture: ComponentFixture<SolicitacaoMaterialFormComponent>;
   let component: SolicitacaoMaterialFormComponent;
-  let router: Router;
 
   const criarSolicitacaoMock = vi.fn(() => of('sol-com-1'));
   const criarSolicitacaoDiretaMock = vi.fn(() => of('sol-com-direta-1'));
@@ -133,32 +132,34 @@ describe('SolicitacaoMaterialFormComponent (Comercial)', () => {
     TestBed.overrideComponent(SolicitacaoMaterialFormComponent, {
       set: {
         imports: [],
-        template: '<span>Formulário Comercial</span>',
+        template: '',
       },
     });
 
     await TestBed.compileComponents();
-
-    router = TestBed.inject(Router);
-    vi.spyOn(router, 'navigate').mockResolvedValue(true);
 
     fixture = TestBed.createComponent(SolicitacaoMaterialFormComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('inicia na etapa 1 (Origem e Destino) com modalidade DIRETA', () => {
-    expect(component['activeStep']()).toBe(1);
-    expect(component['tipo']()).toBe('DIRETA');
+  function adicionarMaterial(): void {
+    component['onMaterialChange']('mat-1');
+    component['quantidade'].set(5);
+    component['addItem']();
+  }
+
+  it('oferece só estoques físicos como origem', () => {
     expect(component['stocks']()).toHaveLength(2);
     expect(component['stockOptions']()).toEqual([
       { label: 'Almoxarifado Central', value: 'stock-origem' },
     ]);
+    expect(component['alterado']()).toBe(false);
   });
 
-  it('impede avanço para etapa 2 sem preencher origem e equipe obrigatórias', () => {
-    component['nextStep']();
-    expect(component['activeStep']()).toBe(1);
+  it('não envia sem origem e equipe', () => {
+    component['onSave']();
+    expect(criarSolicitacaoDiretaMock).not.toHaveBeenCalled();
     expect(component['fieldErrors']()['idEstoqueOrigem']).toBeTruthy();
     expect(component['fieldErrors']()['idEquipe']).toBeTruthy();
   });
@@ -174,27 +175,29 @@ describe('SolicitacaoMaterialFormComponent (Comercial)', () => {
   it('exige a data prevista, mas não bloqueia antecedência menor que 48 horas', () => {
     component['idEstoqueOrigem'].set('stock-origem');
     component['idEquipe'].set('equipe-1');
+    adicionarMaterial();
 
-    component['nextStep']();
+    component['onSave']();
+    expect(criarSolicitacaoDiretaMock).not.toHaveBeenCalled();
     expect(component['fieldErrors']()['dataPrevista']).toBeTruthy();
 
     component['dataPrevista'].set(new Date());
-    component['nextStep']();
-    expect(component['activeStep']()).toBe(2);
+    component['onSave']();
+    expect(criarSolicitacaoDiretaMock).toHaveBeenCalledTimes(1);
   });
 
-  it('exige equipe para avançar e permite deixar o colaborador para a entrega', () => {
+  it('exige equipe e permite deixar o colaborador para a entrega', () => {
     component['idEstoqueOrigem'].set('stock-origem');
     component['dataPrevista'].set(new Date(2026, 8, 25));
-    fixture.detectChanges();
+    adicionarMaterial();
 
-    component['nextStep']();
-    expect(component['activeStep']()).toBe(1);
+    component['onSave']();
+    expect(criarSolicitacaoDiretaMock).not.toHaveBeenCalled();
     expect(component['fieldErrors']()['idEquipe']).toBeTruthy();
 
     component['idEquipe'].set('equipe-1');
-    component['nextStep']();
-    expect(component['activeStep']()).toBe(2);
+    component['onSave']();
+    expect(criarSolicitacaoDiretaMock).toHaveBeenCalledTimes(1);
     expect(component['idColaboradorSaque']()).toBeNull();
   });
 
@@ -202,19 +205,19 @@ describe('SolicitacaoMaterialFormComponent (Comercial)', () => {
     component['idEstoqueOrigem'].set('stock-origem');
     component['idEquipe'].set('equipe-sem-estoque');
     component['dataPrevista'].set(new Date(2026, 8, 25));
+    adicionarMaterial();
 
-    component['nextStep']();
+    component['onSave']();
 
-    expect(component['activeStep']()).toBe(1);
+    expect(criarSolicitacaoDiretaMock).not.toHaveBeenCalled();
     expect(component['fieldErrors']()['idEquipe']).toContain('não possui estoque de campo ativo');
+    expect(component['destinoRotulo']()).toBe('Equipe sem estoque de campo');
   });
 
   it('adiciona material, ajusta quantidade e remove da lista', () => {
     component['idEstoqueOrigem'].set('stock-origem');
     component['idEquipe'].set('equipe-1');
     component['dataPrevista'].set(new Date(2026, 8, 25));
-    component['goToStep'](2);
-    expect(component['activeStep']()).toBe(2);
 
     // Adicionar item
     component['onMaterialChange']('mat-1');
@@ -256,6 +259,6 @@ describe('SolicitacaoMaterialFormComponent (Comercial)', () => {
       itens: [{ idMaterial: 'mat-1', quantidade: 5 }],
     });
     expect(notificationsMock.success).toHaveBeenCalled();
-    expect(router.navigate).toHaveBeenCalledWith(['/almoxarifado/solicitacoes']);
+    expect(component['aberto']()).toBe(false);
   });
 });

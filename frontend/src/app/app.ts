@@ -15,9 +15,17 @@ import { filter } from 'rxjs';
 
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ToastModule } from 'primeng/toast';
+import { CesButtonComponent, NotificationService } from '@ces/ui';
 import { CesReportNavigatorComponent } from './design-system/patterns/report-navigator';
 import { ReportNavigatorRegistryService } from './core/services/report-navigator-registry.service';
 import { ScrollMemoryDirective } from './shared/directives/scroll-memory.directive';
+
+const ICONES_AVISO: Record<string, string> = {
+  success: 'pi-check-circle',
+  warn: 'pi-exclamation-triangle',
+  error: 'pi-times-circle',
+  info: 'pi-info-circle',
+};
 
 @Component({
   selector: 'app-root',
@@ -28,6 +36,7 @@ import { ScrollMemoryDirective } from './shared/directives/scroll-memory.directi
     HeaderComponent,
     SidebarComponent,
     ToastModule,
+    CesButtonComponent,
     ConfirmDialogModule,
     MuralHostComponent,
     AtualizacaoDisponivelComponent,
@@ -40,6 +49,8 @@ import { ScrollMemoryDirective } from './shared/directives/scroll-memory.directi
 })
 export class App {
   protected readonly auth = inject(AuthService);
+  protected readonly notificacoes = inject(NotificationService);
+  protected readonly iconeAviso = (severidade?: string): string => `p-toast-message-icon pi ${ICONES_AVISO[severidade ?? ''] ?? ICONES_AVISO['info']}`;
   protected readonly theme = inject(ThemeService);
   protected readonly router = inject(Router);
   private readonly navigatorRegistry = inject(ReportNavigatorRegistryService);
@@ -96,16 +107,29 @@ export class App {
     '/rh/supervisores': 'rh:supervisor:read',
     '/obras': 'obras:obra:read',
     '/obras/nova': 'obras:obra:write',
+    '/obras/turnos': 'obras:turno:read',
+    '/obras/boletim': 'obras:turno:read',
+    '/execucao/dashboard-operacional': 'obras:turno:read',
+    '/obras/programacao': 'obras:programacao:read',
+    '/obras/programacao/semana': 'obras:programacao:read',
+    '/obras/programacao/mes': 'obras:programacao:read',
+    '/obras/programacao/historico': 'obras:programacao:read',
+    '/obras/pre-fechamento': 'obras:medicao:read',
+    '/obras/medicoes': 'obras:medicao:read',
+    '/obras/fechamento': 'obras:medicao:read',
+    '/obras/relatorio-medicao': 'obras:medicao:read',
     '/obras/cadastros/status': 'obras:cadastros:read',
     '/obras/cadastros/agentes': 'obras:cadastros:read',
     '/obras/cadastros/tipos-anexos': 'obras:cadastros:read',
     '/obras/cadastros/kits': 'obras:kit:read',
+    '/obras/cadastros/checklists': 'obras:documentacao:read',
     '/almoxarifado/solicitacoes': 'estoque:solicitacao:read',
     '/almoxarifado/solicitacoes/kanban': 'estoque:solicitacao:read',
     '/almoxarifado/solicitacoes/calendario': 'estoque:solicitacao:read',
     '/almoxarifado/solicitacoes/nova': 'estoque:solicitacao:create',
     '/almoxarifado/solicitacoes-tecnicas': 'estoque:solicitacao:read',
     '/almoxarifado/solicitacoes-tecnicas/kanban': 'estoque:solicitacao:read',
+    '/almoxarifado/solicitacoes-tecnicas/calendario': 'estoque:solicitacao:read',
     '/almoxarifado/solicitacoes-tecnicas/nova': 'estoque:solicitacao:create',
     '/almoxarifado/solicitacoes-tecnicas/devolucao': 'estoque:solicitacao:create',
     '/almoxarifado/motivos-pendencia': 'estoque:motivo-rejeicao:read',
@@ -283,10 +307,11 @@ export class App {
           icon: 'pi pi-briefcase',
           items: [
             { label: 'Execuções Comerciais', icon: 'pi pi-list', routerLink: '/execucao/comercial' },
-            { label: 'Turnos', icon: 'pi pi-calendar-clock', routerLink: '/execucao/turnos' },
-            { label: 'Metas de faturamento', icon: 'pi pi-flag', routerLink: '/admin/cadastros/metas-faturamento' }
+            { label: 'Turnos', icon: 'pi pi-calendar-clock', routerLink: '/execucao/turnos' }
           ]
         },
+        // Obras segue o caminho da obra: carteira, programação e campo, medição e
+        // fechamento. O que só Obras usa fica em cadastro próprio; o resto é da execução.
         {
           label: 'Obras',
           icon: 'pi pi-building',
@@ -297,11 +322,40 @@ export class App {
           ]
         },
         {
+          label: 'Programação e Campo',
+          icon: 'pi pi-calendar',
+          items: [
+            { label: 'Programação', icon: 'pi pi-calendar', routerLink: '/obras/programacao' },
+            { label: 'Turnos', icon: 'pi pi-calendar-clock', routerLink: '/obras/turnos' }
+          ]
+        },
+        {
+          label: 'Medição e Fechamento',
+          icon: 'pi pi-calculator',
+          items: [
+            { label: 'Pré-fechamento', icon: 'pi pi-clipboard', routerLink: '/obras/pre-fechamento' },
+            { label: 'Medições', icon: 'pi pi-calculator', routerLink: '/obras/medicoes' },
+            { label: 'Fechamento de Obra', icon: 'pi pi-file-check', routerLink: '/obras/fechamento' },
+            { label: 'Relatório Detalhado', icon: 'pi pi-file-export', routerLink: '/obras/relatorio-medicao' }
+          ]
+        },
+        {
           label: 'Relatórios',
           icon: 'pi pi-chart-bar',
           items: [
             { label: 'Dashboard Operacional', icon: 'pi pi-chart-line', routerLink: '/execucao/dashboard-operacional' },
-            { label: 'Dashboard de Turnos', icon: 'pi pi-clock', routerLink: '/execucao/dashboard-turnos' }
+            { label: 'Boletim das Equipes', icon: 'pi pi-th-large', routerLink: '/obras/boletim' }
+          ]
+        },
+        {
+          label: 'Cadastros de Obras',
+          icon: 'pi pi-sliders-h',
+          items: [
+            { label: 'Status de Obras', icon: 'pi pi-tag', routerLink: '/obras/cadastros/status' },
+            { label: 'Agentes Responsáveis', icon: 'pi pi-users', routerLink: '/obras/cadastros/agentes' },
+            { label: 'Tipos de Anexos', icon: 'pi pi-paperclip', routerLink: '/obras/cadastros/tipos-anexos' },
+            { label: 'Kits Construtivos', icon: 'pi pi-box', routerLink: '/obras/cadastros/kits' },
+            { label: 'Checklists da Documentação', icon: 'pi pi-list-check', routerLink: '/obras/cadastros/checklists' }
           ]
         },
         {
@@ -310,16 +364,13 @@ export class App {
           items: [
             { label: 'Bases Operacionais', icon: 'pi pi-building', routerLink: '/admin/cadastros/bases-operacionais' },
             { label: 'Municípios', icon: 'pi pi-map', routerLink: '/admin/cadastros/municipios' },
-            { label: 'Veículos', icon: 'pi pi-car', routerLink: '/admin/cadastros/veiculos'},
             { label: 'Equipes', icon: 'pi pi-sitemap', routerLink: '/admin/cadastros/equipes' },
             { label: 'Tipos de Equipe', icon: 'pi pi-tags', routerLink: '/admin/cadastros/tipos-equipe' },
-            { label: 'Tipos de Serviço', icon: 'pi pi-tags', routerLink: '/admin/cadastros/tipos-servico' },
+            { label: 'Veículos', icon: 'pi pi-car', routerLink: '/admin/cadastros/veiculos'},
             { label: 'Coordenadores', icon: 'pi pi-sitemap', routerLink: '/admin/cadastros/coordenadores' },
             { label: 'Supervisores', icon: 'pi pi-users', routerLink: '/admin/cadastros/supervisores' },
-            { label: 'Status de Obras', icon: 'pi pi-tag', routerLink: '/obras/cadastros/status' },
-            { label: 'Agentes Responsáveis', icon: 'pi pi-users', routerLink: '/obras/cadastros/agentes' },
-            { label: 'Tipos de Anexos', icon: 'pi pi-paperclip', routerLink: '/obras/cadastros/tipos-anexos' },
-            { label: 'Kits Construtivos', icon: 'pi pi-box', routerLink: '/obras/cadastros/kits' }
+            { label: 'Tipos de Serviço', icon: 'pi pi-tags', routerLink: '/admin/cadastros/tipos-servico' },
+            { label: 'Metas de faturamento', icon: 'pi pi-flag', routerLink: '/admin/cadastros/metas-faturamento' }
           ]
         }
       ]
@@ -359,6 +410,7 @@ export class App {
             { label: 'Nova Solicitação', icon: 'pi pi-plus-circle', routerLink: '/almoxarifado/solicitacoes-tecnicas/nova' },
             { label: 'Nova Devolução', icon: 'pi pi-undo', routerLink: '/almoxarifado/solicitacoes-tecnicas/devolucao' },
             { label: 'Kanban', icon: 'pi pi-objects-column', routerLink: '/almoxarifado/solicitacoes-tecnicas/kanban' },
+            { label: 'Calendário', icon: 'pi pi-calendar', routerLink: '/almoxarifado/solicitacoes-tecnicas/calendario' },
           ]
         },
         {

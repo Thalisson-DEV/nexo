@@ -29,6 +29,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 public class MovimentacaoEstoqueController implements MovimentacaoEstoqueControllerDoc {
 
     private final MovimentacaoEstoqueUseCases useCases;
+    private final com.nexo.app.modules.estoque.application.usecases.DevolucaoTecnicaUseCases devolucaoTecnicaUseCases;
     private final AssinaturaTransferenciaService assinaturaTransferenciaService;
     private final com.nexo.app.modules.estoque.application.usecases.ImportarMovimentacaoEstoqueUseCase importarMovimentacaoEstoqueUseCase;
 
@@ -107,6 +108,13 @@ public class MovimentacaoEstoqueController implements MovimentacaoEstoqueControl
     public ResponseEntity<UUID> devolucaoComercial(@jakarta.validation.Valid @RequestBody DevolucaoComercialRequest request) {
         UUID idReferencia = useCases.devolucaoComercial(request, SecurityUtils.getUsuarioLogadoId());
         return ResponseEntity.ok(idReferencia);
+    }
+
+    @Override
+    @PostMapping("/devolucao-tecnica")
+    @PreAuthorize("hasAuthority('estoque:movimentacao:write')")
+    public ResponseEntity<UUID> devolucaoTecnica(@jakarta.validation.Valid @RequestBody com.nexo.app.modules.estoque.application.dto.DevolucaoTecnicaRequest request) {
+        return ResponseEntity.ok(devolucaoTecnicaUseCases.devolver(request, SecurityUtils.getUsuarioLogadoId()));
     }
 
     @Override

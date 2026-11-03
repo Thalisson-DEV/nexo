@@ -24,6 +24,7 @@ import {
 import { CesBlockingProgressDialogComponent } from '../overlays';
 import { DesignSystemCatalogListPageComponent } from './design-system-catalog-list-page.component';
 import { CesChartComponent } from '../patterns/chart';
+import { CesPdfCanvasComponent } from '../patterns/pdf-canvas';
 import {
   CES_CHART_CATALOG_LABELS,
   CES_CHART_CATALOG_SERIES,
@@ -42,6 +43,7 @@ import {
     CesBlockingProgressDialogComponent,
     CesCalloutComponent,
     CesChartComponent,
+    CesPdfCanvasComponent,
     CesBooleanControlComponent,
     CesFieldComponent,
     CesFileInputComponent,
@@ -353,6 +355,24 @@ import {
             </div>
           </div>
 
+          <div class="ces-catalog__pdf">
+            <div class="flex flex-wrap items-center gap-2">
+              <strong>CesPdfCanvasComponent</strong>
+              <ces-button variant="outline" size="sm" icon="pi pi-minus" label="Reduzir" (pressed)="catalogPdf.zoomOut()"></ces-button>
+              <ces-button variant="outline" size="sm" icon="pi pi-plus" label="Aumentar" (pressed)="catalogPdf.zoomIn()"></ces-button>
+              <ces-button variant="ghost" size="sm" label="Girar" (pressed)="catalogPdfRotacao.set((catalogPdfRotacao() + 90) % 360)"></ces-button>
+            </div>
+            <p class="text-xs text-[var(--ces-muted)]">
+              PDF página a página, com Ctrl + roda ancorado no cursor, arraste pelo botão do meio, toque e extração de texto por
+              região. O conteúdo em <code>[pdf-overlay]</code> fica sobre a folha e acompanha zoom e rotação.
+            </p>
+            <div class="ces-catalog__pdf-folha">
+              <ces-pdf-canvas #catalogPdf ariaLabel="PDF de exemplo" [source]="catalogPdfDados" [rotation]="catalogPdfRotacao()">
+                <span pdf-overlay class="ces-catalog__pdf-marcador">1</span>
+              </ces-pdf-canvas>
+            </div>
+          </div>
+
           <div class="ces-catalog__states">
             <ces-surface variant="outlined" [padded]="true">
               <div class="flex flex-col gap-3">
@@ -477,6 +497,21 @@ export class DesignSystemCatalogComponent {
     this.selectedColor.set(color);
     this.theme.updatePrimaryColor(color);
   }
+
+  protected readonly catalogPdfRotacao = signal(0);
+  /** PDF mínimo, de uma página com um texto, escrito aqui para o catálogo não depender de arquivo. */
+  protected readonly catalogPdfDados = new TextEncoder().encode([
+    '%PDF-1.4',
+    '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj',
+    '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj',
+    '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 400 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj',
+    '4 0 obj<</Length 44>>stream',
+    'BT /F1 18 Tf 40 90 Td (Folha de exemplo) Tj ET',
+    'endstream endobj',
+    '5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj',
+    'trailer<</Root 1 0 R>>',
+    '%%EOF'
+  ].join('\n')).buffer as ArrayBuffer;
 
   protected toggleDensity() {
     this.theme.setDensity(this.theme.density() === 'compact' ? 'comfortable' : 'compact');

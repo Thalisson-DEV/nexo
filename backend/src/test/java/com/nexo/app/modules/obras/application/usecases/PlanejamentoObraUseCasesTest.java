@@ -18,6 +18,8 @@ import com.nexo.app.modules.obras.infrastructure.persistence.ObraRepository;
 import com.nexo.app.modules.obras.infrastructure.persistence.PlanejamentoObraRepository;
 import com.nexo.app.modules.obras.infrastructure.persistence.PontoPlanejamentoRepository;
 import com.nexo.app.modules.obras.infrastructure.persistence.VaoPlanejamentoRepository;
+import com.nexo.app.modules.obras.infrastructure.persistence.ProgramacaoRepository;
+import com.nexo.app.modules.rh.EquipeApi;
 import com.nexo.app.shared.domain.exception.InvarianteVioladaException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,6 +63,8 @@ class PlanejamentoObraUseCasesTest {
     @Mock private KitAplicadoRepository kitAplicadoRepository;
     @Mock private AnotacaoPlanejamentoRepository anotacaoRepository;
     @Mock private KitConstrutivoUseCases kitUseCases;
+    @Mock private ProgramacaoRepository programacaoRepository;
+    @Mock private EquipeApi equipeApi;
 
     @InjectMocks private PlanejamentoObraUseCases useCases;
 

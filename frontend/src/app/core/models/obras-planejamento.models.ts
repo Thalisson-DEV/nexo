@@ -51,6 +51,7 @@ export interface ItemPlanejado {
   quantidadeExecutada: number;
   status: StatusItemPlanejado;
   valorUnitario?: number | null;
+  idProgramacao?: string | null;
   versao: number;
 }
 
@@ -113,6 +114,18 @@ export interface PlanejamentoObra {
   anotacoes: AnotacaoPlanejamento[];
   indicadores: IndicadoresPlanejamento;
   avancoKits: AvancoKit[];
+  programacoes?: ProgramacaoDoPlano[];
+}
+
+/** Programação aberta da obra: selos da árvore e estado atrasado na folha. */
+export interface ProgramacaoDoPlano {
+  id: string;
+  numero: number;
+  idEquipe: string;
+  codigoEquipe?: string | null;
+  inicio: string; // dd/MM/yyyy
+  fim: string; // dd/MM/yyyy
+  situacao: 'PROGRAMADA' | 'ATRASADA' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA';
 }
 
 export interface KitSugerido {

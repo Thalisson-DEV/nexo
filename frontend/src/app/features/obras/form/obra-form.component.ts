@@ -1,21 +1,19 @@
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { MenuItem, MessageService } from 'primeng/api';
-import { BreadcrumbModule } from 'primeng/breadcrumb';
-import { ButtonModule } from 'primeng/button';
-import { DatePickerModule } from 'primeng/datepicker';
-
-import { InputNumberModule } from 'primeng/inputnumber';
-import { InputTextModule } from 'primeng/inputtext';
-import { MultiSelectModule } from 'primeng/multiselect';
-import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { SelectModule } from 'primeng/select';
-import { StepperModule } from 'primeng/stepper';
-import { TextareaModule } from 'primeng/textarea';
-import { ToggleSwitchModule } from 'primeng/toggleswitch';
-import { TooltipModule } from 'primeng/tooltip';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import {
+  CES_FORM_KIT,
+  CesBooleanControlComponent,
+  CesButtonComponent,
+  CesCalloutComponent,
+  CesDatepickerComponent,
+  CesMultiSelectComponent,
+  CesNumberInputComponent,
+  CesSelectComponent,
+  CesTextInputComponent,
+  CesTextareaComponent,
+  NotificationService,
+  cesFocusFirstInvalid
+} from '@ces/ui';
 import {
   AgenteResponsavelResponse,
   ObraRequest,
@@ -36,552 +34,311 @@ import {
 import { getErrorMessage } from '../../../core/models/shared.models';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
+import { saidaDoDrawer } from '../../../shared/utils/drawer-navegacao.utils';
 import { LocationPickerDialogComponent, LocalSelecionado } from '../../../shared/components/location-picker-dialog/location-picker-dialog.component';
 import {
   TIPO_VINCULO_OPTIONS,
   formatarDataParaApi,
-  formatarMoeda,
   parseDataBrParaDate,
   sanitizarNumeroObra,
-  sanitizarTituloObra,
-  statusClass,
-  statusIcon
+  sanitizarTituloObra
 } from '../obras-ui';
 
+/**
+ * Cadastro e edição da obra em drawer. A tela que abre monta o componente só enquanto o drawer
+ * está aberto, então cada abertura começa limpa e os catálogos só são pedidos quando precisa.
+ */
 @Component({
   selector: 'app-obra-form',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    FormsModule,
-    ReactiveFormsModule,
-    BreadcrumbModule,
-    ButtonModule,
-    DatePickerModule,
-    InputNumberModule,
-    InputTextModule,
-    MultiSelectModule,
-    ProgressSpinnerModule,
-    SelectModule,
-    StepperModule,
-    TextareaModule,
-    ToggleSwitchModule,
-    TooltipModule,
+    ...CES_FORM_KIT,
+    CesBooleanControlComponent,
+    CesButtonComponent,
+    CesCalloutComponent,
+    CesDatepickerComponent,
+    CesMultiSelectComponent,
+    CesNumberInputComponent,
+    CesSelectComponent,
+    CesTextInputComponent,
+    CesTextareaComponent,
     LocationPickerDialogComponent
   ],
   templateUrl: './obra-form.component.html',
-  styleUrl: './obra-form.component.css'
+  styles: `
+    @media (min-width: 40rem) {
+      .obra-grade-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  `
 })
 export class ObraFormComponent implements OnInit {
-  private readonly fb = inject(FormBuilder);
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly service = inject(ObrasService);
   private readonly rhService = inject(RhService);
-  private readonly messages = inject(MessageService);
+  private readonly notificacoes = inject(NotificationService);
+  private readonly router = inject(Router);
 
-  protected readonly isEdit = signal(false);
-  protected readonly obraId = signal<string | null>(null);
-  protected readonly loading = signal(false);
-  protected readonly saving = signal(false);
-  protected readonly activeStep = signal(1);
+  /** Obra em edição; sem ela, o drawer cadastra uma nova. */
+  readonly idObra = input<string | null>(null);
+  /** `null` quando a escrita ficou na fila para sincronizar. */
+  readonly salva = output<ObraResponse | null>();
+  /** Depois de fechar, por qualquer meio. */
+  readonly fechado = output<void>();
 
-  // Lookups
-  protected readonly statusList = signal<StatusObraResponse[]>([]);
-  protected readonly basesList = signal<BaseOperacionalResponse[]>([]);
-  protected readonly processosList = signal<ProcessoNegocioResponse[]>([]);
-  protected readonly municipiosList = signal<MunicipioResponse[]>([]);
-  protected readonly centrosCustoList = signal<CentroFaturamentoResponse[]>([]);
-  protected readonly supervisoresList = signal<SupervisorMinResponse[]>([]);
-  protected readonly coordenadoresList = signal<CoordenadorMinResponse[]>([]);
-  protected readonly agentesList = signal<AgenteResponsavelResponse[]>([]);
-  protected readonly equipesList = signal<EquipeResponse[]>([]);
-  protected readonly obrasPrincipaisList = signal<ObraResumoResponse[]>([]);
+  protected readonly aberto = signal(true);
+  private readonly aoSair = saidaDoDrawer(() => this.fechado.emit());
+  protected readonly carregando = signal(false);
+  protected readonly salvando = signal(false);
+  private readonly tentouSalvar = signal(false);
+  protected readonly editando = computed(() => !!this.idObra());
 
-  // Constantes e Helpers
-  protected readonly tipoVinculoOptions = TIPO_VINCULO_OPTIONS;
-  protected readonly formatarMoeda = formatarMoeda;
-  protected readonly statusClass = statusClass;
-  protected readonly statusIcon = statusIcon;
+  protected readonly numero = signal('');
+  protected readonly titulo = signal('');
+  protected readonly notaObra = signal('');
+  protected readonly descricao = signal('');
+  protected readonly idProcesso = signal<string | null>(null);
+  protected readonly idBaseOperacional = signal<string | null>(null);
+  protected readonly idMunicipio = signal<string | null>(null);
+  protected readonly idCentroCusto = signal<string | null>(null);
+  protected readonly idSupervisor = signal<string | null>(null);
+  protected readonly idCoordenador = signal<string | null>(null);
+  protected readonly idAgenteResponsavel = signal<string | null>(null);
+  protected readonly idStatusObra = signal<string | null>(null);
+  protected readonly valorProjeto = signal<number | null>(null);
+  protected readonly dataInicio = signal<Date | null>(null);
+  protected readonly dataPrevisaoFim = signal<Date | null>(null);
+  protected readonly dataFimEfetiva = signal<Date | null>(null);
+  protected readonly equipes = signal<string[]>([]);
+  protected readonly ehSubprojeto = signal(false);
+  protected readonly idObraPai = signal<string | null>(null);
+  protected readonly tipoVinculoPai = signal<TipoVinculoSubprojeto | null>(TipoVinculoSubprojeto.KIT);
+  protected readonly latitude = signal<number | null>(null);
+  protected readonly longitude = signal<number | null>(null);
 
-  // Breadcrumb
-  protected breadcrumbItems: MenuItem[] = [
-    { icon: 'pi pi-home', routerLink: '/home' },
-    { label: 'Obras', routerLink: '/obras' },
-    { label: 'Nova Obra' }
-  ];
+  private readonly statusLista = signal<StatusObraResponse[]>([]);
+  private readonly bases = signal<BaseOperacionalResponse[]>([]);
+  private readonly processos = signal<ProcessoNegocioResponse[]>([]);
+  private readonly municipios = signal<MunicipioResponse[]>([]);
+  private readonly centrosCusto = signal<CentroFaturamentoResponse[]>([]);
+  private readonly supervisores = signal<SupervisorMinResponse[]>([]);
+  private readonly coordenadores = signal<CoordenadorMinResponse[]>([]);
+  private readonly agentes = signal<AgenteResponsavelResponse[]>([]);
+  private readonly equipesLista = signal<EquipeResponse[]>([]);
+  private readonly obrasPrincipais = signal<ObraResumoResponse[]>([]);
 
-  // Formulário Reativo
-  protected form!: FormGroup;
+  protected readonly tipoVinculoOpcoes = TIPO_VINCULO_OPTIONS;
+  protected readonly statusOpcoes = computed(() => this.statusLista().map((s) => ({ label: s.nome, value: s.id })));
+  protected readonly basesOpcoes = computed(() => this.bases().map((b) => ({ label: b.nome, value: b.id })));
+  protected readonly processosOpcoes = computed(() => this.processos().map((p) => ({ label: p.nome, value: p.id })));
+  protected readonly municipiosOpcoes = computed(() => this.municipios().map((m) => ({ label: m.nome, value: m.id })));
+  protected readonly centrosOpcoes = computed(() => this.centrosCusto().map((c) => ({ label: c.nome, value: c.id })));
+  protected readonly supervisoresOpcoes = computed(() => this.supervisores().map((s) => ({ label: s.nomeColaborador, value: s.id })));
+  protected readonly coordenadoresOpcoes = computed(() => this.coordenadores().map((c) => ({ label: c.nomeColaborador, value: c.id })));
+  protected readonly agentesOpcoes = computed(() => this.agentes().map((a) => ({ label: a.nome, value: a.id })));
+  protected readonly equipesOpcoes = computed(() => this.equipesLista().map((e) => ({ label: e.codigo, value: e.id })));
+  protected readonly obrasPaiOpcoes = computed(() =>
+    this.obrasPrincipais()
+      .filter((o) => o.id !== this.idObra())
+      .map((o) => ({ label: `${o.numero} — ${o.titulo}`, value: o.id }))
+  );
+
+  protected readonly concluida = computed(() => this.statusLista().find((s) => s.id === this.idStatusObra())?.concluida ?? false);
+
+  private readonly erros = computed<Record<string, string>>(() => {
+    const e: Record<string, string> = {};
+    const obrigatorio = (campo: string, valor: unknown, mensagem: string) => {
+      if (!valor) e[campo] = mensagem;
+    };
+    obrigatorio('numero', this.numero().trim(), 'Informe o número da obra.');
+    obrigatorio('titulo', this.titulo().trim(), 'Informe o título da obra.');
+    obrigatorio('idProcesso', this.idProcesso(), 'Selecione o processo.');
+    obrigatorio('idBaseOperacional', this.idBaseOperacional(), 'Selecione a base.');
+    obrigatorio('idMunicipio', this.idMunicipio(), 'Selecione o município.');
+    obrigatorio('idCentroCusto', this.idCentroCusto(), 'Selecione o centro de custo.');
+    obrigatorio('idSupervisor', this.idSupervisor(), 'Selecione o supervisor.');
+    obrigatorio('idCoordenador', this.idCoordenador(), 'Selecione o coordenador.');
+    obrigatorio('idStatusObra', this.idStatusObra(), 'Selecione o status.');
+    obrigatorio('dataInicio', this.dataInicio(), 'Informe a data de início.');
+    obrigatorio('dataPrevisaoFim', this.dataPrevisaoFim(), 'Informe a previsão de término.');
+    if (this.ehSubprojeto()) {
+      obrigatorio('idObraPai', this.idObraPai(), 'Selecione a obra principal.');
+      obrigatorio('tipoVinculoPai', this.tipoVinculoPai(), 'Selecione o tipo de vínculo.');
+    }
+    return e;
+  });
+
+  private readonly retrato = computed(() =>
+    JSON.stringify([
+      this.numero(), this.titulo(), this.notaObra(), this.descricao(), this.idProcesso(), this.idBaseOperacional(),
+      this.idMunicipio(), this.idCentroCusto(), this.idSupervisor(), this.idCoordenador(), this.idAgenteResponsavel(),
+      this.idStatusObra(), this.valorProjeto(), this.dataInicio(), this.dataPrevisaoFim(), this.dataFimEfetiva(),
+      this.equipes(), this.ehSubprojeto(), this.idObraPai(), this.tipoVinculoPai(), this.latitude(), this.longitude()
+    ])
+  );
+  private readonly original = signal('');
+  protected readonly alterado = computed(() => this.retrato() !== this.original());
 
   ngOnInit(): void {
-    this.initForm();
-    this.carregarLookups();
-
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id && id !== 'novo' && id !== 'nova') {
-      this.isEdit.set(true);
-      this.obraId.set(id);
-      this.breadcrumbItems = [
-        { icon: 'pi pi-home', routerLink: '/home' },
-        { label: 'Obras', routerLink: '/obras' },
-        { label: 'Editar Obra' }
-      ];
-      this.carregarObra(id);
-    } else {
-      this.isEdit.set(false);
-      this.obraId.set(null);
-    }
+    this.original.set(this.retrato());
+    this.carregarCatalogos();
+    const id = this.idObra();
+    if (id) this.carregarObra(id);
   }
 
-  protected voltar(): void {
-    if (this.obraId()) {
-      this.router.navigate(['/obras', this.obraId()]);
-    } else {
-      this.router.navigate(['/obras']);
-    }
+  protected fechar(): void {
+    this.aberto.set(false);
+    this.aoSair();
   }
 
-  protected onNumeroChange(): void {
-    const raw = this.form.get('numero')?.value;
-    const sanitizado = sanitizarNumeroObra(raw);
-    if (raw !== sanitizado) {
-      this.form.get('numero')?.setValue(sanitizado, { emitEvent: false });
-    }
+  protected readonly numeroLimpo = () => sanitizarNumeroObra(this.numero());
+  protected readonly tituloLimpo = () => sanitizarTituloObra(this.titulo());
+
+  protected erro(campo: string): string | undefined {
+    return this.tentouSalvar() ? this.erros()[campo] : undefined;
   }
 
-  protected onTituloChange(): void {
-    const raw = this.form.get('titulo')?.value;
-    const sanitizado = sanitizarTituloObra(raw);
-    if (raw !== sanitizado) {
-      this.form.get('titulo')?.setValue(sanitizado, { emitEvent: false });
-    }
-  }
-
-  protected isStep1Valid(): boolean {
-    const num = this.form.get('numero');
-    const tit = this.form.get('titulo');
-    return (num?.valid ?? false) && (tit?.valid ?? false);
-  }
-
-  protected isStep2Valid(): boolean {
-    const proc = this.form.get('idProcesso');
-    const base = this.form.get('idBaseOperacional');
-    const mun = this.form.get('idMunicipio');
-    const cc = this.form.get('idCentroCusto');
-    const sup = this.form.get('idSupervisor');
-    const coord = this.form.get('idCoordenador');
-    const st = this.form.get('idStatusObra');
-    const dtIni = this.form.get('dataInicio');
-    const dtFim = this.form.get('dataPrevisaoFim');
-    return (
-      (proc?.valid ?? false) &&
-      (base?.valid ?? false) &&
-      (mun?.valid ?? false) &&
-      (cc?.valid ?? false) &&
-      (sup?.valid ?? false) &&
-      (coord?.valid ?? false) &&
-      (st?.valid ?? false) &&
-      (dtIni?.valid ?? false) &&
-      (dtFim?.valid ?? false)
-    );
-  }
-
-  protected isStep3Valid(): boolean {
-    const ehSub = this.form.get('ehSubprojeto')?.value;
-    if (ehSub) {
-      const paiId = this.form.get('idObraPai')?.value;
-      const tipo = this.form.get('tipoVinculoPai')?.value;
-      return !!(paiId && tipo);
-    }
-    return true;
-  }
-
-  // -------------------------------------------------------------------------
-  // Navegação entre etapas (padrão Nexo: irPara/proximaEtapa/etapaAnterior)
-  // -------------------------------------------------------------------------
-
-  protected irPara(etapa: number): void {
-    // Voltar para uma etapa anterior: sempre permitido, sem re-validar.
-    if (etapa <= this.activeStep()) {
-      this.activeStep.set(etapa);
-      return;
-    }
-    // Avançar: valida cada etapa intermediária.
-    if (etapa > 1 && !this.validarAObra()) return;
-    if (etapa > 2 && !this.validarPlanejamento()) return;
-    if (etapa > 3 && !this.validarExecucao()) return;
-    this.activeStep.set(etapa);
-  }
-
-  protected proximaEtapa(): void {
-    this.irPara(this.activeStep() + 1);
-  }
-
-  protected etapaAnterior(): void {
-    this.activeStep.set(Math.max(1, this.activeStep() - 1));
-  }
-
-  private validarAObra(): boolean {
-    if (this.isStep1Valid()) return true;
-    this.form.get('numero')?.markAsTouched();
-    this.form.get('titulo')?.markAsTouched();
-    this.messages.add({
-      severity: 'warn',
-      summary: 'Identificação incompleta',
-      detail: 'Preencha o Número e o Título da obra.'
-    });
-    return false;
-  }
-
-  private validarPlanejamento(): boolean {
-    if (this.isStep2Valid()) return true;
-    this.form.get('idProcesso')?.markAsTouched();
-    this.form.get('idBaseOperacional')?.markAsTouched();
-    this.form.get('idMunicipio')?.markAsTouched();
-    this.form.get('idCentroCusto')?.markAsTouched();
-    this.form.get('idSupervisor')?.markAsTouched();
-    this.form.get('idCoordenador')?.markAsTouched();
-    this.form.get('idStatusObra')?.markAsTouched();
-    this.form.get('dataInicio')?.markAsTouched();
-    this.form.get('dataPrevisaoFim')?.markAsTouched();
-    this.messages.add({
-      severity: 'warn',
-      summary: 'Planejamento incompleto',
-      detail: 'Preencha Processo, Base, Município, Centro de Custo, Supervisor, Coordenador, Status e Datas.'
-    });
-    return false;
-  }
-
-  private validarExecucao(): boolean {
-    if (this.isStep3Valid()) return true;
-    this.messages.add({
-      severity: 'warn',
-      summary: 'Subprojeto incompleto',
-      detail: 'Selecione o Projeto Principal e o Tipo de Vínculo do subprojeto.'
-    });
-    return false;
-  }
-
-  protected capturarLocalizacaoAtual(): void {
+  protected capturarGps(): void {
     if (!navigator.geolocation) {
-      this.messages.add({
-        severity: 'warn',
-        summary: 'Geolocalização indisponível',
-        detail: 'Seu navegador não suporta captura de GPS.'
-      });
+      this.notificacoes.warning('Este navegador não informa a localização.');
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        this.form.patchValue({
-          latitude: parseFloat(pos.coords.latitude.toFixed(6)),
-          longitude: parseFloat(pos.coords.longitude.toFixed(6))
-        });
-        this.messages.add({
-          severity: 'info',
-          summary: 'Coordenadas capturadas',
-          detail: `Lat: ${pos.coords.latitude.toFixed(5)}, Lon: ${pos.coords.longitude.toFixed(5)}`
-        });
-      },
-      (err) => {
-        this.messages.add({
-          severity: 'error',
-          summary: 'Erro de GPS',
-          detail: err.message || 'Não foi possível capturar sua localização.'
-        });
-      },
+      (posicao) => this.definirCoordenadas(posicao.coords.latitude, posicao.coords.longitude),
+      (falha) => this.notificacoes.error(falha.message || 'Não foi possível capturar a localização.', { title: 'Erro de GPS' }),
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
 
-  protected onLocalConfirmado(local: LocalSelecionado): void {
-    this.form.patchValue({
-      latitude: parseFloat(local.latitude.toFixed(6)),
-      longitude: parseFloat(local.longitude.toFixed(6))
-    });
-    this.messages.add({
-      severity: 'info',
-      summary: 'Localização selecionada',
-      detail: `Lat: ${local.latitude.toFixed(5)}, Lon: ${local.longitude.toFixed(5)}`
-    });
+  protected aoEscolherNoMapa(local: LocalSelecionado): void {
+    this.definirCoordenadas(local.latitude, local.longitude);
   }
 
-  protected statusSelecionadoEhConcluido(): boolean {
-    const statusId = this.form?.get('idStatusObra')?.value;
-    if (!statusId) return false;
-    const st = this.statusList().find(s => s.id === statusId);
-    return st?.concluida ?? false;
-  }
-
-  // Label resolvers for Review Step
-  protected getStatusObj(): StatusObraResponse | undefined {
-    return this.statusList().find(s => s.id === this.form.get('idStatusObra')?.value);
-  }
-
-  protected getProcessoNome(): string {
-    const id = this.form.get('idProcesso')?.value;
-    return this.processosList().find(p => p.id === id)?.nome || '—';
-  }
-
-  protected getBaseNome(): string {
-    const id = this.form.get('idBaseOperacional')?.value;
-    return this.basesList().find(b => b.id === id)?.nome || '—';
-  }
-
-  protected getMunicipioNome(): string {
-    const id = this.form.get('idMunicipio')?.value;
-    return this.municipiosList().find(m => m.id === id)?.nome || '—';
-  }
-
-  protected getCentroCustoNome(): string {
-    const id = this.form.get('idCentroCusto')?.value;
-    return this.centrosCustoList().find(c => c.id === id)?.nome || '—';
-  }
-
-  protected getSupervisorNome(): string {
-    const id = this.form.get('idSupervisor')?.value;
-    return this.supervisoresList().find(s => s.id === id)?.nomeColaborador || '—';
-  }
-
-  protected getCoordenadorNome(): string {
-    const id = this.form.get('idCoordenador')?.value;
-    return this.coordenadoresList().find(c => c.id === id)?.nomeColaborador || '—';
-  }
-
-  protected getAgenteNome(): string {
-    const id = this.form.get('idAgenteResponsavel')?.value;
-    return this.agentesList().find(a => a.id === id)?.nome || '—';
-  }
-
-  protected getObraPaiDisplay(): string {
-    const paiId = this.form.get('idObraPai')?.value;
-    if (!paiId) return '—';
-    const obra = this.obrasPrincipaisList().find(o => o.id === paiId);
-    if (obra) {
-      return `${obra.numero} — ${obra.titulo}`;
-    }
-    return paiId;
-  }
-
-  protected getEquipesSelecionadas(): EquipeResponse[] {
-    const ids: string[] = this.form.get('equipes')?.value || [];
-    return this.equipesList().filter(e => ids.includes(e.id));
+  private definirCoordenadas(latitude: number, longitude: number): void {
+    this.latitude.set(parseFloat(latitude.toFixed(6)));
+    this.longitude.set(parseFloat(longitude.toFixed(6)));
   }
 
   protected salvar(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      this.messages.add({
-        severity: 'warn',
-        summary: 'Formulário incompleto',
-        detail: 'Por favor, revise as etapas e preencha os campos obrigatórios.'
-      });
+    this.tentouSalvar.set(true);
+    if (Object.keys(this.erros()).length) {
+      this.notificacoes.warning('Preencha os campos destacados para salvar a obra.');
+      setTimeout(() => cesFocusFirstInvalid());
       return;
     }
-
-    const val = this.form.value;
 
     const request: ObraRequest = {
-      numero: sanitizarNumeroObra(val.numero),
-      titulo: sanitizarTituloObra(val.titulo),
-      descricao: val.descricao?.trim() || undefined,
-      notaObra: val.notaObra?.trim() || undefined,
-      valorProjeto: val.valorProjeto ?? undefined,
-      dataInicio: formatarDataParaApi(val.dataInicio)!,
-      dataPrevisaoFim: formatarDataParaApi(val.dataPrevisaoFim)!,
-      dataFimEfetiva: formatarDataParaApi(val.dataFimEfetiva) || null,
-      latitude: val.latitude ?? undefined,
-      longitude: val.longitude ?? undefined,
-      idProcesso: val.idProcesso,
-      idBaseOperacional: val.idBaseOperacional,
-      idMunicipio: val.idMunicipio,
-      idCentroCusto: val.idCentroCusto,
-      idSupervisor: val.idSupervisor,
-      idCoordenador: val.idCoordenador,
-      idStatusObra: val.idStatusObra,
-      idAgenteResponsavel: val.idAgenteResponsavel || undefined,
-      idObraPai: val.ehSubprojeto ? (val.idObraPai || null) : null,
-      tipoVinculoPai: val.ehSubprojeto ? val.tipoVinculoPai : null,
-      equipes: val.equipes?.length > 0 ? val.equipes : undefined
+      numero: sanitizarNumeroObra(this.numero()),
+      titulo: sanitizarTituloObra(this.titulo()),
+      descricao: this.descricao().trim() || undefined,
+      notaObra: this.notaObra().trim() || undefined,
+      valorProjeto: this.valorProjeto() ?? undefined,
+      dataInicio: formatarDataParaApi(this.dataInicio())!,
+      dataPrevisaoFim: formatarDataParaApi(this.dataPrevisaoFim())!,
+      dataFimEfetiva: formatarDataParaApi(this.dataFimEfetiva()) || null,
+      latitude: this.latitude() ?? undefined,
+      longitude: this.longitude() ?? undefined,
+      idProcesso: this.idProcesso()!,
+      idBaseOperacional: this.idBaseOperacional()!,
+      idMunicipio: this.idMunicipio()!,
+      idCentroCusto: this.idCentroCusto()!,
+      idSupervisor: this.idSupervisor()!,
+      idCoordenador: this.idCoordenador()!,
+      idStatusObra: this.idStatusObra()!,
+      idAgenteResponsavel: this.idAgenteResponsavel() || undefined,
+      idObraPai: this.ehSubprojeto() ? this.idObraPai() : null,
+      tipoVinculoPai: this.ehSubprojeto() ? this.tipoVinculoPai() : null,
+      equipes: this.equipes().length ? this.equipes() : undefined
     };
 
-    if (this.isEdit() && request.idObraPai === this.obraId()) {
-      this.messages.add({
-        severity: 'error',
-        summary: 'Vínculo Inválido',
-        detail: 'Uma obra não pode ser vinculada como subprojeto de si mesma.'
-      });
-      return;
-    }
-
-    this.saving.set(true);
-
-    const operacao$ = this.isEdit()
-      ? this.service.atualizarObra(this.obraId()!, request)
-      : this.service.criarObra(request);
-
-    operacao$.subscribe({
-      next: (obraSalva) => {
-        this.saving.set(false);
-        const numero = obraSalva?.numero || val.numero;
-        const idSalvo = obraSalva?.id || this.obraId();
-        this.messages.add({
-          severity: 'success',
-          summary: 'Obra Salva com Sucesso',
-          detail: `A obra ${numero} foi ${this.isEdit() ? 'atualizada' : 'cadastrada'} com sucesso.`
+    const id = this.idObra();
+    this.salvando.set(true);
+    (id ? this.service.atualizarObra(id, request) : this.service.criarObra(request)).subscribe({
+      next: (obra) => {
+        this.salvando.set(false);
+        this.notificacoes.success(`Obra ${obra?.numero || request.numero} ${id ? 'atualizada' : 'cadastrada'}.`, {
+          action: !id && obra?.id ? { label: 'Abrir obra', run: () => void this.router.navigate(['/obras', obra.id]) } : undefined
         });
-        if (idSalvo) {
-          this.router.navigate(['/obras', idSalvo]);
-        } else {
-          this.router.navigate(['/obras']);
-        }
+        this.salva.emit(obra);
+        this.fechar();
       },
-      error: (error: any) => {
-        this.saving.set(false);
-        this.messages.add({
-          severity: 'error',
-          summary: 'Erro ao salvar obra',
-          detail: getErrorMessage(error)
-        });
+      error: (falha) => {
+        this.salvando.set(false);
+        this.notificacoes.error(getErrorMessage(falha), { title: 'Não foi possível salvar a obra' });
       }
-    });
-  }
-
-  private initForm(): void {
-    this.form = this.fb.group({
-      numero: ['', [Validators.required, Validators.maxLength(7)]],
-      titulo: ['', [Validators.required, Validators.maxLength(300)]],
-      notaObra: ['', [Validators.maxLength(50)]],
-      descricao: ['', [Validators.maxLength(1000)]],
-      idStatusObra: [null, [Validators.required]],
-      valorProjeto: [null],
-      dataInicio: [null, [Validators.required]],
-      dataPrevisaoFim: [null, [Validators.required]],
-      dataFimEfetiva: [null],
-      idProcesso: [null, [Validators.required]],
-      idBaseOperacional: [null, [Validators.required]],
-      idMunicipio: [null, [Validators.required]],
-      idCentroCusto: [null, [Validators.required]],
-      idSupervisor: [null, [Validators.required]],
-      idCoordenador: [null, [Validators.required]],
-      idAgenteResponsavel: [null],
-      equipes: [[]],
-      ehSubprojeto: [false],
-      idObraPai: [null],
-      tipoVinculoPai: [TipoVinculoSubprojeto.KIT],
-      latitude: [null],
-      longitude: [null]
     });
   }
 
   private carregarObra(id: string): void {
-    this.loading.set(true);
+    this.carregando.set(true);
     this.service.buscarObraPorId(id).subscribe({
-      next: (obra: ObraResponse) => {
-        this.form.patchValue({
-          numero: obra.numero,
-          titulo: obra.titulo,
-          notaObra: obra.notaObra || '',
-          descricao: obra.descricao || '',
-          idStatusObra: obra.statusId,
-          valorProjeto: obra.valorProjeto ?? null,
-          dataInicio: parseDataBrParaDate(obra.dataInicio),
-          dataPrevisaoFim: parseDataBrParaDate(obra.dataPrevisaoFim),
-          dataFimEfetiva: parseDataBrParaDate(obra.dataFimEfetiva),
-          idProcesso: obra.processoId || null,
-          idBaseOperacional: obra.baseOperacionalId || null,
-          idMunicipio: obra.municipioId || null,
-          idCentroCusto: obra.centroCustoId || null,
-          idSupervisor: obra.supervisorId || null,
-          idCoordenador: obra.coordenadorId || null,
-          idAgenteResponsavel: obra.agenteResponsavelId || null,
-          equipes: obra.equipes || [],
-          ehSubprojeto: !!obra.obraPaiId,
-          idObraPai: obra.obraPaiId || null,
-          tipoVinculoPai: obra.tipoVinculoPai || TipoVinculoSubprojeto.KIT,
-          latitude: obra.latitude ?? null,
-          longitude: obra.longitude ?? null
-        });
-
-        if (obra.obraPaiId && obra.obraPaiNumero) {
-          const jaExiste = this.obrasPrincipaisList().some(o => o.id === obra.obraPaiId);
-          if (!jaExiste) {
-            this.obrasPrincipaisList.update(list => [
-              {
-                id: obra.obraPaiId!,
-                numero: obra.obraPaiNumero!,
-                titulo: obra.obraPaiTitulo || '',
-                ativo: true
-              } as ObraResumoResponse,
-              ...list
-            ]);
-          }
-        }
-
-        this.loading.set(false);
+      next: (obra) => {
+        this.numero.set(obra.numero);
+        this.titulo.set(obra.titulo);
+        this.notaObra.set(obra.notaObra || '');
+        this.descricao.set(obra.descricao || '');
+        this.idStatusObra.set(obra.statusId);
+        this.valorProjeto.set(obra.valorProjeto ?? null);
+        this.dataInicio.set(parseDataBrParaDate(obra.dataInicio));
+        this.dataPrevisaoFim.set(parseDataBrParaDate(obra.dataPrevisaoFim));
+        this.dataFimEfetiva.set(parseDataBrParaDate(obra.dataFimEfetiva));
+        this.idProcesso.set(obra.processoId || null);
+        this.idBaseOperacional.set(obra.baseOperacionalId || null);
+        this.idMunicipio.set(obra.municipioId || null);
+        this.idCentroCusto.set(obra.centroCustoId || null);
+        this.idSupervisor.set(obra.supervisorId || null);
+        this.idCoordenador.set(obra.coordenadorId || null);
+        this.idAgenteResponsavel.set(obra.agenteResponsavelId || null);
+        this.equipes.set(obra.equipes || []);
+        this.ehSubprojeto.set(!!obra.obraPaiId);
+        this.idObraPai.set(obra.obraPaiId || null);
+        this.tipoVinculoPai.set(obra.tipoVinculoPai || TipoVinculoSubprojeto.KIT);
+        this.latitude.set(obra.latitude ?? null);
+        this.longitude.set(obra.longitude ?? null);
+        this.garantirObraPai(obra);
+        this.original.set(this.retrato());
+        this.carregando.set(false);
       },
-      error: (error: any) => {
-        this.loading.set(false);
-        this.messages.add({
-          severity: 'error',
-          summary: 'Erro ao carregar obra',
-          detail: getErrorMessage(error)
-        });
-        this.router.navigate(['/obras']);
+      error: (falha) => {
+        this.carregando.set(false);
+        this.notificacoes.error(getErrorMessage(falha), { title: 'Não foi possível abrir a obra' });
+        this.fechar();
       }
     });
   }
 
-  private carregarLookups(): void {
-    this.service.listarStatusAtivos().subscribe({
-      next: (res: StatusObraResponse[]) => {
-        this.statusList.set(res);
-        if (!this.isEdit() && res.length > 0 && !this.form.get('idStatusObra')?.value) {
-          this.form.patchValue({ idStatusObra: res[0].id });
-        }
+  /** A obra principal pode estar fora da lista (inativa, por exemplo) e precisa aparecer no select. */
+  private garantirObraPai(obra: ObraResponse): void {
+    if (!obra.obraPaiId || !obra.obraPaiNumero) return;
+    if (this.obrasPrincipais().some((o) => o.id === obra.obraPaiId)) return;
+    this.obrasPrincipais.update((lista) => [
+      { id: obra.obraPaiId!, numero: obra.obraPaiNumero!, titulo: obra.obraPaiTitulo || '', ativo: true } as ObraResumoResponse,
+      ...lista
+    ]);
+  }
+
+  private carregarCatalogos(): void {
+    this.service.listarStatusAtivos().subscribe((lista) => {
+      this.statusLista.set(lista);
+      // O status inicial é sugestão: não conta como alteração ao fechar.
+      if (!this.editando() && lista.length && !this.idStatusObra()) {
+        this.idStatusObra.set(lista[0].id);
+        this.original.set(this.retrato());
       }
     });
-
-    this.service.listarAgentesAtivos().subscribe({
-      next: (res: AgenteResponsavelResponse[]) => this.agentesList.set(res)
-    });
-
-    this.rhService.listarBasesOperacionaisAtivas().subscribe({
-      next: (res: any) => this.basesList.set(res.content ?? [])
-    });
-
-    this.rhService.listarProcessosAtivos().subscribe({
-      next: (res: any) => this.processosList.set(res.content ?? [])
-    });
-
-    this.rhService.listarMunicipios({ ativo: true, size: 500, sort: 'nome,asc' }).subscribe({
-      next: (res: any) => this.municipiosList.set(res.content ?? [])
-    });
-
-    this.rhService.listarCentrosFaturamentoAtivos().subscribe({
-      next: (res: any) => this.centrosCustoList.set(res.content ?? [])
-    });
-
-    this.rhService.listarSupervisoresAtivosMin().subscribe({
-      next: (res) => this.supervisoresList.set(res)
-    });
-
-    this.rhService.listarCoordenadoresAtivosMin().subscribe({
-      next: (res) => this.coordenadoresList.set(res)
-    });
-
-    this.rhService.listarEquipes({ ativo: true, size: 500 }).subscribe({
-      next: (res: any) => this.equipesList.set(res.content ?? [])
-    });
-
-    this.service.listarObras({ apenasPrincipais: true, ativo: true, size: 500, sort: 'numero,asc' }).subscribe({
-      next: (res) => {
-        const filtradas = (res.content ?? []).filter(o => o.id !== this.obraId());
-        this.obrasPrincipaisList.set(filtradas);
-      }
+    this.service.listarAgentesAtivos().subscribe((lista) => this.agentes.set(lista));
+    this.rhService.listarBasesOperacionaisAtivas().subscribe((r: any) => this.bases.set(r.content ?? []));
+    this.rhService.listarProcessosAtivos().subscribe((r: any) => this.processos.set(r.content ?? []));
+    this.rhService.listarMunicipios({ ativo: true, size: 500, sort: 'nome,asc' }).subscribe((r: any) => this.municipios.set(r.content ?? []));
+    this.rhService.listarCentrosFaturamentoAtivos().subscribe((r: any) => this.centrosCusto.set(r.content ?? []));
+    this.rhService.listarSupervisoresAtivosMin().subscribe((lista) => this.supervisores.set(lista));
+    this.rhService.listarCoordenadoresAtivosMin().subscribe((lista) => this.coordenadores.set(lista));
+    this.rhService.listarEquipes({ ativo: true, size: 500 }).subscribe((r: any) => this.equipesLista.set(r.content ?? []));
+    this.service.listarObras({ apenasPrincipais: true, ativo: true, size: 500, sort: 'numero,asc' }).subscribe((r) => {
+      const atuais = this.obrasPrincipais();
+      const novas = (r.content ?? []).filter((o) => !atuais.some((a) => a.id === o.id));
+      this.obrasPrincipais.set([...atuais, ...novas]);
     });
   }
 }

@@ -65,24 +65,22 @@ describe('App', () => {
     expect(permissoes['/financeiro/pagamentos/nova']).toBe('financeiro:pagamento:write');
   });
 
-  it('deve conter gestão, nova solicitação, devolução e kanban no menu Almoxarifado > Solicitações Comerciais', () => {
+  it('mantém o comercial fora do menu e as visões em Solicitações Técnicas', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
     const almoxarifado = app['menuItems']().find((m) => m.label === 'Almoxarifado');
     expect(almoxarifado).toBeTruthy();
 
-    const solicitacoes = almoxarifado?.items?.find((i) => i.label === 'Solicitações Comerciais');
-    expect(solicitacoes).toBeTruthy();
+    // O processo comercial está oculto nesta distribuição; o técnico concentra as visões.
+    expect(almoxarifado?.items?.some((i) => i.label === 'Solicitações Comerciais')).toBe(false);
 
-    // As filas por situação (pendente aprovação/entrega) viraram colunas do Kanban.
+    const solicitacoes = almoxarifado?.items?.find((i) => i.label === 'Solicitações Técnicas');
     const itens = Object.fromEntries((solicitacoes?.items ?? []).map((item) => [item.label, item.routerLink]));
-    expect(itens).toEqual({
-      'Gerenciar Solicitações': '/almoxarifado/solicitacoes',
-      'Nova Solicitação': '/almoxarifado/solicitacoes/nova',
-      'Nova Devolução': '/almoxarifado/devolucao-comercial',
-      Quadro: '/almoxarifado/solicitacoes/kanban',
-      'Calendário de saques': '/almoxarifado/solicitacoes/calendario'
-    });
+    expect(itens).toEqual(expect.objectContaining({
+      'Nova Devolução': '/almoxarifado/solicitacoes-tecnicas/devolucao',
+      Kanban: '/almoxarifado/solicitacoes-tecnicas/kanban',
+      Calendário: '/almoxarifado/solicitacoes-tecnicas/calendario'
+    }));
   });
 
   it('deve mapear rotas de solicitacoes comerciais em permissaoPorRota', () => {

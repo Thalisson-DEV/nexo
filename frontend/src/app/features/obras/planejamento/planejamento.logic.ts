@@ -2,16 +2,18 @@ import {
   KitAplicado,
   PlanejamentoObra,
   PontoPlanejamento,
+  ProgramacaoDoPlano,
   StatusItemPlanejado,
   VaoPlanejamento
 } from '../../../core/models/obras-planejamento.models';
 
-export type EstadoLocal = 'sem-kit' | 'pendente' | 'programado' | 'andamento' | 'concluido';
+export type EstadoLocal = 'sem-kit' | 'pendente' | 'programado' | 'atrasado' | 'andamento' | 'concluido';
 
 export const ROTULO_ESTADO: Record<EstadoLocal, string> = {
   'sem-kit': 'Sem kit',
   pendente: 'Pendente',
   programado: 'Programado',
+  atrasado: 'Atrasado',
   andamento: 'Em andamento',
   concluido: 'Concluído'
 };
@@ -44,13 +46,18 @@ export function kitsDoLocal(plano: PlanejamentoObra, idLocal: string): KitAplica
 }
 
 /** O estado mais avançado que ainda exige atenção resume o ponto ou vão na folha. */
-export function estadoDoLocal(kits: readonly KitAplicado[]): EstadoLocal {
+export function estadoDoLocal(kits: readonly KitAplicado[], atrasadas: ReadonlySet<string> = new Set()): EstadoLocal {
   const itens = kits.flatMap((k) => k.itens);
   if (!itens.length) return 'sem-kit';
+  if (itens.some((i) => i.idProgramacao && atrasadas.has(i.idProgramacao) && i.status !== 'CONCLUIDO' && i.status !== 'MEDIDO')) return 'atrasado';
   if (itens.some((i) => i.status === 'EM_ANDAMENTO')) return 'andamento';
   if (itens.some((i) => i.status === 'PROGRAMADO')) return 'programado';
   if (itens.some((i) => i.status === 'PENDENTE')) return 'pendente';
   return 'concluido';
+}
+
+export function programacoesAtrasadas(plano: PlanejamentoObra): ReadonlySet<string> {
+  return new Set((plano.programacoes ?? []).filter((p) => p.situacao === 'ATRASADA').map((p) => p.id));
 }
 
 export function kitBloqueado(kit: KitAplicado): boolean {
@@ -78,6 +85,9 @@ export interface LinhaArvore {
   selecionavel?: boolean;
   semKit?: boolean;
   pagina?: number;
+  /** Programação do item, para o selo e para retirar dela. */
+  programacao?: ProgramacaoDoPlano;
+  podeRetirar?: boolean;
 }
 
 export interface OpcoesArvore {
@@ -101,7 +111,8 @@ function linhasDoKit(
   idLocal: string,
   busca: string,
   opcoes: OpcoesArvore,
-  localCombina: boolean
+  localCombina: boolean,
+  programacoes: ReadonlyMap<string, ProgramacaoDoPlano>
 ): LinhaArvore[] {
   const kitCombina = localCombina || normalizar(`${kit.codigo} ${kit.descricao}`).includes(busca);
   const itens = kit.itens
@@ -135,7 +146,9 @@ function linhasDoKit(
       etiqueta: `${formatarQuantidade(item.quantidadePrevista)} ${item.unidade ?? ''}`.trim(),
       statusItem: item.status,
       ehMaterial: item.tipo === 'MATERIAL',
-      selecionavel: item.status === 'PENDENTE' && !kit.executadoAntes
+      selecionavel: item.status === 'PENDENTE' && !kit.executadoAntes,
+      programacao: item.idProgramacao ? programacoes.get(item.idProgramacao) : undefined,
+      podeRetirar: !!item.idProgramacao && programacoes.has(item.idProgramacao) && item.quantidadeExecutada === 0
     });
   }
   return linhas;
@@ -154,6 +167,8 @@ export function montarLinhas(plano: PlanejamentoObra, opcoes: OpcoesArvore): Lin
     if (local) kitsPorLocal.set(local, [...(kitsPorLocal.get(local) ?? []), kit]);
   }
 
+  const programacoes = new Map((plano.programacoes ?? []).map((p) => [p.id, p]));
+  const atrasadas = programacoesAtrasadas(plano);
   const linhas: LinhaArvore[] = [];
   const paginas = [...new Set(plano.pontos.map((p) => p.pagina))].sort((a, b) => a - b);
   for (const pagina of paginas) {
@@ -165,7 +180,7 @@ export function montarLinhas(plano: PlanejamentoObra, opcoes: OpcoesArvore): Lin
       const kits = kitsPorLocal.get(ponto.id) ?? [];
       if (opcoes.soSemKit && kits.length) continue;
       const combina = !busca || normalizar(`p${ponto.numero} ${ponto.numero} ${ponto.barramento ?? ''}`).includes(busca);
-      const filhos = kits.flatMap((k) => linhasDoKit(k, ponto.id, busca, opcoes, combina));
+      const filhos = kits.flatMap((k) => linhasDoKit(k, ponto.id, busca, opcoes, combina, programacoes));
       if (!combina && !filhos.length) continue;
       const chave = `ponto:${ponto.id}`;
       const recolhido = opcoes.recolhidos.has(chave);
@@ -176,7 +191,7 @@ export function montarLinhas(plano: PlanejamentoObra, opcoes: OpcoesArvore): Lin
         detalhe: ponto.barramento ?? undefined,
         nivel: 0,
         idLocal: ponto.id,
-        estado: estadoDoLocal(kits),
+        estado: estadoDoLocal(kits, atrasadas),
         etiqueta: kits.length ? `${kits.length} ${kits.length === 1 ? 'kit' : 'kits'}` : undefined,
         semKit: !kits.length,
         recolhido,
@@ -204,7 +219,7 @@ export function montarLinhas(plano: PlanejamentoObra, opcoes: OpcoesArvore): Lin
     if (opcoes.soSemKit && kits.length) continue;
     const titulo = rotuloVao(vao, pontosPorId);
     const combina = !busca || normalizar(titulo).includes(busca);
-    const filhos = kits.flatMap((k) => linhasDoKit(k, vao.id, busca, opcoes, combina));
+    const filhos = kits.flatMap((k) => linhasDoKit(k, vao.id, busca, opcoes, combina, programacoes));
     if (!combina && !filhos.length) continue;
     const chave = `vao:${vao.id}`;
     const recolhido = opcoes.recolhidos.has(chave);
@@ -215,7 +230,7 @@ export function montarLinhas(plano: PlanejamentoObra, opcoes: OpcoesArvore): Lin
       detalhe: vao.metragem ? `${formatarQuantidade(vao.metragem)} m` : 'sem metragem',
       nivel: 0,
       idLocal: vao.id,
-      estado: estadoDoLocal(kits),
+      estado: estadoDoLocal(kits, atrasadas),
       etiqueta: kits.length ? `${kits.length} ${kits.length === 1 ? 'kit' : 'kits'}` : undefined,
       semKit: !kits.length,
       recolhido,

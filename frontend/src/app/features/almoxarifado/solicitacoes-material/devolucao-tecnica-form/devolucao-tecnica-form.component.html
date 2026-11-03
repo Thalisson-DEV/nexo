@@ -1,0 +1,110 @@
+<ces-form-drawer #gaveta [visible]="aberto()" (visibleChange)="!$event && fechar()" title="Nova devolução de material" [description]="obraFixa() ? obraRotulo() : 'Da obra para o almoxarifado; o saldo é movimentado na hora.'"
+  size="lg" [resizable]="true" [dirty]="alterado()" [loading]="carregando()">
+  @if (erroCatalogos()) {
+    <ces-async-state state="error" title="Não foi possível preparar o formulário" [description]="erroCatalogos()" actionLabel="Tentar de novo" (action)="carregarCatalogos()"></ces-async-state>
+  } @else {
+    <div class="sol-form">
+      <ces-form-section title="Origem e destino" icon="pi pi-building">
+        @if (!obraFixa()) {
+          <ces-select label="Obra" [required]="true" [options]="obraOpcoes()" [value]="idObra()" (valueChange)="selecionarObra($event)" [filter]="true"
+            placeholder="Pesquisar por número ou título" [error]="erro('idObra')"></ces-select>
+        }
+        <div class="ces-form-grid">
+          <ces-select label="Equipe responsável" [required]="true" [options]="equipeOpcoes()" [(value)]="idEquipe" [filter]="true" [error]="erro('idEquipe')"></ces-select>
+          <ces-select label="Almoxarifado de destino" [required]="true" [options]="destinoOpcoes()" [(value)]="idEstoqueDestino" [filter]="true" [error]="erro('idEstoqueDestino')"></ces-select>
+        </div>
+        @if (ocorrenciaObrigatoria()) {
+          <ces-text-input label="Ocorrência (OC/OS)" [required]="true" [(value)]="ocorrencia" [maxlength]="100" placeholder="Número da OC/OS" [error]="erro('ocorrencia')"></ces-text-input>
+        }
+      </ces-form-section>
+
+      <ces-form-section title="Materiais" icon="pi pi-box">
+        @if (estoqueObra()) {
+          <div section-actions>
+            <ces-button variant="ghost" size="sm" icon="pi pi-box" label="Ver saldo da obra" (pressed)="abrirSaldoObra()"></ces-button>
+          </div>
+        }
+        <div class="sol-novo-item">
+          <div class="sol-novo-item__material">
+            <ces-autocomplete inputId="materialDevolucao" label="Material" [showSearchInstruction]="false" [options]="materiais()" [ngModel]="idMaterial()" (ngModelChange)="aoEscolherMaterial($event)"
+              [loading]="materiaisCarregando()" [status]="materiaisStatus()" [error]="materiaisErro()" placeholder="Pesquise por código ou descrição" [minLength]="2" appendTo="body"
+              (search)="buscarMateriais($event)" (loadMore)="carregarMaisMateriais()" (retry)="tentarMateriaisDeNovo()"></ces-autocomplete>
+          </div>
+          <div class="sol-novo-item__material ces-form-grid">
+            <ces-select label="Tipo" [options]="tipos" [(value)]="tipo"></ces-select>
+            <ces-select label="Condição" [options]="condicoes" [value]="condicao()" (valueChange)="aoMudarCondicao($event!)"></ces-select>
+            @if (!controlaSerie()) {
+              <ces-number-input label="Quantidade" [(value)]="quantidade" [min]="0.001" [step]="0.001" [maxFractionDigits]="3"></ces-number-input>
+            }
+          </div>
+          @if (controlaSerie()) {
+            <div class="sol-novo-item__material">
+              <ces-textarea label="Números de série" [(value)]="seriesTexto" [rows]="2" description="Um por linha. Série que não está na obra também pode ser informada."></ces-textarea>
+              @if (seriesDaObra().length) {
+                <div class="sol-opcoes" role="group" aria-label="Séries nesta obra">
+                  @for (serie of seriesDaObra(); track serie) {
+                    <ces-button variant="ghost" size="sm" [label]="serie" (pressed)="adicionarSerie(serie)"></ces-button>
+                  }
+                </div>
+              }
+            </div>
+          }
+          <div class="sol-novo-item__material">
+            <ces-boolean-control label="Guardar no almoxarifado" description="Desligado, o material é devolvido e baixado na mesma operação." kind="toggle" [(value)]="guardar"></ces-boolean-control>
+          </div>
+          @if (material()) {
+            <p class="sol-novo-item__material sol-resumo" aria-live="polite">
+              Saldo na obra: {{ saldoSelecionado() }} {{ material()!.unidadeMedida }} ({{ condicao() === 'SUCATA' ? 'sucata' : 'novo' }}).
+              @if (excede()) { A diferença será lançada como entrada na obra. }
+            </p>
+          }
+          <div class="sol-novo-item__botao">
+            <ces-button variant="outline" icon="pi pi-plus" label="Adicionar" [disabled]="!podeIncluir()" (pressed)="adicionarItem()"></ces-button>
+          </div>
+        </div>
+        @if (erro('itens')) {
+          <p class="sol-erro" role="alert">{{ erro('itens') }}</p>
+        }
+        @if (itens().length) {
+          <ul class="sol-itens" aria-label="Materiais da devolução">
+            @for (item of itens(); track item.idMaterial + item.tipo + item.condicao; let i = $index) {
+              <li class="sol-item sol-item--devolucao">
+                <span class="sol-item__nome">
+                  <span class="sol-item__codigo">{{ item.codigo }}</span>
+                  <span class="sol-item__descricao" [title]="item.descricao">{{ item.descricao }}</span>
+                  @if (item.numSeries?.length) {
+                    <span class="sol-item__descricao">Séries: {{ item.numSeries!.join(', ') }}</span>
+                  }
+                  @if (item.quantidade > item.saldoNaObra) {
+                    <span class="sol-item__descricao">Saldo na obra: {{ item.saldoNaObra }}; a diferença entra como entrada.</span>
+                  }
+                </span>
+                <span class="sol-opcoes">
+                  <ces-status tone="neutral">{{ rotuloTipo(item.tipo) }}</ces-status>
+                  <ces-status [tone]="item.condicao === 'SUCATA' ? 'warning' : 'success'">{{ item.condicao === 'SUCATA' ? 'Sucata' : 'Novo' }}</ces-status>
+                  <ces-button variant="ghost" size="sm" [icon]="item.guardarNoEstoque ? 'pi pi-inbox' : 'pi pi-trash'" [label]="item.guardarNoEstoque ? 'Guardar' : 'Baixar'" (pressed)="alternarDestino(i)"></ces-button>
+                </span>
+                @if (item.numSeries?.length) {
+                  <span>{{ item.quantidade }}</span>
+                } @else {
+                  <ces-number-input [label]="'Quantidade de ' + item.codigo" [labelVisible]="false" [value]="item.quantidade" (valueChange)="ajustarQuantidade(i, $event)" [min]="0.001" [step]="0.001" [maxFractionDigits]="3"></ces-number-input>
+                }
+                <ces-icon-button icon="pi pi-trash" [label]="'Remover ' + item.codigo" size="icon-sm" (pressed)="removerItem(i)"></ces-icon-button>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="sol-vazio">Nenhum material adicionado.</p>
+        }
+        @if (itensForaDoEstoque().length) {
+          <ces-callout tone="info" title="Material fora do saldo da obra">A diferença será lançada como entrada avulsa na obra, para o saldo não ficar negativo.</ces-callout>
+        }
+      </ces-form-section>
+    </div>
+  }
+  <ces-form-actions drawer-footer submitLabel="Registrar devolução" submitIcon="pi pi-undo" savingLabel="Registrando…" [saving]="salvando()" [disabled]="!!erroCatalogos() || carregando()" (save)="enviar()" (cancel)="gaveta.requestClose()">
+    <span actions-start class="sol-resumo">{{ itens().length }} {{ itens().length === 1 ? 'material' : 'materiais' }}</span>
+  </ces-form-actions>
+</ces-form-drawer>
+
+<app-saldo-estoque-dialog #saldoDialog></app-saldo-estoque-dialog>

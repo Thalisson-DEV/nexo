@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,4 +22,10 @@ public interface KitAplicadoRepository extends JpaRepository<KitAplicado, UUID> 
     List<KitAplicado> findByIdPontoAndAtivoTrue(UUID idPonto);
 
     List<KitAplicado> findByIdVaoAndAtivoTrue(UUID idVao);
+
+    @Query("""
+            select distinct k.idObra, k.usuarioCriacao from KitAplicado k
+            where k.idObra in :ids and k.ativo = true and k.usuarioCriacao is not null
+            """)
+    List<Object[]> levantadores(@Param("ids") Collection<UUID> ids);
 }

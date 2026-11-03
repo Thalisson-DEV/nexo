@@ -27,6 +27,26 @@ function plano(parcial: Partial<PlanejamentoObra>): PlanejamentoObra {
 const opcoes = { busca: '', soServicos: false, recolhidos: new Set<string>() };
 
 describe('planejamento.logic', () => {
+  it('marca o local como atrasado quando a programação do item passou do fim', () => {
+    const programado = kit('k1', { idPonto: 'p1' }, 'PROGRAMADO');
+    programado.itens[0].idProgramacao = 'pr1';
+
+    expect(estadoDoLocal([programado])).toBe('programado');
+    expect(estadoDoLocal([programado], new Set(['pr1']))).toBe('atrasado');
+  });
+
+  it('mostra a programação no item e só deixa retirar o que não tem execução', () => {
+    const programado = kit('k1', { idPonto: 'p1' }, 'PROGRAMADO');
+    programado.itens[0].idProgramacao = 'pr1';
+    const situacao = { id: 'pr1', numero: 1687, idEquipe: 'e', codigoEquipe: 'RET-04', inicio: '02/11/2026', fim: '03/11/2026', situacao: 'ATRASADA' as const };
+    const linhas = montarLinhas(plano({ pontos: [ponto('p1', '1')], kits: [programado], programacoes: [situacao] }), opcoes);
+
+    const item = linhas.find((l) => l.idItem === 'k1-s')!;
+    expect(item.programacao?.codigoEquipe).toBe('RET-04');
+    expect(item.podeRetirar).toBe(true);
+    expect(linhas.find((l) => l.tipo === 'ponto')!.estado).toBe('atrasado');
+  });
+
   it('ordena números de ponto em ordem natural e sugere o próximo', () => {
     expect(['10', '2', '1'].sort(compararNumero)).toEqual(['1', '2', '10']);
     expect(proximoNumero([ponto('a', '2'), ponto('b', '10'), ponto('c', '4A')])).toBe('11');

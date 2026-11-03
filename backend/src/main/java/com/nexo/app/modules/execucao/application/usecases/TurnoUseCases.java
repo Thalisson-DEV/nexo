@@ -30,6 +30,7 @@ import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -155,5 +156,16 @@ public class TurnoUseCases implements TurnoApi {
     @Transactional(readOnly = true)
     public Page<TurnoResponse> consultar(ConsultaTurnos consulta, Pageable pageable) {
         return repository.findAll(TurnoSpecification.filtrarPor(consulta), pageable).map(mapper::toResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PapeisTurno> buscarPapeis(Collection<UUID> idsTurnos) {
+        if (idsTurnos == null || idsTurnos.isEmpty()) {
+            return List.of();
+        }
+        return repository.findAllById(idsTurnos).stream()
+                .map(t -> new PapeisTurno(t.getId(), t.getIdLider(), Set.copyOf(t.getIdsSubstitutos())))
+                .toList();
     }
 }

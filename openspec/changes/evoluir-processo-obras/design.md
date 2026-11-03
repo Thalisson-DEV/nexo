@@ -122,7 +122,8 @@ migração e consumidas por `authGuard`.
 - A ficha da obra (`/obras/:id`) é uma página de aplicação, não A4: cabeçalho com prazo, indicadores, pontos de atenção
   (`obra-insights.ts`, função pura), dados, solicitações, orçamento, anexos, subprojetos, mapa e histórico. As ações ficam
   fixas no canto inferior direito; o que altera a obra fica em "Atualizar obra", e as seções mantêm seus atalhos.
-- Carteira: o "prazo" é a `dataPrevisaoFim` existente; novo só `prazoRegulado`. Status operacional reutiliza `StatusObra`
+- Carteira: o "prazo" é a `dataPrevisaoFim` existente; novo só `prazoRegulado`. A carteira não tem status próprio: a coluna de situação da planilha alimenta o `StatusObra`
+  (a `situacao_carteira`, texto livre, saiu na V201). Status operacional reutiliza `StatusObra`
   com histórico em `historico_status_obras` (gravado pelo domínio em toda troca, inclusive no cadastro atual) + observação.
   Obra ganhou `idContrato` (opcional) para filtrar kits.
 - Endpoints de carteira ficam em `CarteiraObraController`/`CarteiraObraUseCases`, sem alterar `ObraRequest`/`ObraUseCases`;
@@ -151,13 +152,85 @@ Melhorias decididas:
   cópia de código, descrição, unidade e quantidade do kit, para o catálogo não alterar o que já foi planejado.
 - Substituir o PDF mestre troca `id_anexo_mestre`. O anexo anterior segue ativo no histórico.
 
+### Decisões da frente C (programação, 01/11/2026)
+- A programação abre em drawer, não em diálogo, como os demais cadastros (D15). Criar nasce só da seleção no planejamento; o Gantt mostra e altera.
+- Selecionar um serviço traz os materiais pendentes do mesmo kit. Retirar o último serviço do kit tira os materiais junto. Retirar o último item exclui a programação.
+- Reprogramar mantém o valor congelado, mesmo que o início mude de vigência. Quem quiser o valor novo cancela e programa de novo.
+- Excluir é recusado quando há execução: apagaria o valor congelado que a medição usa. Nesse caso só cabe cancelar, e o item executado continua na programação cancelada. Cancelar e excluir devolvem os demais itens.
+- Status gravado: `PROGRAMADA` ou `CANCELADA`. Atrasada, em execução e concluída são calculadas pelos itens e pela data, sem sincronização.
+- Jornada e plataforma ficam em `tipos_equipe` (480 e 30 por padrão no banco), com ajuste opcional em `equipes`. O diálogo lista equipes ativas do mesmo processo da obra.
+- Deslocamento sai da base de cada equipe, não da base da obra, com o mesmo provedor e a mesma estimativa de D7. Não fica gravado.
+- Dias úteis: segunda a sexta menos feriados nacionais (`JanelaMetaFaturamento`). Feriado municipal fica de fora até a operação pedir. Programação que passa do período conta pela proporção de dias úteis.
+- Os eventos `ProgramacaoConfirmada/Alterada` de D9 entram quando houver consumidor (frentes G e H).
+- A tela de programação tem três visões do mesmo recorte, como a de solicitações: tabela, semana e mês por equipe. Mostra as equipes livres dos processos que têm obras, indicadores e as obras a programar. Canceladas só aparecem se escolhidas no filtro. O Gantt do sistema de referência estava com erro em 01/11/2026, então a tela não foi comparada com ele.
+- Arrastar grava ao soltar, com "Desfazer", e dispensa a observação obrigatória da reprogramação pelo detalhe: a observação automática e os dados de antes e depois ficam no histórico. No toque, arrastar é rolar, então a reprogramação fica no detalhe, que também é o caminho de teclado.
+- Filtros da programação rodam na tela, sobre o período carregado; base e tipo de equipe vão ao servidor. Sem situação escolhida valem as "Ativas", sem canceladas. Filtrando a programação, equipe sem barra sai da linha do tempo, porque não está livre, está fora do recorte.
+- O aviso de equipe ocupada considera o turno: manhã e tarde no mesmo dia não conflitam.
+
+### Decisões da frente D
+
+- Revisão do usuário em 01/11/2026, que substitui o que vier abaixo em contrário: **o supervisor só programa e analisa**. Abrir e fechar turno, preencher APR, apontar, ocorrência e relatório diário são da equipe, pelo app (change `execucao-campo-obras`). No web, Boletim, Turnos e detalhe são só leitura; saíram as operações de abrir, fechar e corrigir composição em nome da equipe. Os demais comandos ficam na API para o app, com `obras:turno:write` e `obras:execucao:write`, que nenhum perfil recebe até o perfil da equipe existir (V205). Consequência aceita pelo usuário: nada de execução entra no sistema até o app chegar, e a frente F fica sem dados reais.
+- O boletim segue a estrutura do dashboard de turnos, no contexto do técnico. O grupo Comercial sai do menu pelos módulos ocultos, sem bloquear as rotas que os dashboards usam; "Metas de faturamento" foi para Cadastros porque a meta do dia de Obras depende dela.
+- APR é o formulário feito antes de executar, obrigatório só quando o serviço será realizado. A liberação vale por serviço do dia (`SituacaoLiberacao`; ver "Decisões da frente E"): APR concluída libera o apontamento; ocorrência com `impede_execucao` dispensa a APR e bloqueia o apontamento. A API recusa apontamento sem turno na data.
+- As telas ficam no menu Obras (`/obras/turnos`, `/obras/turnos/:id`, `/obras/boletim`), com as peças do comercial, que não muda; o corte automático das 22:00 vale igual ao do comercial.
+- Consequência aceita do corte: o fim do encerramento automático sai do último lançamento de nota. Equipe de Obras não lança nota, então turno esquecido fica com zero hora. Por isso, turno lançado para um dia que já passou é aberto e fechado no mesmo passo.
+- Equipe de Obras é a de um processo com obras, como no Gantt. Turno de outro processo responde 404 no detalhe de Obras.
+- Líder e substitutos ficam no Turno, sem mudar `TurnoResponse`. Substituto é quem está no turno e não é titular na hora de gravar; o cadastro da equipe não muda. Sem líder informado, vale o responsável da equipe.
+- `ApontamentoExecucao` é a única origem de `quantidadeExecutada`, e o valor vem do congelado na programação. Passar do previsto exige justificativa por item; o excedente guarda só a parte que passou. O estorno desativa o apontamento e devolve a quantidade; item medido não estorna.
+- O primeiro apontamento coloca a obra em EM EXECUÇÃO, com registro no histórico de status. Obra encerrada não reabre.
+- Sem turno informado, o apontamento entra no turno da equipe na data. O apontamento também pode ser feito pela programação, sem passar pelo turno.
+- Realizado do turno é a soma dos apontamentos dele; meta do dia vem do cadastro de metas, pelo dia da abertura. Turno sem meta (fim de semana, por exemplo) não entra em "bateu" nem em "não bateu".
+- Os indicadores da listagem resumem equipe, base, obra, período e busca. Status, meta, relatório e ocorrência só filtram a tabela, então clicar num indicador não muda os números.
+- Boletim: "até o dia" conta da abertura do ciclo da meta até o dia; "dia anterior" é o dia útil anterior, para a segunda-feira não mostrar domingo vazio. O programado reparte a programação pelos dias úteis, como no Gantt.
+- Agendamento sem turno vale até hoje, para equipe sem nenhum turno no dia. Fim de semana no meio de uma programação longa não conta, salvo se ela começa nesse dia. Equipe que já fechou o turno do dia não entra.
+- `obras:turno:read` e `obras:turno:write` são novas; a migração dá leitura a quem já programa ou aponta, e gravação a quem aponta. O apontamento segue em `obras:execucao:write`.
+
+### Decisões da frente E (01/11/2026)
+
+- O supervisor lança a documentação técnica (visita prévia, As Built e equipamentos) pelo web e pelo app, com a mesma API. Isso não muda o turno: abrir e fechar turno, APR e apontamento continuam da equipe. As telas do app entram com a etapa 2.
+- `ModeloChecklistObra` guarda grupos e perguntas em JSONB, no desenho dos formulários do SST, com a finalidade VISITA_PREVIA ou AS_BUILT. A ficha As Built usa o mesmo modelo, porque os formulários da concessionária ainda não vieram: quando vierem, viram modelos sem mudar código. Nenhum modelo é semeado em migração. Quem configura tem `obras:documentacao:manage`, só administrador.
+- As respostas guardam o texto das perguntas, para o registro antigo continuar legível. Depois do primeiro uso, a estrutura do modelo trava e a alteração é por duplicação.
+- Ficha só existe para ponto com execução apontada ou kit marcado como executado antes. Ela pode ficar pela metade; incompleta, impede gerar o documento.
+- O documento As Built leva só as folhas com execução, marcadas sobre o projeto mestre, mais as fichas, as fotos e os equipamentos. Entra nos anexos como tipo "AS BUILT" e como nova versão; tentativa que falha não consome número de versão.
+- A liberação da APR passou a valer por serviço do dia (`id_programacao`), revisão do usuário em 01/11/2026: a equipe lança a qualquer hora, pode lançar mais de uma, e cada APR libera o seu serviço. Conta o dia da equipe, mesmo que em outro turno. APR concluída depois de um registro de "sem condição" libera o serviço.
+
+### Book da obra (revisão do usuário em 01/11/2026)
+
+- "Book" é o registro fotográfico da obra por ponto, e o As Built sai dele no final. A lista de religadores e reguladores deixou de se chamar "book" e virou "Equipamentos".
+- Quem fotografa é o pessoal de campo, pelo app. O supervisor e o administrativo também preenchem a ficha e anexam pelo web. Nesta revisão entraram a API e o web; a tela do app e o perfil da equipe ficam para a etapa 2.
+- As fotos pedidas são itens do modelo da ficha As Built (`estrutura.evidencias`: título e obrigatoriedade), e a estrutura trava junto com o modelo. Modelo gravado antes não tem a lista e vale como vazia. Além dos itens, o ponto aceita fotos avulsas, que não dependem de modelo.
+- A foto vale para qualquer ponto desde o início, porque a do "antes" vem antes da execução. A ficha continua só para ponto executado. O ponto segue um modelo só: o da ficha ou, antes dela, o das fotos já lançadas.
+- Faltar foto só avisa: ao gerar, a tela pede confirmação e lista os pontos sem foto ou com item obrigatório sem foto. O bloqueio continua sendo só a ficha incompleta.
+- O documento é um PDF só. Depois das folhas, cada ponto executado traz a ficha e as fotos, duas por linha, com item, legenda, data e autor.
+- Só JPG e PNG, conferidos pelo conteúdo do arquivo. O servidor guarda o original e uma miniatura de 480 px; a orientação do EXIF é aplicada na miniatura e no documento. Remover a foto é exclusão lógica, e o arquivo fica no armazenamento.
+
+### Decisões da frente F (medições, 02/11/2026)
+
+- O sistema de referência foi usado só como base (orientação do usuário): telas no padrão Nexo e melhorias sobre o que se viu lá.
+- Pré-fechamento em tela própria (`/obras/pre-fechamento`), não escondido no hub de relatórios. Situação calculada: pendente, pronto para concluir, sem levantamento e concluído. Concluir exige pontos e nenhum ponto ou vão sem kit, com a lista dos pontos sem kit na mensagem; reabrir é permitido. "Ponto sem vão" só avisa. Levantadores são os logins que criaram pontos, vãos ou kits. A conclusão fica em `planejamentos_obras` (quem e quando) e não trava o planejamento.
+- Só serviço é medido; material não tem valor. Kit marcado como executado antes do sistema fica fora, porque foi executado (e cobrado) antes. Entra só serviço concluído; em andamento espera.
+- Quantidade e valor medidos são a soma dos apontamentos ativos do item, com o valor congelado na programação. Serviço sem valor congelado entra com valor zero e a tela avisa antes de gerar.
+- Medição tem número sequencial, tipo PARCIAL ou CICLO e competência (mês civil). A parcial usa o mês corrente; a por ciclo escolhe a competência e só aceita o concluído até o último dia dela. O número só é tirado depois de validar.
+- A unicidade é o índice parcial `uq_medicao_itens_item_ativo`. Estorno exige justificativa, desativa os itens e devolve o serviço a concluído; a medição fica no histórico.
+- O ciclo mostra valor de projeto da obra, medido nas competências anteriores, saldo anterior, medido no ciclo e saldo depois desta medição.
+- Melhoria sobre a referência: em vez de digitar o código da obra, a tela abre na lista de obras com serviço a medir (valor e última execução), e a medição de cada obra abre num painel com os serviços marcados, saldo e confirmação do total.
+- Fechamento aceita até 200 códigos colados (linha, vírgula, ponto e vírgula, tabulação), lista os não encontrados e exporta XLSX com abas de resumo, serviços, materiais, kits e medições. O planejado usa o valor vigente hoje, só para comparar.
+- Filtros (pedido do usuário em 02/11/2026): pré-fechamento por situação, pendência, base, município, supervisor, status da obra, prioridade, levantador e tipo de execução. Os indicadores contam o recorte, e a situação só filtra a tabela. Medições: base, município e supervisor valem para as duas abas; "A medir" tem status e prioridade (na tela), "Geradas" tem tipo, situação, competência, quem gerou e período (no servidor).
+- Os eventos `MedicaoGerada/Estornada` de D9 entram quando houver consumidor.
+- Pendente: relatório detalhado orçado × faturado (6.4). As fotos "aprovadas" dependem da avaliação de fotos da etapa 2; até lá entram todas as fotos ativas do book.
+
 ### D14. Planejamento assistido pelo Copiloto
-Projetos vindos de CAD costumam não ter camada de texto, então a leitura é por imagem: o backend renderiza a página com PDFBox,
-divide em blocos sobrepostos quando a folha é grande, e envia ao modelo com visão por `CopilotoApi`, em processamento assíncrono. O modelo
-devolve JSON com pontos, vãos e textos lidos em coordenadas do bloco; o backend converte para [0,1] da página, une duplicados
-e procura os kits candidatos no catálogo do contrato por código e descrição, sem deixar o modelo inventar kit. O resultado fica em
-`analises_planejamento` como proposta. Gravar é um comando separado, com as sugestões que o usuário aceitou, pelas mesmas invariantes
-do planejamento manual.
+A leitura é híbrida, porque os projetos variam: em uns o desenho é vetorial com balões numerados, em outros é uma imagem embutida com
+os códigos dos postes como texto. Primeiro `LeitorCamadaProjeto` lê do PDF, sem IA, os códigos (ex.: D381272), as caixas de estrutura
+(ex.: 12/600; N1M; IM-R) e a escala, que são exatos. O modelo vê a folha inteira com essa lista e informa onde está cada símbolo, a qual
+ponto cada caixa pertence e quais pontos se ligam. Sem camada de texto, a folha vai por blocos sobrepostos e tudo vem do modelo.
+
+O processamento é assíncrono. A primeira tentativa usa raciocínio, mais preciso; se a resposta vier vazia ou fora do formato, repete sem
+ele. Se o modelo falhar, o que veio do texto do PDF continua valendo. O backend converte as coordenadas para [0,1] da página, une
+duplicados, numera na sequência da rede o que não tem número, estima a metragem pela escala quando ela não está escrita (e diz que é
+estimada) e procura os kits candidatos no catálogo do contrato, sem deixar o modelo inventar kit. Poste cujo código já está planejado não
+vira ponto novo: é assim que a rede continua de uma folha para a outra. O resultado fica em `analises_planejamento` como proposta.
+Gravar é um comando separado, com as sugestões que o usuário aceitou, pelas mesmas invariantes do planejamento manual.
 - Modelo com visão em `AI_LLM_VISION_MODEL`, no mesmo provedor e chave do chat; vazio deixa o recurso indisponível.
 - Alternativa: gravar direto e deixar o usuário corrigir. Rejeitada: erro de leitura viraria valor em R$ e programação.
 - O PDF do projeto é enviado ao provedor configurado; quem instala decide o provedor.
@@ -186,7 +259,17 @@ do planejamento manual.
 ## Open Questions
 
 - Motor de rotas: OSRM self-hosted (custo de infraestrutura) ou serviço externo pago?
-- Checklist de visita prévia e campos da ficha As Built: usar os modelos da concessionária (precisamos dos formulários).
+- Conteúdo dos modelos de visita prévia e de ficha As Built: cadastrar a partir dos formulários da concessionária (precisamos deles).
 - Calendário de dias úteis: feriados por município/base ou só nacionais?
 - Metragem no serviço: confirmar com a operação se o lançamento de cabo do vão é pago por metro (assumido sim, ver frente B).
 - Formato exato das planilhas de carteira, kits e serviços/orçamento previstos (amostras para os importadores).
+
+### D15. Cadastros em drawer e solicitação só técnica
+
+O cadastro da obra e as solicitações de material saem das telas em etapas e viram drawer de painel único (revisão não é etapa, conforme o Design System). As URLs antigas redirecionam e abrem o drawer sobre a listagem; a permissão de escrita é conferida pela listagem, porque rota de redirecionamento não aceita guard. A obra nova fica na lista, e a notificação oferece "Abrir obra".
+
+O processo comercial de solicitação de material fica oculto (menu e rotas), sem remoção de código ou dados. A solicitação técnica passa a ter tabela, quadro e calendário; o calendário usa a data prevista, e solicitação sem data não aparece nele.
+
+### D16. Devolução técnica direta
+
+A nova devolução técnica segue a devolução comercial: movimenta o saldo na hora, sem solicitação, com seletor 222/922 por item. A origem é o estoque da obra e o material pode não constar nele: a diferença entra antes na obra como `ENTRADA_AVULSA` e a `DEVOLUCAO` sai com a quantidade inteira, para o saldo não ficar negativo e o histórico fechar. As duas movimentações guardam a obra e o tipo (V200). Pedidos 222/922 já existentes continuam no fluxo antigo.

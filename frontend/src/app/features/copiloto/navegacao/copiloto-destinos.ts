@@ -126,7 +126,7 @@ export const COPILOTO_DESTINOS: Record<string, NavigationTarget> = {
   ),
   ALMOX_ESTOQUES: target('/almoxarifado/estoques', 'estoque:estoque:read'),
   ALMOX_TIPOS_ESTOQUE: target('/almoxarifado/tipos-estoque', 'estoque:tipo-estoque:read'),
-  ALMOX_SOLICITACOES: target('/almoxarifado/solicitacoes', 'estoque:solicitacao:read'),
+  ALMOX_SOLICITACOES: target('/almoxarifado/solicitacoes-tecnicas', 'estoque:solicitacao:read'),
   ALMOX_SOLICITACOES_TECNICAS: target(
     '/almoxarifado/solicitacoes-tecnicas', 'estoque:solicitacao:read'
   ),
@@ -152,7 +152,7 @@ export const COPILOTO_DESTINOS: Record<string, NavigationTarget> = {
   EXECUCAO_COMERCIAL: target('/execucao/comercial', 'execucao:comercial:read'),
   EXECUCAO_TURNOS: target('/execucao/turnos', 'execucao:comercial:read'),
   EXECUCAO_DASHBOARD_OPERACIONAL: target(
-    '/execucao/dashboard-operacional', 'execucao:comercial:read'
+    '/execucao/dashboard-operacional', 'obras:turno:read'
   ),
   EXECUCAO_DASHBOARD_TURNOS: target(
     '/execucao/dashboard-turnos', 'execucao:comercial:read'

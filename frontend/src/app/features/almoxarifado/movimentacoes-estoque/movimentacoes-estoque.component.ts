@@ -49,7 +49,7 @@ import { dataIso, dataLocal } from '../../../shared/listagem/listagem';
 import { MovimentacoesImportacaoComponent } from './movimentacoes-importacao.component';
 
 export interface OperacaoCardOption {
-  tipo: TipoMovimentacao | 'DEVOLUCAO_COMERCIAL' | 'IMPORTACAO';
+  tipo: TipoMovimentacao | 'DEVOLUCAO_TECNICA' | 'IMPORTACAO';
   titulo: string;
   subtitulo: string;
   tag: string;
@@ -114,12 +114,12 @@ const OPERACOES: OperacaoCardOption[] = [
     badgeTone: 'danger'
   },
   {
-    tipo: 'DEVOLUCAO_COMERCIAL',
-    titulo: 'Devolução comercial',
-    subtitulo: 'Processo comercial',
-    tag: '222 — Comercial',
-    descricao: 'Devolução do estoque de campo de uma equipe comercial para o almoxarifado físico (novo ou sucata).',
-    rota: '/almoxarifado/devolucao-comercial',
+    tipo: 'DEVOLUCAO_TECNICA',
+    titulo: 'Devolução técnica',
+    subtitulo: 'Processo de obras',
+    tag: '222 / 922',
+    descricao: 'Devolução de material da obra para o almoxarifado físico (novo ou sucata), mesmo que não esteja no saldo da obra.',
+    rota: '/almoxarifado/solicitacoes-tecnicas/devolucao',
     icone: 'pi pi-undo',
     badgeTone: 'brand'
   },

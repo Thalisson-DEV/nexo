@@ -331,6 +331,54 @@ export interface SolicitacaoResumoObra {
   dataPrevista: string | null;
   quantidadeSolicitada: number;
   quantidadePendente: number;
+  dataSolicitacao?: string | null;
+  almoxarifadoNome?: string | null;
+  itens?: ItemSolicitacaoResumoObra[];
+}
+
+export interface ItemSolicitacaoResumoObra {
+  idMaterial: string;
+  codigo: string;
+  descricao: string;
+  unidade?: string | null;
+  quantidade: number;
+  /** Entregue nas adições, devolvido nas devoluções. */
+  quantidadeAtendida: number;
+  quantidadePendente: number;
+}
+
+export interface MovimentacaoResumoObra {
+  idReferencia: string;
+  tipo: string;
+  tipoTecnico?: TipoSolicitacaoTecnica | null;
+  dataHora: string;
+  origemNome?: string | null;
+  destinoNome?: string | null;
+  idSolicitacao?: string | null;
+  itens: ItemMovimentacaoResumoObra[];
+}
+
+export interface ItemMovimentacaoResumoObra {
+  codigo: string;
+  descricao: string;
+  unidade?: string | null;
+  quantidade: number;
+  condicao?: string | null;
+  numSerie?: string | null;
+}
+
+export interface ItemSaldoObra {
+  codigo: string;
+  descricao: string;
+  unidade?: string | null;
+  condicao: string;
+  quantidade: number;
+  series: string[];
+}
+
+export interface SaldoObra {
+  idEstoque?: string | null;
+  itens: ItemSaldoObra[];
 }
 
 export interface ItemIntencaoSolicitacaoTecnica {
@@ -466,6 +514,8 @@ export interface SolicitacaoMaterialFilter {
   statuses?: StatusSolicitacaoMaterial[];
   dataInicio?: string | null;
   dataFim?: string | null;
+  previstaDe?: string | null;
+  previstaAte?: string | null;
   referencia?: string | null;
   numSerie?: string | null;
   buscaGlobal?: string | null;
@@ -668,6 +718,8 @@ export interface ProjecaoObraSolicitacoesResponse {
   tipoObra: TipoObraSolicitacao;
   ocorrencias: GrupoOcorrenciaSolicitacoes[];
   solicitacoes: SolicitacaoResumoObra[];
+  movimentacoes?: MovimentacaoResumoObra[];
+  movimentacoesTruncadas?: boolean;
 }
 
 export interface ProjetoRelacionadoSolicitacao {

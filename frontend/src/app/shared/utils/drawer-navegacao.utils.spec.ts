@@ -36,6 +36,25 @@ describe('drawer-navegacao.utils', () => {
     expect(document.body.classList).toContain('p-overflow-hidden');
   });
 
+  it('remove a máscara de drawer sem painel, mas mantém a de um drawer ainda aberto', () => {
+    const painel = mascara('p-drawer');
+    const doAberto = mascara('p-drawer-mask p-overlay-mask p-overlay-mask-enter-active');
+    const orfa = mascara('p-drawer-mask p-overlay-mask p-overlay-mask-enter-active');
+    document.body.classList.add('p-overflow-hidden');
+
+    limparMascarasOrfas();
+
+    expect(orfa.isConnected).toBe(false);
+    expect(doAberto.isConnected).toBe(true);
+    expect(document.body.classList).toContain('p-overflow-hidden');
+
+    painel.remove();
+    limparMascarasOrfas();
+
+    expect(doAberto.isConnected).toBe(false);
+    expect(document.body.classList).not.toContain('p-overflow-hidden');
+  });
+
   it('limpa depois que a navegação termina', async () => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
       cb(0);

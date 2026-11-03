@@ -48,7 +48,8 @@ public class AnalisePlanejamentoUseCases {
     @Transactional(readOnly = true)
     public DisponibilidadeAnalise disponibilidade(UUID idObra, int pagina) {
         AnaliseResponse ultima = analiseRepository
-                .findFirstByIdObraAndPaginaAndAtivoTrueOrderByDataCriacaoDesc(idObra, pagina)
+                .findFirstByIdObraAndPaginaOrderByDataCriacaoDesc(idObra, pagina)
+                .filter(AnalisePlanejamento::isAtivo)
                 .map(AnalisePlanejamentoUseCases::paraResponse)
                 .orElse(null);
         return new DisponibilidadeAnalise(copiloto.visaoDisponivel(), ultima);
@@ -113,6 +114,8 @@ public class AnalisePlanejamentoUseCases {
             VaoPlanejamento vao = planejamento.criarVao(idObra, a, b, aceito.metragem(), OrigemPlanejamento.COPILOTO);
             aplicarKits(obra, aceito.idsKits(), List.of(), List.of(vao.getId()));
         }
+        // Já virou planejamento: não fica mais disponível para revisar de novo.
+        analise.desativar();
         return planejamento.buscar(idObra);
     }
 

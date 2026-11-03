@@ -20,13 +20,32 @@ public record EquipeResponse(
     boolean ativo,
     List<EquipeMembroResponse> membros,
     BigDecimal metaFaturamentoMensal,
-    BigDecimal metaFaturamentoDiaria
+    BigDecimal metaFaturamentoDiaria,
+    Integer jornadaMinutos,
+    Integer plataformaMinutos
 ) {
     public EquipeResponse(UUID id, String codigo, TipoEquipeResponse tipoEquipe, ProcessoNegocioResponse processo,
                           VeiculoResponse veiculo, CoordenadorResponse coordenador, SupervisorResponse supervisor,
                           BaseOperacionalResponse baseOperacional, UUID idContrato, boolean ativo,
+                          List<EquipeMembroResponse> membros, BigDecimal metaFaturamentoMensal, BigDecimal metaFaturamentoDiaria) {
+        this(id, codigo, tipoEquipe, processo, veiculo, coordenador, supervisor, baseOperacional, idContrato, ativo, membros, metaFaturamentoMensal, metaFaturamentoDiaria, null, null);
+    }
+
+    public EquipeResponse(UUID id, String codigo, TipoEquipeResponse tipoEquipe, ProcessoNegocioResponse processo,
+                          VeiculoResponse veiculo, CoordenadorResponse coordenador, SupervisorResponse supervisor,
+                          BaseOperacionalResponse baseOperacional, UUID idContrato, boolean ativo,
                           List<EquipeMembroResponse> membros, BigDecimal metaFaturamentoMensal) {
-        this(id, codigo, tipoEquipe, processo, veiculo, coordenador, supervisor, baseOperacional, idContrato, ativo, membros, metaFaturamentoMensal, null);
+        this(id, codigo, tipoEquipe, processo, veiculo, coordenador, supervisor, baseOperacional, idContrato, ativo, membros, metaFaturamentoMensal, null, null, null);
+    }
+
+    /** Jornada da equipe em minutos: o ajuste dela ou, sem ajuste, a do tipo de equipe. */
+    public Integer jornadaEfetiva() {
+        return jornadaMinutos != null || tipoEquipe == null ? jornadaMinutos : tipoEquipe.jornadaMinutos();
+    }
+
+    /** Tempo de plataforma da equipe em minutos: o ajuste dela ou, sem ajuste, o do tipo de equipe. */
+    public Integer plataformaEfetiva() {
+        return plataformaMinutos != null || tipoEquipe == null ? plataformaMinutos : tipoEquipe.plataformaMinutos();
     }
 
     /**
@@ -35,6 +54,6 @@ public record EquipeResponse(
      */
     public EquipeResponse comMeta(BigDecimal metaDaJanela, BigDecimal metaDiaria) {
         return new EquipeResponse(id, codigo, tipoEquipe, processo, veiculo, coordenador, supervisor, baseOperacional,
-                idContrato, ativo, membros, metaDaJanela, metaDiaria);
+                idContrato, ativo, membros, metaDaJanela, metaDiaria, jornadaMinutos, plataformaMinutos);
     }
 }

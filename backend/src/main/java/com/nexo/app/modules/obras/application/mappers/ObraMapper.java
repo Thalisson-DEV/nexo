@@ -91,7 +91,6 @@ public interface ObraMapper {
                 obra.getPrazoRegulado(),
                 obra.getPrioridade(),
                 obra.getLotePrevisto(),
-                obra.getSituacaoCarteira(),
                 obra.getValorMaterialPrevisto(),
                 obra.getValorServicoPrevisto(),
                 obra.getObservacaoStatus(),

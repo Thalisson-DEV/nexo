@@ -95,7 +95,7 @@ class ProcessarImportacaoCarteiraServiceTest {
     @Test
     void reimportarAtualizaSoOsDadosDeCarteiraPresentesNaLinha() {
         Obra existente = novaObra("1000");
-        existente.informarCarteira(null, null, PrioridadeObra.BAIXA, "LOTE-A", "Liberada",
+        existente.informarCarteira(null, null, PrioridadeObra.BAIXA, "LOTE-A",
                 null, new BigDecimal("10.00"), new BigDecimal("20.00"));
         obras.put("1000", existente);
 
@@ -109,7 +109,6 @@ class ProcessarImportacaoCarteiraServiceTest {
         assertThat(existente.getIdContrato()).isEqualTo(contrato);
         assertThat(existente.getPrioridade()).isEqualTo(PrioridadeObra.ALTA);
         assertThat(existente.getLotePrevisto()).isEqualTo("LOTE-A");
-        assertThat(existente.getSituacaoCarteira()).isEqualTo("Liberada");
         assertThat(existente.getValorMaterialPrevisto()).isEqualByComparingTo("10.00");
         assertThat(existente.getValorServicoPrevisto()).isEqualByComparingTo("35000.50");
         assertThat(existente.getClasseTensao()).isEqualTo(ClasseTensao.MT_15);

@@ -22,7 +22,7 @@ import java.util.UUID;
 @Tag(name = "Dashboards", description = "Dashboards, consulta de turnos e relatórios das equipes de campo")
 public interface DashboardControllerDoc {
 
-    @Operation(summary = "Produção das equipes no período, comparada à meta proporcional e ao ritmo")
+    @Operation(summary = "Produção das equipes de obras no período (executado apontado nas obras), comparada à meta proporcional e ao ritmo")
     ResponseEntity<DashboardOperacionalResponse> gerarDashboardOperacional(
             @ParameterObject DashboardOperacionalFilter filter
     );

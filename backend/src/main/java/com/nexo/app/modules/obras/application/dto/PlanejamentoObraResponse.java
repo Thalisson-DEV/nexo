@@ -1,14 +1,17 @@
 package com.nexo.app.modules.obras.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.nexo.app.modules.obras.domain.ClasseTensao;
 import com.nexo.app.modules.obras.domain.OperacaoItemKit;
 import com.nexo.app.modules.obras.domain.OrigemPlanejamento;
+import com.nexo.app.modules.obras.domain.SituacaoProgramacao;
 import com.nexo.app.modules.obras.domain.StatusItemPlanejado;
 import com.nexo.app.modules.obras.domain.TipoExecucaoPonto;
 import com.nexo.app.modules.obras.domain.TipoItemKit;
 import com.nexo.app.modules.obras.domain.TipoPontoPlanejamento;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +19,7 @@ import java.util.UUID;
 
 /**
  * Planejamento completo da obra numa só leitura, para o editor montar a folha e a árvore sem várias chamadas.
- * Os valores são só dos serviços, pelo valor vigente hoje no contrato.
+ * Os valores são só dos serviços: o congelado na programação ou, sem programação, o vigente hoje no contrato.
  */
 public record PlanejamentoObraResponse(
         UUID idObra,
@@ -31,8 +34,16 @@ public record PlanejamentoObraResponse(
         List<Kit> kits,
         List<Anotacao> anotacoes,
         Indicadores indicadores,
-        List<AvancoKit> avancoKits
+        List<AvancoKit> avancoKits,
+        List<ProgramacaoDoPlano> programacoes
 ) {
+
+    /** Programação aberta da obra, para os selos da árvore e o estado atrasado na folha. */
+    public record ProgramacaoDoPlano(UUID id, long numero, UUID idEquipe, String codigoEquipe,
+                                     @JsonFormat(pattern = "dd/MM/yyyy") LocalDate inicio,
+                                     @JsonFormat(pattern = "dd/MM/yyyy") LocalDate fim,
+                                     SituacaoProgramacao situacao) {
+    }
 
     public record ProjetoMestre(UUID idAnexo, String nomeArquivo, long tamanhoBytes) {
     }
@@ -54,7 +65,7 @@ public record PlanejamentoObraResponse(
 
     public record Item(UUID id, TipoItemKit tipo, String codigo, String descricao, OperacaoItemKit operacao,
                        String unidade, BigDecimal quantidadePrevista, BigDecimal quantidadeExecutada,
-                       StatusItemPlanejado status, BigDecimal valorUnitario, Long versao) {
+                       StatusItemPlanejado status, BigDecimal valorUnitario, UUID idProgramacao, Long versao) {
     }
 
     public record Anotacao(UUID id, int pagina, BigDecimal x, BigDecimal y, String texto, String autor,

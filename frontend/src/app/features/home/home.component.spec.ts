@@ -21,7 +21,7 @@ describe('HomeComponent', () => {
 
     expect(links).toHaveLength(7);
     expect(links[0].textContent).toContain('Almoxarifado');
-    expect(links[0].getAttribute('href')).toBe('/almoxarifado/solicitacoes');
+    expect(links[0].getAttribute('href')).toBe('/almoxarifado/solicitacoes-tecnicas');
     expect(links[6].textContent).toContain('Chamados');
   });
 

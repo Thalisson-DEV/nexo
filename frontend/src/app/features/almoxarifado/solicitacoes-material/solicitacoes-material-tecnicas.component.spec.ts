@@ -62,7 +62,8 @@ describe('SolicitacoesMaterialTecnicasComponent', () => {
       ],
       data
     );
-  const ultimaConsulta = () => listar.mock.lastCall![0];
+  // As consultas de tamanho 1 são as contagens dos atalhos; a da tabela é a outra.
+  const ultimaConsulta = () => listar.mock.calls.filter(([f]) => f.size !== 1).at(-1)![0];
 
   beforeEach(() => {
     TestBed.resetTestingModule();
@@ -99,19 +100,51 @@ describe('SolicitacoesMaterialTecnicasComponent', () => {
     expect(TestBed.inject(Router).url).not.toContain('SN-1');
   });
 
+  it('atalhos de status contam cada status do recorte, somam ao clicar e Em aberto reúne o que exige ação', async () => {
+    listar.mockImplementation((f: { size: number; statuses?: string[] }) =>
+      f.size === 1 ? of({ content: [], page: { totalElements: f.statuses?.[0] === 'PENDENTE' ? 4 : 1 } }) : paginaTeste([solicitacao]));
+    const { el, componente } = await abrir();
+    await new Promise((r) => setTimeout(r));
+    const tela = componente as unknown as { contagemTotal(): number; contagemAbertas(): number; alternarStatus(s: string): void; definirStatus(s: string[]): void; emAberto: string[] };
+    expect(tela.contagemTotal()).toBe(12);
+    expect(tela.contagemAbertas()).toBe(6);
+    expect(listar.mock.calls.filter(([f]) => f.size === 1).every(([f]) => f.statuses.length === 1 && f.contexto === 'TECNICO')).toBe(true);
+
+    tela.alternarStatus('APROVADO');
+    tela.alternarStatus('PENDENTE');
+    await new Promise((r) => setTimeout(r));
+    expect(ultimaConsulta().statuses).toEqual(['PENDENTE', 'APROVADO']);
+
+    tela.definirStatus([...tela.emAberto]);
+    await new Promise((r) => setTimeout(r));
+    expect(ultimaConsulta().statuses).toEqual(['PENDENTE', 'APROVADO', 'ENTREGUE_PARCIAL']);
+    expect(el.textContent).toContain('Em aberto');
+  });
+
   it('só obras do processo OBRAS entram nas opções', async () => {
     const { componente } = await abrir();
     const tela = componente as unknown as { obraOptions(): { value: string }[] };
     expect(tela.obraOptions().map((o) => o.value)).toEqual(['obra-1']);
   });
 
-  it('modo kanban mostra o quadro no lugar da tabela; alternar navega entre as rotas', async () => {
+  it('modo kanban mostra o quadro no lugar da tabela; o seletor navega entre as visões', async () => {
     const { el, componente } = await abrir('/lista', { modo: 'kanban' });
     expect(el.querySelector('app-solicitacoes-tecnicas-kanban')).not.toBeNull();
     expect(el.querySelector('ces-data-table')).toBeNull();
     const navegar = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    (componente as unknown as { alternarModoExibicao(): void }).alternarModoExibicao();
-    expect(navegar).toHaveBeenCalledWith(['/almoxarifado/solicitacoes-tecnicas']);
+    const tela = componente as unknown as { trocarVisao(v: string): void };
+    tela.trocarVisao('kanban');
+    expect(navegar).not.toHaveBeenCalled();
+    tela.trocarVisao('calendario');
+    expect(navegar).toHaveBeenCalledWith(['/almoxarifado/solicitacoes-tecnicas/calendario'], expect.anything());
+    tela.trocarVisao('tabela');
+    expect(navegar).toHaveBeenLastCalledWith(['/almoxarifado/solicitacoes-tecnicas'], expect.anything());
+  });
+
+  it('modo calendário mostra a agenda no lugar da tabela', async () => {
+    const { el } = await abrir('/lista', { modo: 'calendario' });
+    expect(el.querySelector('app-solicitacoes-tecnicas-calendario')).not.toBeNull();
+    expect(el.querySelector('ces-data-table')).toBeNull();
   });
 
   it('sem conexão mostra o aviso; linha abre o detalhe', async () => {

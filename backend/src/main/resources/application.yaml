@@ -135,6 +135,7 @@ ces:
       fallback-model: ${AI_LLM_FALLBACK_MODEL:}
       # Opcional: modelo com visao usado para ler os projetos das obras. Vazio = recurso indisponivel.
       vision-model: ${AI_LLM_VISION_MODEL:}
+      vision-reasoning-effort: ${AI_LLM_VISION_REASONING_EFFORT:low}
       title-model: ${AI_LLM_TITLE_MODEL:}
       # Vazio = padrao do provedor (DeepSeek V4 na Fireworks: raciocinio ligado no nivel low).
       # O raciocinio nunca e exibido nem persistido; so e devolvido ao modelo dentro do mesmo turno.

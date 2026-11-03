@@ -1,0 +1,186 @@
+@if (saldo(); as carga) {
+  <div class="mat-secao">
+    <h3 class="mat-secao__titulo">
+      <button type="button" class="mat-secao__alternar" [attr.aria-expanded]="saldoAberto()" aria-controls="mat-saldo" (click)="saldoAberto.set(!saldoAberto())">
+        <i class="pi mat-seta" [class.pi-chevron-up]="saldoAberto()" [class.pi-chevron-down]="!saldoAberto()" aria-hidden="true"></i>
+        Saldo na obra
+        @if (carga.estado === 'ready') { <span class="mat-contagem">{{ carga.dados.itens.length }}</span> }
+      </button>
+    </h3>
+    @if (carga.estado === 'ready' && carga.dados.idEstoque) {
+      <span class="mat-secao__acoes">
+        <a routerLink="/almoxarifado/saldos/relatorio" [queryParams]="{ idEstoque: carga.dados.idEstoque }" target="_blank" rel="noopener">
+          Abrir relatório completo <i class="pi pi-external-link" aria-hidden="true"></i><span class="sr-only"> (abre em nova aba)</span>
+        </a>
+      </span>
+    }
+  </div>
+  <div class="mat-saldo" id="mat-saldo" [attr.data-aberto]="saldoAberto()">
+    @switch (carga.estado) {
+      @case ('loading') { <ces-async-state state="loading" [compact]="true" title="Carregando o saldo"></ces-async-state> }
+      @case ('error') {
+        <ces-async-state state="error" [compact]="true" title="Não foi possível carregar o saldo" [description]="carga.mensagem"
+          actionLabel="Tentar de novo" (action)="recarregarSaldo.emit()"></ces-async-state>
+      }
+      @case ('ready') {
+        @if (carga.dados.itens.length) {
+          <div class="mat-rolagem mat-rolagem--saldo" tabindex="0" role="region" aria-label="Saldo de materiais na obra">
+            <table class="mat-tabela">
+              <thead>
+                <tr>
+                  <th scope="col">Código</th>
+                  <th scope="col">Material</th>
+                  <th scope="col">Condição</th>
+                  <th scope="col" class="mat-num">Saldo</th>
+                  <th scope="col">Número de série</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of carga.dados.itens; track item.codigo + item.condicao) {
+                  <tr>
+                    <td class="mat-codigo">{{ item.codigo }}</td>
+                    <td>{{ item.descricao }}</td>
+                    <td><ces-status [tone]="tomCondicao(item.condicao)">{{ condicaoLabel(item.condicao) }}</ces-status></td>
+                    <td class="mat-num" [class.mat-pendente]="item.quantidade < 0">{{ item.quantidade | number: '1.0-3' }} {{ item.unidade }}</td>
+                    <td>{{ item.series.length ? item.series.join(', ') : 'Sem série' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="mat-vazio">Nenhum material em saldo nesta obra.</p>
+        }
+      }
+    }
+  </div>
+}
+
+<div class="mat-secao" [class.mat-secao--segunda]="saldo() !== null">
+  <h3 class="mat-secao__titulo">Solicitações <span class="mat-contagem">{{ solicitacoes().length }}</span></h3>
+  @if (solicitacoes().length > 1) {
+    <span class="mat-secao__acoes">
+      <button type="button" (click)="expandirSolicitacoes()">Expandir todas</button>
+      <span aria-hidden="true">·</span>
+      <button type="button" (click)="recolherSolicitacoes()">Recolher todas</button>
+    </span>
+  }
+</div>
+@if (solicitacoes().length) {
+  <ul class="mat-lista">
+    @for (s of solicitacoes(); track s.id) {
+      <li class="mat-bloco">
+        <button type="button" class="mat-linha" [attr.aria-expanded]="aberto(s.id)" [attr.aria-controls]="'mat-' + s.id" (click)="alternar(s.id)">
+          <span class="mat-icone" [attr.data-tom]="ehAdicao(s.tipo) ? 'success' : 'danger'" aria-hidden="true"><i [class]="tipoIcone(s.tipo)"></i></span>
+          <span class="mat-linha__corpo">
+            <span class="mat-linha__titulo">{{ tipoLabel(s.tipo) }} <span class="mat-id">#{{ s.id.slice(0, 8) }}</span></span>
+            <span class="mat-meta">
+              @if (s.dataSolicitacao) { <span>Solicitada em {{ s.dataSolicitacao | date: 'dd/MM/yyyy' }}</span> }
+              @if (s.dataPrevista) { <span>Previsto para {{ s.dataPrevista | date: 'dd/MM/yyyy' }}</span> }
+              @if (s.almoxarifadoNome) { <span>{{ s.almoxarifadoNome }}</span> }
+              @if (s.ocorrencia) { <span>Ocorrência {{ s.ocorrencia }}</span> }
+              @if (comPendencia(s); as n) { <span class="mat-pendente">{{ n }} com pendência</span> }
+            </span>
+          </span>
+          <ces-status [tone]="statusTone(s.status)">{{ statusLabel(s.status) }}</ces-status>
+          <span class="mat-contagem">{{ s.itens?.length ?? 0 }} {{ s.itens?.length === 1 ? 'material' : 'materiais' }}</span>
+          <i class="pi mat-seta" [class.pi-chevron-up]="aberto(s.id)" [class.pi-chevron-down]="!aberto(s.id)" aria-hidden="true"></i>
+        </button>
+        <div class="mat-detalhe" [id]="'mat-' + s.id" [attr.data-aberto]="aberto(s.id)">
+          <div class="mat-rolagem">
+            <table class="mat-tabela">
+              <thead>
+                <tr>
+                  <th scope="col">Código</th>
+                  <th scope="col">Material</th>
+                  <th scope="col" class="mat-num">Solicitado</th>
+                  <th scope="col" class="mat-num">{{ ehAdicao(s.tipo) ? 'Entregue' : 'Devolvido' }}</th>
+                  <th scope="col" class="mat-num">Pendente</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of s.itens; track $index) {
+                  <tr>
+                    <td class="mat-codigo">{{ item.codigo }}</td>
+                    <td>{{ item.descricao }}</td>
+                    <td class="mat-num">{{ item.quantidade | number: '1.0-3' }} {{ item.unidade }}</td>
+                    <td class="mat-num">{{ item.quantidadeAtendida | number: '1.0-3' }}</td>
+                    <td class="mat-num" [class.mat-pendente]="item.quantidadePendente > 0">{{ item.quantidadePendente | number: '1.0-3' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <a class="mat-abrir" [routerLink]="['/almoxarifado/solicitacoes-tecnicas', s.id]">Abrir solicitação</a>
+        </div>
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="mat-vazio">Nenhuma solicitação vinculada a esta obra.</p>
+}
+
+<div class="mat-secao mat-secao--segunda">
+  <h3 class="mat-secao__titulo">Movimentações <span class="mat-contagem">{{ movimentacoes().length }}</span></h3>
+  @if (movimentacoes().length > 1) {
+    <span class="mat-secao__acoes">
+      <button type="button" (click)="expandirMovimentacoes()">Expandir todas</button>
+      <span aria-hidden="true">·</span>
+      <button type="button" (click)="recolherMovimentacoes()">Recolher todas</button>
+    </span>
+  }
+</div>
+@if (movimentacoes().length) {
+  <ul class="mat-lista">
+    @for (m of movimentacoes(); track m.idReferencia) {
+      @let materiais = materiaisPorOperacao().get(m.idReferencia) ?? [];
+      <li class="mat-bloco">
+        <button type="button" class="mat-linha" [attr.aria-expanded]="aberto(m.idReferencia)" [attr.aria-controls]="'mat-' + m.idReferencia" (click)="alternar(m.idReferencia)">
+          <span class="mat-icone" [attr.data-tom]="movimentacao(m).tom" aria-hidden="true"><i [class]="movimentacao(m).icone"></i></span>
+          <span class="mat-linha__corpo">
+            <span class="mat-linha__titulo">{{ movimentacao(m).titulo }}@if (m.tipoTecnico) { · {{ tipoLabel(m.tipoTecnico) }}} <span class="mat-id">#{{ m.idReferencia.slice(0, 8) }}</span></span>
+            <span class="mat-meta">
+              <span>{{ m.dataHora | date: 'dd/MM/yyyy HH:mm' }}</span>
+              <span>{{ m.origemNome || 'Sem origem' }} → {{ m.destinoNome || 'Sem destino' }}</span>
+              @if (m.tipo === 'ENTRADA_AVULSA' && m.tipoTecnico) { <span>Material fora do saldo da obra</span> }
+            </span>
+          </span>
+          <span class="mat-contagem">{{ materiais.length }} {{ materiais.length === 1 ? 'material' : 'materiais' }}</span>
+          <i class="pi mat-seta" [class.pi-chevron-up]="aberto(m.idReferencia)" [class.pi-chevron-down]="!aberto(m.idReferencia)" aria-hidden="true"></i>
+        </button>
+        <div class="mat-detalhe" [id]="'mat-' + m.idReferencia" [attr.data-aberto]="aberto(m.idReferencia)">
+          <div class="mat-rolagem">
+            <table class="mat-tabela">
+              <thead>
+                <tr>
+                  <th scope="col">Código</th>
+                  <th scope="col">Material</th>
+                  <th scope="col">Condição</th>
+                  <th scope="col" class="mat-num">Quantidade</th>
+                  <th scope="col">Número de série</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (g of materiais; track g.chave) {
+                  <tr>
+                    <td class="mat-codigo">{{ g.codigo }}</td>
+                    <td>{{ g.descricao }}</td>
+                    <td><ces-status [tone]="g.condicao === 'Sucata' ? 'warning' : 'neutral'">{{ g.condicao }}</ces-status></td>
+                    <td class="mat-num">{{ g.quantidade | number: '1.0-3' }} {{ g.unidade }}</td>
+                    <td>{{ g.series.length ? g.series.join(', ') : 'Sem série' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <a class="mat-abrir" [routerLink]="['/almoxarifado/movimentacoes', m.idReferencia]">Abrir movimentação</a>
+        </div>
+      </li>
+    }
+  </ul>
+  @if (truncadas()) {
+    <p class="mat-vazio">Mostrando as movimentações mais recentes. O histórico completo está em Movimentações.</p>
+  }
+} @else {
+  <p class="mat-vazio">Nenhuma movimentação de estoque nesta obra.</p>
+}

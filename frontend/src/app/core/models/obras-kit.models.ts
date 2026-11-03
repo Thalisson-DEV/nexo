@@ -116,7 +116,6 @@ export interface CarteiraImportacaoLinha extends LinhaImportacaoBase {
   prazoRegulado?: string | null;
   prioridade?: string | null;
   lotePrevisto?: string | null;
-  situacaoCarteira?: string | null;
   valorProjeto?: string | null;
   valorMaterialPrevisto?: string | null;
   valorServicoPrevisto?: string | null;

@@ -11,7 +11,9 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -38,6 +40,12 @@ public class PlanejamentoObra extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "rotacoes", nullable = false, columnDefinition = "jsonb")
     private Map<String, Integer> rotacoes = new HashMap<>();
+
+    @Column(name = "levantamento_concluido_em")
+    private OffsetDateTime levantamentoConcluidoEm;
+
+    @Column(name = "levantamento_concluido_por", length = 255)
+    private String levantamentoConcluidoPor;
 
     public PlanejamentoObra(UUID idObra) {
         if (idObra == null) {
@@ -67,5 +75,45 @@ public class PlanejamentoObra extends BaseEntity {
             novas.put(String.valueOf(pagina), graus);
         }
         this.rotacoes = novas;
+    }
+
+    public boolean levantamentoConcluido() {
+        return levantamentoConcluidoEm != null;
+    }
+
+    /**
+     * O levantamento só fecha com pontos e com todo ponto e vão com kit: é o que garante que o valor planejado da obra
+     * está completo antes de programar e medir.
+     */
+    public void concluirLevantamento(int pontos, List<String> pontosSemKit, int vaosSemKit, String usuario,
+                                     OffsetDateTime quando) {
+        if (levantamentoConcluido()) {
+            throw new InvarianteVioladaException("O levantamento desta obra já está concluído.");
+        }
+        if (pontos == 0) {
+            throw new InvarianteVioladaException("A obra não tem pontos lançados no planejamento.");
+        }
+        if (!pontosSemKit.isEmpty() || vaosSemKit > 0) {
+            StringBuilder mensagem = new StringBuilder("Não é possível concluir o levantamento:");
+            if (!pontosSemKit.isEmpty()) {
+                List<String> amostra = pontosSemKit.stream().limit(20).toList();
+                mensagem.append(" ").append(pontosSemKit.size()).append(pontosSemKit.size() == 1 ? " ponto sem kit (" : " pontos sem kit (")
+                        .append(String.join(", ", amostra)).append(pontosSemKit.size() > amostra.size() ? ", …)" : ")");
+            }
+            if (vaosSemKit > 0) {
+                mensagem.append(pontosSemKit.isEmpty() ? " " : " e ").append(vaosSemKit).append(vaosSemKit == 1 ? " vão sem kit" : " vãos sem kit");
+            }
+            throw new InvarianteVioladaException(mensagem.append(".").toString());
+        }
+        this.levantamentoConcluidoEm = quando;
+        this.levantamentoConcluidoPor = usuario;
+    }
+
+    public void reabrirLevantamento() {
+        if (!levantamentoConcluido()) {
+            throw new InvarianteVioladaException("O levantamento desta obra já está pendente.");
+        }
+        this.levantamentoConcluidoEm = null;
+        this.levantamentoConcluidoPor = null;
     }
 }

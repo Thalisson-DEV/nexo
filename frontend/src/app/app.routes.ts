@@ -1,10 +1,19 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Params, RedirectFunction, Router, Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 import { publicGuard } from './core/guards/public.guard';
 import { AvaliacoesMaterialComponent } from './features/almoxarifado/avaliacoes-material/avaliacoes-material.component';
 import { MateriaisComponent } from './features/almoxarifado/materiais/materiais.component';
 import { CentrosInvestimentoComponent } from './features/almoxarifado/centros-investimento/centros-investimento.component';
 import { designSystemCatalogRoutes } from './design-system/catalog/design-system-catalog.routes';
+
+/**
+ * Cadastro que virou drawer: a URL antiga (menu, atalhos, links salvos) abre o drawer sobre a listagem.
+ * A permissão de escrita é conferida pela listagem, porque rota de redirecionamento não aceita guard.
+ */
+function abrirNoDrawer(destino: string, extras: Params = {}): RedirectFunction {
+  return ({ queryParams }) => inject(Router).createUrlTree([destino], { queryParams: { ...queryParams, novo: '1', ...extras } });
+}
 
 export const routes: Routes = [
   ...designSystemCatalogRoutes,
@@ -296,12 +305,17 @@ export const routes: Routes = [
       },
       {
         path: 'solicitacoes/nova',
-        data: { permission: 'estoque:solicitacao:create' },
-        loadComponent: () => import('./features/almoxarifado/solicitacoes-material/solicitacao-material-form/solicitacao-material-form.component').then(m => m.SolicitacaoMaterialFormComponent)
+        pathMatch: 'full',
+        redirectTo: abrirNoDrawer('/almoxarifado/solicitacoes')
       },
       {
         path: 'solicitacoes-tecnicas',
         data: { permission: 'estoque:solicitacao:read' },
+        loadComponent: () => import('./features/almoxarifado/solicitacoes-material/solicitacoes-material-tecnicas.component').then(m => m.SolicitacoesMaterialTecnicasComponent)
+      },
+      {
+        path: 'solicitacoes-tecnicas/calendario',
+        data: { permission: 'estoque:solicitacao:read', modo: 'calendario' },
         loadComponent: () => import('./features/almoxarifado/solicitacoes-material/solicitacoes-material-tecnicas.component').then(m => m.SolicitacoesMaterialTecnicasComponent)
       },
       {
@@ -311,13 +325,13 @@ export const routes: Routes = [
       },
       {
         path: 'solicitacoes-tecnicas/nova',
-        data: { permission: 'estoque:solicitacao:create' },
-        loadComponent: () => import('./features/almoxarifado/solicitacoes-material/solicitacao-tecnica-form/solicitacao-tecnica-form.component').then(m => m.SolicitacaoTecnicaFormComponent)
+        pathMatch: 'full',
+        redirectTo: abrirNoDrawer('/almoxarifado/solicitacoes-tecnicas')
       },
       {
         path: 'solicitacoes-tecnicas/devolucao',
-        data: { permission: 'estoque:solicitacao:create', modo: 'devolucao' },
-        loadComponent: () => import('./features/almoxarifado/solicitacoes-material/solicitacao-tecnica-form/solicitacao-tecnica-form.component').then(m => m.SolicitacaoTecnicaFormComponent)
+        pathMatch: 'full',
+        redirectTo: abrirNoDrawer('/almoxarifado/solicitacoes-tecnicas', { modo: 'devolucao' })
       },
       {
         path: 'solicitacoes-tecnicas/:id',
@@ -387,7 +401,7 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard-operacional',
-        data: { permission: 'execucao:comercial:read', fullBleed: true },
+        data: { permission: 'obras:turno:read', fullBleed: true },
         loadComponent: () => import('./features/execucao/dashboards/operacional/dashboard-operacional.component').then(m => m.DashboardOperacionalComponent)
       },
       {
@@ -460,8 +474,8 @@ export const routes: Routes = [
       },
       {
         path: 'nova',
-        data: { permission: 'obras:obra:write' },
-        loadComponent: () => import('./features/obras/form/obra-form.component').then(m => m.ObraFormComponent)
+        pathMatch: 'full',
+        redirectTo: abrirNoDrawer('/obras')
       },
       {
         path: 'novo',
@@ -484,14 +498,74 @@ export const routes: Routes = [
         loadComponent: () => import('./features/obras/kits/kits-construtivos.component').then(m => m.KitsConstrutivosComponent)
       },
       {
+        path: 'cadastros/checklists',
+        data: { permission: 'obras:documentacao:read' },
+        loadComponent: () => import('./features/obras/documentacao/modelos-checklist.component').then(m => m.ModelosChecklistComponent)
+      },
+      {
         path: 'cadastros/tipos-anexos',
         data: { permission: 'obras:cadastros:read' },
         loadComponent: () => import('./features/obras/cadastros/tipos-anexos/tipos-anexos.component').then(m => m.TiposAnexosComponent)
       },
       {
         path: ':id/editar',
-        data: { permission: 'obras:obra:write' },
-        loadComponent: () => import('./features/obras/form/obra-form.component').then(m => m.ObraFormComponent)
+        pathMatch: 'full',
+        redirectTo: ({ params }) => inject(Router).createUrlTree(['/obras'], { queryParams: { editar: params['id'] } })
+      },
+      {
+        path: 'turnos',
+        data: { permission: 'obras:turno:read' },
+        loadComponent: () => import('./features/obras/turnos/turnos-obra.component').then(m => m.TurnosObraComponent)
+      },
+      {
+        path: 'turnos/:id',
+        data: { permission: 'obras:turno:read', backFallback: '/obras/turnos' },
+        loadComponent: () => import('./features/obras/turnos/turno-obra-detalhe.component').then(m => m.TurnoObraDetalheComponent)
+      },
+      {
+        path: 'boletim',
+        data: { permission: 'obras:turno:read', fullBleed: true },
+        loadComponent: () => import('./features/obras/turnos/boletim-obra.component').then(m => m.BoletimObraComponent)
+      },
+      {
+        path: 'pre-fechamento',
+        data: { permission: 'obras:medicao:read' },
+        loadComponent: () => import('./features/obras/medicoes/pre-fechamento.component').then(m => m.PreFechamentoComponent)
+      },
+      {
+        path: 'medicoes',
+        data: { permission: 'obras:medicao:read' },
+        loadComponent: () => import('./features/obras/medicoes/medicoes.component').then(m => m.MedicoesComponent)
+      },
+      {
+        path: 'fechamento',
+        data: { permission: 'obras:medicao:read' },
+        loadComponent: () => import('./features/obras/medicoes/fechamento-obra.component').then(m => m.FechamentoObraComponent)
+      },
+      {
+        path: 'relatorio-medicao',
+        data: { permission: 'obras:medicao:read' },
+        loadComponent: () => import('./features/obras/medicoes/relatorio-medicao-detalhado.component').then(m => m.RelatorioMedicaoDetalhadoComponent)
+      },
+      {
+        path: 'programacao',
+        data: { permission: 'obras:programacao:read' },
+        loadComponent: () => import('./features/obras/programacao/programacao.component').then(m => m.ProgramacaoComponent)
+      },
+      {
+        path: 'programacao/semana',
+        data: { permission: 'obras:programacao:read', modo: 'semana' },
+        loadComponent: () => import('./features/obras/programacao/programacao.component').then(m => m.ProgramacaoComponent)
+      },
+      {
+        path: 'programacao/mes',
+        data: { permission: 'obras:programacao:read', modo: 'mes' },
+        loadComponent: () => import('./features/obras/programacao/programacao.component').then(m => m.ProgramacaoComponent)
+      },
+      {
+        path: 'programacao/historico',
+        data: { permission: 'obras:programacao:read' },
+        loadComponent: () => import('./features/obras/programacao/programacao-historico.component').then(m => m.ProgramacaoHistoricoComponent)
       },
       {
         path: ':id/planejamento',

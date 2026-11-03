@@ -176,7 +176,6 @@
                 </dd>
               </div>
               <div><dt>Lote previsto</dt><dd>{{ carteira()?.lotePrevisto || '—' }}</dd></div>
-              <div><dt>Situação na carteira</dt><dd>{{ carteira()?.situacaoCarteira || '—' }}</dd></div>
               <div><dt>Prazo regulado</dt><dd>{{ carteira()?.prazoRegulado || '—' }}</dd></div>
             </dl>
           </div>
@@ -185,41 +184,66 @@
         <!-- Solicitações de material -->
         <section class="obra-card" aria-labelledby="solicitacoes-titulo">
           <header class="obra-card__cabecalho">
-            <h2 id="solicitacoes-titulo"><i class="pi pi-cart-plus" aria-hidden="true"></i> Solicitações de material <span class="obra-card__contagem">{{ listaSolicitacoes().length }}</span></h2>
-            <ces-button variant="ghost" size="sm" icon="pi pi-plus" label="Nova solicitação" (pressed)="solicitarMateriais()"></ces-button>
+            <h2 id="solicitacoes-titulo"><i class="pi pi-cart-plus" aria-hidden="true"></i> Materiais da obra</h2>
+            <span class="ces-actions-row">
+              @if (podeDevolver) {
+                <ces-button variant="ghost" size="sm" icon="pi pi-undo" label="Nova devolução" (pressed)="devolvendo.set(true)"></ces-button>
+              }
+              <ces-button variant="ghost" size="sm" icon="pi pi-plus" label="Nova solicitação" (pressed)="solicitarMateriais()"></ces-button>
+            </span>
           </header>
           @switch (solicitacoes().estado) {
-            @case ('loading') { <ces-async-state state="loading" [compact]="true" title="Carregando as solicitações"></ces-async-state> }
+            @case ('loading') { <ces-async-state state="loading" [compact]="true" title="Carregando os materiais"></ces-async-state> }
             @case ('error') {
-              <ces-async-state state="error" [compact]="true" title="Não foi possível carregar as solicitações" [description]="mensagem(solicitacoes())"
+              <ces-async-state state="error" [compact]="true" title="Não foi possível carregar os materiais" [description]="mensagem(solicitacoes())"
                 actionLabel="Tentar de novo" (action)="carregarSolicitacoes()"></ces-async-state>
             }
             @default {
-              @if (listaSolicitacoes().length) {
-                <ul class="obra-lista">
-                  @for (s of listaSolicitacoes(); track s.id) {
-                    <li class="obra-lista__item">
-                      <span class="obra-lista__icone" [attr.data-tom]="tipoTecnicoEhAdicao(s.tipo) ? 'success' : 'danger'" aria-hidden="true"><i [class]="tipoTecnicoIcon(s.tipo)"></i></span>
-                      <span class="obra-lista__corpo">
-                        <a class="obra-lista__titulo" [routerLink]="['/almoxarifado/solicitacoes-tecnicas', s.id]">{{ tipoTecnicoLabel(s.tipo) }} · {{ s.id.slice(0, 8) }}</a>
-                        <span class="obra-lista__detalhe">
-                          {{ s.quantidadeSolicitada }} {{ s.quantidadeSolicitada === 1 ? 'item solicitado' : 'itens solicitados' }}
-                          @if (s.quantidadePendente) { · {{ s.quantidadePendente }} pendente(s) }
-                          @if (s.dataPrevista) { · previsto para {{ s.dataPrevista | date: 'dd/MM/yyyy' }} }
-                          @if (s.ocorrencia) { · ocorrência {{ s.ocorrencia }} }
-                        </span>
-                      </span>
-                      <ces-status [tone]="statusSolicitacaoTone(s.status)">{{ statusSolicitacaoLabel(s.status) }}</ces-status>
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <ces-async-state state="empty" [compact]="true" icon="pi pi-cart-plus" title="Nenhuma solicitação de material"
-                  description="As solicitações técnicas vinculadas a esta obra aparecem aqui."></ces-async-state>
-              }
+              <app-obra-materiais [solicitacoes]="listaSolicitacoes()" [movimentacoes]="listaMovimentacoes()" [truncadas]="movimentacoesTruncadas()" [saldo]="saldoObra()" (recarregarSaldo)="carregarSaldo()"></app-obra-materiais>
             }
           }
         </section>
+
+        <!-- Programação -->
+        @if (podeVerProgramacao) {
+          <section class="obra-card" aria-labelledby="programacao-titulo">
+            <header class="obra-card__cabecalho">
+              <h2 id="programacao-titulo"><i class="pi pi-calendar" aria-hidden="true"></i> Programação</h2>
+              @if (podePlanejar) {
+                <a class="obra-programacao__acao" [routerLink]="['/obras', o.id, 'planejamento']"><i class="pi pi-calendar-plus" aria-hidden="true"></i> Programar no planejamento</a>
+              }
+            </header>
+            @if (resumoPlanejamento(); as r) {
+              @if (r.temKits) {
+                <div class="obra-programacao__avanco" role="img" [attr.aria-label]="numeroProgramacao(r.percentualConcluido) + '% concluído e ' + numeroProgramacao(r.percentualProgramado) + '% programado'">
+                  <span class="obra-programacao__parte" data-tipo="concluido" [style.width.%]="r.percentualConcluido"></span>
+                  <span class="obra-programacao__parte" data-tipo="programado" [style.width.%]="r.percentualProgramado"></span>
+                </div>
+                <p class="obra-programacao__legenda">
+                  {{ numeroProgramacao(r.percentualConcluido) }}% concluído · {{ numeroProgramacao(r.percentualProgramado) }}% programado · {{ moeda(r.valorPendente) }} por programar de {{ moeda(r.valorTotal) }}
+                  @if (r.pontosSemKit) { · {{ r.pontosSemKit }} {{ r.pontosSemKit === 1 ? 'ponto' : 'pontos' }} sem kit }
+                </p>
+              }
+            }
+            @if (programacoes().length) {
+              <ul class="obra-programacao__lista">
+                @for (p of programacoes(); track p.id) {
+                  <li>
+                    <button type="button" class="obra-programacao__linha" (click)="abrirProgramacao(p.id)">
+                      <strong>#{{ p.numero }}</strong>
+                      <span>{{ p.codigoEquipe }}</span>
+                      <span class="obra-programacao__periodo">{{ p.inicio }} a {{ p.fim }} · {{ rotuloTurno[p.turno] }}</span>
+                      <span class="obra-programacao__valor">{{ moeda(p.valor) }}</span>
+                      <ces-status [tone]="situacaoProgramacao[p.situacao].tom" [icon]="situacaoProgramacao[p.situacao].icone">{{ situacaoProgramacao[p.situacao].rotulo }}</ces-status>
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <ces-async-state state="empty" icon="pi pi-calendar" [compact]="true" title="Nada programado nesta obra" description="Selecione os itens no planejamento para programar uma equipe."></ces-async-state>
+            }
+          </section>
+        }
 
         <!-- Orçamento previsto -->
         <section class="obra-card" aria-labelledby="orcamento-titulo">
@@ -257,6 +281,15 @@
             }
           }
         </section>
+
+        @if (podeVerDocumentacao) {
+          <section class="obra-card" aria-labelledby="documentacao-titulo">
+            <header class="obra-card__cabecalho">
+              <h2 id="documentacao-titulo"><i class="pi pi-file-check" aria-hidden="true"></i> Documentação técnica</h2>
+            </header>
+            <app-obra-documentacao [idObra]="o.id" (anexoGerado)="recarregar()"></app-obra-documentacao>
+          </section>
+        }
 
         <!-- Anexos -->
         <section class="obra-card" aria-labelledby="anexos-titulo">
@@ -461,18 +494,26 @@
     </div>
 
     <!-- Ações da obra: fixas no canto inferior direito, como nos demais relatórios -->
-    <div class="obra-acoes" role="toolbar" aria-label="Ações da obra">
-      <ces-button variant="ghost" size="sm" icon="pi pi-arrow-left" label="Voltar" (pressed)="voltar()"></ces-button>
+    <div class="obra-acoes fixed bottom-6 right-6 md:bottom-8 md:right-12 flex items-center flex-wrap gap-2.5 print:hidden animate-in slide-in-from-right-4 duration-500 z-50" role="toolbar" aria-label="Ações da obra">
+      <ces-button variant="outline" size="sm" icon="pi pi-arrow-left" label="VOLTAR" (pressed)="voltar()"
+        className="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></ces-button>
       @if (podePlanejar) {
-        <ces-button variant="outline" size="sm" icon="pi pi-map" label="Planejar" (pressed)="planejar()"></ces-button>
+        <ces-button variant="outline" size="sm" icon="pi pi-map" label="PLANEJAR" (pressed)="planejar()"
+          className="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></ces-button>
       }
-      <ces-icon-button icon="pi pi-print" label="Imprimir relatório" size="icon-sm" (pressed)="imprimir()"></ces-icon-button>
-      <span class="obra-acoes__divisor" aria-hidden="true"></span>
-      <app-analisar-com-copiloto origem="Detalhe da obra" tipo="obra" [entidade]="o.id" [rotulo]="o.numero" [filtros]="{ obra: o.id }" size="sm" variant="ghost" label="Copiloto"
+      <app-analisar-com-copiloto origem="Detalhe da obra" tipo="obra" [entidade]="o.id" [rotulo]="o.numero" [filtros]="{ obra: o.id }" size="sm" variant="outline" label="COPILOTO"
+        className="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"
         pergunta="Faça um resumo desta obra: situação, prazo, carteira, materiais solicitados e pendências."></app-analisar-com-copiloto>
-      @if (!o.statusConcluida) {
-        <ces-button variant="outline" size="sm" icon="pi pi-cart-plus" label="Solicitar materiais" (pressed)="solicitarMateriais()"></ces-button>
+      @if (podeDevolver) {
+        <ces-button variant="outline" size="sm" icon="pi pi-undo" label="DEVOLVER MATERIAIS" (pressed)="devolvendo.set(true)"
+          className="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></ces-button>
       }
+      @if (!o.statusConcluida) {
+        <ces-button variant="outline" size="sm" icon="pi pi-cart-plus" label="SOLICITAR MATERIAIS" (pressed)="solicitarMateriais()"
+          className="!rounded-lg !bg-[var(--ces-surface)] !border-[var(--ces-border)] !text-[var(--ces-foreground-muted)] !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--ces-surface-muted)] hover:!text-[var(--ces-foreground)] cursor-pointer"></ces-button>
+      }
+      <p-button icon="pi pi-print" label="IMPRIMIR" (onClick)="imprimir()"
+        styleClass="!rounded-lg !bg-[var(--report-action-strong-bg)] !border-[var(--report-action-strong-bg)] !text-white !font-medium !text-[10px] !px-6 !py-2.5 !shadow-sm hover:!bg-[var(--report-action-strong-bg-hover)] cursor-pointer"></p-button>
       @if (acoesAtualizar().length) {
         <span (click)="menuAtualizar.toggle($event)">
           <ces-button size="sm" icon="pi pi-chevron-up" label="Atualizar obra"></ces-button>
@@ -512,7 +553,6 @@
         <ces-select label="Prioridade" [options]="prioridades" [(value)]="cPrioridade" [clearable]="true"></ces-select>
         <ces-datepicker label="Prazo regulado" [(value)]="cPrazoRegulado" [clearable]="true"></ces-datepicker>
         <ces-text-input label="Lote previsto" [(value)]="cLote" [maxlength]="40"></ces-text-input>
-        <ces-text-input label="Situação na carteira" [(value)]="cSituacao" [maxlength]="60" placeholder="Ex.: Liberada, Aguardando licença"></ces-text-input>
       </div>
     </ces-form-section>
     <ces-form-section title="Valores previstos" icon="pi pi-wallet">
@@ -581,4 +621,18 @@
       <ces-button variant="secondary" size="sm" label="Fechar" (pressed)="fecharPreview()"></ces-button>
     </div>
   </ces-dialog-shell>
+}
+
+@if (editando()) {
+  <app-obra-form [idObra]="obra()!.id" (salva)="carregarObra(obra()!.id, true)" (fechado)="editando.set(false)"></app-obra-form>
+}
+@if (devolvendo()) {
+  <app-devolucao-tecnica-form [idObra]="obra()!.id" (registrada)="carregarSolicitacoes()" (fechado)="devolvendo.set(false)"></app-devolucao-tecnica-form>
+}
+@if (solicitando()) {
+  <app-solicitacao-tecnica-form [idObra]="obra()!.id" (criadas)="carregarSolicitacoes()" (fechado)="solicitando.set(false)"></app-solicitacao-tecnica-form>
+}
+
+@if (idProgramacao()) {
+  <app-programacao-detalhe [(aberto)]="programacaoAberta" [idProgramacao]="idProgramacao()" (alterada)="carregarProgramacoes()"></app-programacao-detalhe>
 }

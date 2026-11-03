@@ -20,9 +20,13 @@ export interface DashboardTurnosFiltros extends DashboardRecorte {
 export type SituacaoMeta = 'META_ATINGIDA' | 'NO_RITMO' | 'ABAIXO_DO_RITMO' | 'SEM_META';
 export type SituacaoTurno = 'EM_TURNO' | 'ENCERRADO' | 'SEM_TURNO';
 
+/** Produção de um dia no dashboard operacional (executado nas obras). */
 export interface ProducaoDia {
   data: string;
-  notas: number;
+  /** Obras distintas com execução no dia. */
+  obras: number;
+  /** Serviços apontados no dia (itens de material não contam). */
+  servicos: number;
   valor: number;
   /** Parte da meta mensal que cabe ao dia (zero em dia não útil); nula sem meta cadastrada. */
   meta: number | null;
@@ -43,12 +47,29 @@ export interface ProducaoPorTipoServico {
   percentualNotas: number;
 }
 
+/** Execução de uma obra no recorte do dashboard operacional. */
+export interface ProducaoPorObra {
+  idObra: string;
+  numero: string;
+  titulo: string | null;
+  /** Equipes que executaram na obra no recorte. */
+  equipes: number;
+  servicos: number;
+  diasComExecucao: number;
+  producao: number;
+  /** Fatia da produção do recorte (0–100). */
+  percentualProducao: number;
+  ultimoApontamento: string | null;
+}
+
 export interface ResumoOperacional {
   producao: number;
   producaoPeriodoAnterior: number;
   variacaoPercentual: number | null;
-  notas: number;
-  valorMedioNota: number;
+  /** Obras distintas com execução no período. */
+  obrasAtendidas: number;
+  valorMedioObra: number;
+  servicos: number;
   equipesAtivas: number;
   equipesComProducao: number;
   equipesComMeta: number;
@@ -67,8 +88,9 @@ export interface EquipeOperacional {
   tipoEquipe: string | null;
   placa: string | null;
   producao: number;
-  notas: number;
-  valorMedioNota: number;
+  obrasAtendidas: number;
+  valorMedioObra: number;
+  servicos: number;
   diasComTurno: number;
   diasComProducao: number;
   producaoMediaPorDia: number;
@@ -78,9 +100,10 @@ export interface EquipeOperacional {
   percentualMeta: number | null;
   projecao: number | null;
   situacao: SituacaoMeta;
-  ultimoLancamento: string | null;
+  /** Dia (yyyy-MM-dd) do último apontamento no período. */
+  ultimoApontamento: string | null;
   producaoDiaria: ProducaoDia[];
-  tiposServico: ProducaoPorTipoServico[];
+  obras: ProducaoPorObra[];
 }
 
 export interface DashboardOperacionalResponse {
@@ -91,7 +114,7 @@ export interface DashboardOperacionalResponse {
   diasUteisEncerrados: number;
   resumo: ResumoOperacional;
   producaoDiaria: ProducaoDia[];
-  tiposServico: ProducaoPorTipoServico[];
+  obras: ProducaoPorObra[];
   equipes: EquipeOperacional[];
 }
 

@@ -1,6 +1,6 @@
 import { DestroyRef, Signal, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ActivatedRoute, ParamMap, Params, Router } from '@angular/router';
 import { NavigationHistoryService } from './navigation-history.service';
 
 export type DrawerUrlMode = 'novo' | 'editar' | 'ver';
@@ -13,7 +13,8 @@ export interface DrawerUrlState {
   readonly open: Signal<boolean>;
   /** Começa a ouvir a URL. `onChange` é chamado a cada abertura/troca/fechamento vindo da URL. */
   connect(onChange: (mode: DrawerUrlMode | null, id: string | null) => void): void;
-  openNew(): void;
+  /** `extras` vão para a URL junto (ex.: `{ modo: 'devolucao' }`); declare-os em `extraParams`. */
+  openNew(extras?: Params): void;
   openEdit(id: string): void;
   openView(id: string): void;
   /** Fecha: desfaz a entrada do histórico criada ao abrir (ou troca a URL no lugar, se veio por link). */
@@ -36,7 +37,7 @@ const PARAMS: Record<DrawerUrlMode, string> = { novo: 'novo', editar: 'editar', 
  * }
  * ```
  */
-export function bindDrawerToUrl(): DrawerUrlState {
+export function bindDrawerToUrl(options: { extraParams?: readonly string[] } = {}): DrawerUrlState {
   const router = inject(Router);
   const route = inject(ActivatedRoute);
   const history = inject(NavigationHistoryService);
@@ -53,24 +54,28 @@ export function bindDrawerToUrl(): DrawerUrlState {
     return [null, null];
   }
 
-  function navigate(next: DrawerUrlMode | null, nextId: string | null, replaceUrl: boolean) {
+  function navigate(next: DrawerUrlMode | null, nextId: string | null, replaceUrl: boolean, extras: Params = {}) {
+    // Sem isto, fechar um drawer aberto por link deixaria os extras para a próxima abertura.
+    const limpos = Object.fromEntries((options.extraParams ?? []).map((nome) => [nome, null]));
     return router.navigate([], {
       relativeTo: route,
       queryParams: {
         [PARAMS.novo]: next === 'novo' ? '1' : null,
         [PARAMS.editar]: next === 'editar' ? nextId : null,
         [PARAMS.ver]: next === 'ver' ? nextId : null,
+        ...limpos,
+        ...extras,
       },
       queryParamsHandling: 'merge',
       replaceUrl,
     });
   }
 
-  function open(next: DrawerUrlMode, nextId: string | null) {
+  function open(next: DrawerUrlMode, nextId: string | null, extras?: Params) {
     // Trocar de registro com o drawer aberto não empilha outra entrada.
     const replace = mode() !== null;
     if (!replace) pushedByUs = true;
-    void navigate(next, nextId, replace);
+    void navigate(next, nextId, replace, extras);
   }
 
   return {
@@ -88,7 +93,7 @@ export function bindDrawerToUrl(): DrawerUrlState {
         onChange(nextMode, nextId);
       });
     },
-    openNew: () => open('novo', null),
+    openNew: (extras) => open('novo', null, extras),
     openEdit: (registro) => open('editar', registro),
     openView: (registro) => open('ver', registro),
     close() {

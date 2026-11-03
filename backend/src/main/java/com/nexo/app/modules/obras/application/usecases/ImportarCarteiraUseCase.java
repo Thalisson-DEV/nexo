@@ -57,7 +57,7 @@ public class ImportarCarteiraUseCase {
 
     static final String[] CABECALHO_CARTEIRA = {
             "NUMERO", "TITULO", "TENSAO", "PRAZO", "PRAZO_REGULADO", "PRIORIDADE", "LOTE_PREVISTO",
-            "SITUACAO_CARTEIRA", "VALOR_PROJETO", "VALOR_MATERIAL_PREVISTO", "VALOR_SERVICO_PREVISTO",
+            "VALOR_PROJETO", "VALOR_MATERIAL_PREVISTO", "VALOR_SERVICO_PREVISTO",
             "LATITUDE", "LONGITUDE", "PROCESSO_NEGOCIO", "BASE_OPERACIONAL", "MUNICIPIO", "CENTRO_CUSTO",
             "SUPERVISOR", "COORDENADOR", "STATUS", "DATA_INICIO", "TIPO_OBRA"
     };
@@ -180,9 +180,9 @@ public class ImportarCarteiraUseCase {
             exigirCadastro(erros, cache, "supervisor", r.supervisor(), supervisorApi::buscarIdPorNomeColaborador);
             exigirCadastro(erros, cache, "coordenador", r.coordenador(), coordenadorApi::buscarIdPorNomeColaborador);
             tentar(erros, () -> normalizador.parseTipoObra(r.tipoObra()));
-            if (texto(r.statusObra()) != null && statusRepository.findByNomeIgnoreCase(r.statusObra().trim()).isEmpty()) {
-                erros.add("Status de obra não encontrado: " + r.statusObra() + ".");
-            }
+        }
+        if (texto(r.statusObra()) != null && statusRepository.findByNomeIgnoreCase(r.statusObra().trim()).isEmpty()) {
+            erros.add("Status de obra não encontrado: " + r.statusObra() + ".");
         }
         return erros.isEmpty()
                 ? r.withStatus(nova, ImportacaoStatus.AGUARDANDO_PROCESSAMENTO, null)
@@ -313,7 +313,7 @@ public class ImportarCarteiraUseCase {
     static CarteiraImportacaoLinha carteiraDe(Linha l) {
         return new CarteiraImportacaoLinha(l.numero(), l.valor(COL_NUMERO), l.valor(COL_TITULO), l.valor(COL_TENSAO),
                 l.valor(COL_PRAZO), l.valor(COL_PRAZO_REGULADO), l.valor(COL_PRIORIDADE), l.valor(COL_LOTE),
-                l.valor(COL_SITUACAO), l.valor(COL_VALOR_PROJETO), l.valor(COL_VALOR_MATERIAL), l.valor(COL_VALOR_SERVICO),
+                l.valor(COL_VALOR_PROJETO), l.valor(COL_VALOR_MATERIAL), l.valor(COL_VALOR_SERVICO),
                 l.valor(COL_LATITUDE), l.valor(COL_LONGITUDE), l.valor(COL_PROCESSO_NEGOCIO), l.valor(COL_BASE),
                 l.valor(COL_MUNICIPIO), l.valor(COL_CENTRO_CUSTO), l.valor(COL_SUPERVISOR), l.valor(COL_COORDENADOR),
                 l.valor(COL_STATUS), l.valor(COL_DATA_INICIO), l.valor(COL_TIPO_OBRA), null, null, null);
@@ -328,7 +328,6 @@ public class ImportarCarteiraUseCase {
         v.put(COL_PRAZO_REGULADO[0], r.prazoRegulado());
         v.put(COL_PRIORIDADE[0], r.prioridade());
         v.put(COL_LOTE[0], r.lotePrevisto());
-        v.put(COL_SITUACAO[0], r.situacaoCarteira());
         v.put(COL_VALOR_PROJETO[0], r.valorProjeto());
         v.put(COL_VALOR_MATERIAL[0], r.valorMaterialPrevisto());
         v.put(COL_VALOR_SERVICO[0], r.valorServicoPrevisto());

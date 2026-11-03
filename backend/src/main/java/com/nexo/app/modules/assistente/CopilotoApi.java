@@ -29,8 +29,14 @@ public interface CopilotoApi {
     /** Nome do modelo com visão, para registro. Nulo quando não há. */
     String modeloVisao();
 
-    /** Uma resposta do modelo com visão sobre as imagens, sem ferramentas. */
-    String completarComImagens(String sistema, String usuario, List<Imagem> imagens, double temperatura, int limiteTokens);
+    /**
+     * Uma resposta do modelo com visão sobre as imagens, sem ferramentas.
+     *
+     * @param comRaciocinio com raciocínio a leitura é mais precisa, mas alguns modelos gastam nele todo o limite de saída
+     *                      e a resposta volta vazia; sem ele é mais rápida e sempre responde
+     */
+    String completarComImagens(String sistema, String usuario, List<Imagem> imagens, double temperatura, int limiteTokens,
+                               boolean comRaciocinio);
 
     /**
      * Pede uma análise ao agente em nome do usuário e espera a resposta. A conversa fica

@@ -16,7 +16,6 @@ public record CarteiraImportacaoLinha(
         String prazoRegulado,
         String prioridade,
         String lotePrevisto,
-        String situacaoCarteira,
         String valorProjeto,
         String valorMaterialPrevisto,
         String valorServicoPrevisto,
@@ -37,7 +36,7 @@ public record CarteiraImportacaoLinha(
 ) {
     public CarteiraImportacaoLinha withStatus(Boolean nova, ImportacaoStatus novoStatus, String novaMensagem) {
         return new CarteiraImportacaoLinha(linha, numero, titulo, tensao, prazo, prazoRegulado, prioridade, lotePrevisto,
-                situacaoCarteira, valorProjeto, valorMaterialPrevisto, valorServicoPrevisto, latitude, longitude,
+                valorProjeto, valorMaterialPrevisto, valorServicoPrevisto, latitude, longitude,
                 processoNegocio, baseOperacional, municipio, centroCusto, supervisor, coordenador, statusObra,
                 dataInicio, tipoObra, nova, novoStatus, novaMensagem);
     }

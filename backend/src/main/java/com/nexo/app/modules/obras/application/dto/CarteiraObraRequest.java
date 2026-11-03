@@ -19,7 +19,6 @@ public record CarteiraObraRequest(
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate prazoRegulado,
         PrioridadeObra prioridade,
         @Size(max = 40, message = "O lote previsto deve ter até 40 caracteres") String lotePrevisto,
-        @Size(max = 60, message = "A situação na carteira deve ter até 60 caracteres") String situacaoCarteira,
         @DecimalMin(value = "0", message = "O valor de projeto não pode ser negativo") BigDecimal valorProjeto,
         @DecimalMin(value = "0", message = "O valor de material previsto não pode ser negativo") BigDecimal valorMaterialPrevisto,
         @DecimalMin(value = "0", message = "O valor de serviço previsto não pode ser negativo") BigDecimal valorServicoPrevisto

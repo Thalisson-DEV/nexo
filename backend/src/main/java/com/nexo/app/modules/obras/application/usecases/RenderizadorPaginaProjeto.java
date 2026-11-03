@@ -25,6 +25,7 @@ public class RenderizadorPaginaProjeto {
     private static final float DPI = 200f;
     private static final int MAIOR_LADO_PAGINA = 4000;
     private static final int MAIOR_LADO_BLOCO = 1600;
+    private static final int MAIOR_LADO_FOLHA_INTEIRA = 2400;
     private static final int MAXIMO_POR_EIXO = 3;
     private static final double SOBREPOSICAO = 0.12;
 
@@ -65,6 +66,21 @@ public class RenderizadorPaginaProjeto {
             }
         }
         return blocos;
+    }
+
+    /** A folha inteira numa imagem só, para ver as ligações da rede de uma ponta à outra. */
+    public Bloco renderizarInteira(byte[] pdf, int pagina) {
+        try (PDDocument documento = Loader.loadPDF(pdf)) {
+            if (pagina < 1 || pagina > documento.getNumberOfPages()) {
+                throw new InvarianteVioladaException("O projeto não tem a página " + pagina + ".");
+            }
+            var caixa = documento.getPage(pagina - 1).getBBox();
+            float dpi = Math.min(DPI, MAIOR_LADO_FOLHA_INTEIRA * 72f / Math.max(caixa.getWidth(), caixa.getHeight()));
+            BufferedImage imagem = new PDFRenderer(documento).renderImageWithDPI(pagina - 1, dpi, ImageType.RGB);
+            return new Bloco(0, 0, 1, 1, paraJpeg(imagem));
+        } catch (IOException e) {
+            throw new InvarianteVioladaException("Não foi possível ler o PDF do projeto.");
+        }
     }
 
     static int quantidade(int tamanho) {

@@ -60,6 +60,10 @@ public interface MovimentacaoEstoqueControllerDoc {
                description = "Transfere materiais em custódia no estoque de campo da equipe de volta para um almoxarifado físico ativo, nas condições NOVO ou SUCATA.")
     ResponseEntity<UUID> devolucaoComercial(DevolucaoComercialRequest request);
 
+    @Operation(summary = "Registrar devolução técnica de materiais (222 ou 922)",
+               description = "Transfere materiais da obra para um almoxarifado físico na hora. Material que não constava no estoque da obra entra nela como entrada avulsa antes de sair.")
+    ResponseEntity<UUID> devolucaoTecnica(com.nexo.app.modules.estoque.application.dto.DevolucaoTecnicaRequest request);
+
     @Operation(summary = "Validar arquivo CSV de importação de movimentações de estoque",
                description = "Analisa e valida o arquivo CSV enviado (entradas, saídas e transferências), verificando cadastros, regras de séries e estoques.")
     ResponseEntity<ImportacaoMovimentacaoResponse> validarImportacao(org.springframework.web.multipart.MultipartFile arquivo);

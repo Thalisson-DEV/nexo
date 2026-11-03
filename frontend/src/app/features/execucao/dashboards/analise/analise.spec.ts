@@ -68,50 +68,52 @@ describe('Análise · peças comuns', () => {
 });
 
 describe('Análise · dashboard operacional', () => {
+  const obra = { idObra: 'o1', numero: 'OB-100', titulo: 'Rede', equipes: 1, servicos: 5, diasComExecucao: 2, producao: 900, percentualProducao: 100, ultimoApontamento: '2026-10-02' };
   const equipe = (parcial: Partial<EquipeOperacional>): EquipeOperacional => ({
-    idEquipe: 'e1', codigo: 'EQ-01', baseOperacional: 'Base Salvador', processo: 'Corte', tipoEquipe: null, placa: null,
-    producao: 0, notas: 0, valorMedioNota: 0, diasComTurno: 0, diasComProducao: 0, producaoMediaPorDia: 0,
+    idEquipe: 'e1', codigo: 'EQ-01', baseOperacional: 'Base Salvador', processo: 'Obras', tipoEquipe: null, placa: null,
+    producao: 0, obrasAtendidas: 0, valorMedioObra: 0, servicos: 0, diasComTurno: 0, diasComProducao: 0, producaoMediaPorDia: 0,
     metaMensal: null, metaPeriodo: null, metaEsperadaAteAgora: null, percentualMeta: null, projecao: null,
-    situacao: 'SEM_META', ultimoLancamento: null, producaoDiaria: [], tiposServico: [], ...parcial
+    situacao: 'SEM_META', ultimoApontamento: null, producaoDiaria: [], obras: [], ...parcial
   });
   const d: DashboardOperacionalResponse = {
     inicio: '2026-10-01', fim: '2026-10-03', geradoEm: '2026-10-03T12:00:00-03:00', diasUteisPeriodo: 3, diasUteisEncerrados: 2,
     resumo: {
-      producao: 900, producaoPeriodoAnterior: 600, variacaoPercentual: 50, notas: 6, valorMedioNota: 150, equipesAtivas: 2,
-      equipesComProducao: 1, equipesComMeta: 1, metaPeriodo: 1500, producaoEquipesComMeta: 900, percentualMeta: 60,
+      producao: 900, producaoPeriodoAnterior: 600, variacaoPercentual: 50, obrasAtendidas: 1, valorMedioObra: 900, servicos: 5,
+      equipesAtivas: 2, equipesComProducao: 1, equipesComMeta: 1, metaPeriodo: 1500, producaoEquipesComMeta: 900, percentualMeta: 60,
       projecaoEquipesComMeta: 1350, equipesAbaixoDoRitmo: 1
     },
     producaoDiaria: [
-      { data: '2026-10-01', notas: 2, valor: 300, meta: 500 },
-      { data: '2026-10-02', notas: 4, valor: 600, meta: 500 },
-      { data: '2026-10-03', notas: 0, valor: 0, meta: 500 }
+      { data: '2026-10-01', obras: 1, servicos: 2, valor: 300, meta: 500 },
+      { data: '2026-10-02', obras: 1, servicos: 3, valor: 600, meta: 500 },
+      { data: '2026-10-03', obras: 0, servicos: 0, valor: 0, meta: 500 }
     ],
-    tiposServico: [{ idTipoServico: null, codigo: null, descricao: 'Não informado', notas: 6, producao: 900, valorMedioNota: 150, percentualNotas: 100 }],
+    obras: [obra],
     equipes: [
       equipe({
-        idEquipe: 'e1', codigo: 'EQ-01', producao: 900, notas: 6, valorMedioNota: 150, metaPeriodo: 1500, metaEsperadaAteAgora: 1000,
-        percentualMeta: 60, situacao: 'ABAIXO_DO_RITMO', diasComTurno: 3, diasComProducao: 2,
+        idEquipe: 'e1', codigo: 'EQ-01', producao: 900, obrasAtendidas: 1, valorMedioObra: 900, servicos: 5, metaPeriodo: 1500,
+        metaEsperadaAteAgora: 1000, percentualMeta: 60, situacao: 'ABAIXO_DO_RITMO', diasComTurno: 3, diasComProducao: 2,
         producaoDiaria: [
-          { data: '2026-10-01', notas: 2, valor: 300, meta: 500 },
-          { data: '2026-10-02', notas: 4, valor: 600, meta: 500 },
-          { data: '2026-10-03', notas: 0, valor: 0, meta: 500 }
-        ]
+          { data: '2026-10-01', obras: 1, servicos: 2, valor: 300, meta: 500 },
+          { data: '2026-10-02', obras: 1, servicos: 3, valor: 600, meta: 500 },
+          { data: '2026-10-03', obras: 0, servicos: 0, valor: 0, meta: 500 }
+        ],
+        obras: [obra]
       }),
       equipe({ idEquipe: 'e2', codigo: 'LV-02' })
     ]
   };
   const ctx = { d, filtros: { inicio: d.inicio, fim: d.fim }, service, nomeBase: null, nomeProcesso: null };
 
-  it('resolve cada cartão numa vista com origem conferida contra o painel', () => {
-    for (const kpi of ['producao', 'meta', 'notas', 'ritmo']) {
+  it('resolve cada cartão numa vista com as obras de origem conferidas contra o painel', () => {
+    for (const kpi of ['producao', 'meta', 'obras', 'ritmo']) {
       expect(vistaOperacional({ dimension: 'kpi', value: kpi }, ctx)).not.toBeNull();
     }
     const producao = vistaOperacional({ dimension: 'kpi', value: 'producao' }, ctx)!;
-    expect(producao.origem!.conferencia).toMatchObject({ quantidadeEsperada: 6, valorEsperado: 900 });
+    expect(producao.origem!.conferencia).toMatchObject({ quantidadeEsperada: 1, valorEsperado: 900 });
     expect(producao.copiloto!.pergunta).toContain('R$');
   });
 
-  it('o gráfico por dia aprofunda para a análise do dia; o dia navega para os vizinhos', () => {
+  it('o gráfico por dia aprofunda para a análise do dia; o dia navega para os vizinhos e para as equipes', () => {
     const producao = vistaOperacional({ dimension: 'kpi', value: 'producao' }, ctx)!;
     const porDia = producao.graficos.find((g) => g.id === 'producao-por-dia')!;
     expect(porDia.aoSelecionar!(1)).toEqual({ tipo: 'navegar', alvo: { dimension: 'dia', value: '2026-10-02' } });
@@ -119,16 +121,22 @@ describe('Análise · dashboard operacional', () => {
     const dia = vistaOperacional({ dimension: 'dia', value: '2026-10-02' }, ctx)!;
     expect(dia.anterior!.alvo.value).toBe('2026-10-01');
     expect(dia.proximo!.alvo.value).toBe('2026-10-03');
-    expect(dia.origem!.chave).toContain('"inicio":"2026-10-02","fim":"2026-10-02"');
-    // Clicar na equipe dentro do dia filtra as notas dela, sem sair da análise.
-    const acao = dia.graficos[0].aoSelecionar!(0);
-    expect(acao!.tipo).toBe('filtrar');
+    expect(dia.graficos[0].aoSelecionar!(0)).toEqual({ tipo: 'navegar', alvo: { dimension: 'equipe', value: 'e1' } });
+    expect(dia.links![0].rota).toBe('/obras/boletim');
+  });
+
+  it('a análise da obra mostra as equipes que executaram nela', () => {
+    const vista = vistaOperacional({ dimension: 'obra', value: 'o1' }, ctx)!;
+    expect(vista.titulo).toBe('OB-100 · Rede');
+    expect(vista.graficos[0].rotulos).toEqual(['EQ-01']);
+    expect(vista.links!.map((l) => l.rotulo)).toEqual(['Abrir a obra', 'Turnos da obra']);
   });
 
   it('alvo inexistente (link antigo) não abre análise', () => {
     expect(vistaOperacional({ dimension: 'dia', value: '2025-01-01' }, ctx)).toBeNull();
     expect(vistaOperacional({ dimension: 'equipe', value: 'x' }, ctx)).toBeNull();
-    expect(vistaOperacional({ dimension: 'kpi', value: 'x' }, ctx)).toBeNull();
+    expect(vistaOperacional({ dimension: 'obra', value: 'x' }, ctx)).toBeNull();
+    expect(vistaOperacional({ dimension: 'kpi', value: 'notas' }, ctx)).toBeNull();
   });
 
   it('a análise de ritmo calcula o necessário por dia útil restante', () => {

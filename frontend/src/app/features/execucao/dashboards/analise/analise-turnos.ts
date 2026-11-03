@@ -39,7 +39,7 @@ import {
   plural,
   rotuloHora
 } from './analise-comum';
-import { chaveTipo } from './analise-operacional';
+import { chaveTipo } from './analise-comum';
 
 /**
  * Análises (drill-down) do dashboard de turnos — um dia de operação. Os lançamentos de cada equipe já

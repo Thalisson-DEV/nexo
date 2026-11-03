@@ -1,11 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
-import { MessageService } from 'primeng/api';
+import { Router, provideRouter } from '@angular/router';
+import { NotificationService } from '@ces/ui';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ObraResponse } from '../../../core/models/obras.models';
+import { ObraResponse, TipoVinculoSubprojeto } from '../../../core/models/obras.models';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
 import { ObraFormComponent } from './obra-form.component';
@@ -62,19 +62,16 @@ describe('ObraFormComponent', () => {
       listarEquipes: vi.fn().mockReturnValue(of({ content: [] }))
     };
 
+    TestBed.overrideComponent(ObraFormComponent, { set: { imports: [], template: '' } });
     await TestBed.configureTestingModule({
       imports: [ObraFormComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        MessageService,
         { provide: ObrasService, useValue: obrasService },
         { provide: RhService, useValue: rhService },
-        {
-          provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: { get: () => null } } }
-        }
+        { provide: NotificationService, useValue: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }
       ]
     }).compileComponents();
 
@@ -83,143 +80,125 @@ describe('ObraFormComponent', () => {
     fixture.detectChanges();
   });
 
-  it('deve inicializar o formulário no modo de criação com etapa 1 ativa', () => {
-    expect(component).toBeTruthy();
-    expect(component['isEdit']()).toBe(false);
-    expect(component['activeStep']()).toBe(1);
-    expect(component['form'].get('numero')).toBeTruthy();
-    expect(component['form'].get('titulo')).toBeTruthy();
-    expect(component['form'].get('idSupervisor')).toBeTruthy();
-    expect(component['form'].get('idCoordenador')).toBeTruthy();
+  function preencherObrigatorios(): void {
+    const c = component as any;
+    c.numero.set('1228694');
+    c.titulo.set('SUBESTAÇÃO CENTRAL');
+    c.idProcesso.set('proc-1');
+    c.idBaseOperacional.set('base-1');
+    c.idMunicipio.set('mun-1');
+    c.idCentroCusto.set('cc-1');
+    c.idSupervisor.set('sup-1');
+    c.idCoordenador.set('coord-1');
+    c.dataInicio.set(new Date(2026, 2, 1));
+    c.dataPrevisaoFim.set(new Date(2026, 8, 30));
+  }
+
+  it('abre para cadastrar, sugerindo o status sem contar como alteração', () => {
+    expect(component['editando']()).toBe(false);
+    expect(component['idStatusObra']()).toBe('st-1');
+    expect(component['alterado']()).toBe(false);
+
+    component['numero'].set('1');
+    expect(component['alterado']()).toBe(true);
   });
 
-  it('deve sanitizar o número e título da obra ao alterar', () => {
-    component['form'].patchValue({ numero: 'b-1228694', titulo: '  reforma   geral  ' });
-    component['onNumeroChange']();
-    component['onTituloChange']();
+  it('não salva sem os obrigatórios e aponta cada campo', () => {
+    component['salvar']();
 
-    expect(component['form'].get('numero')?.value).toBe('1228694');
-    expect(component['form'].get('titulo')?.value).toBe('REFORMA GERAL');
+    expect(obrasService.criarObra).not.toHaveBeenCalled();
+    expect(component['erro']('numero')).toBeTruthy();
+    expect(component['erro']('idSupervisor')).toBeTruthy();
+    expect(component['erro']('idCoordenador')).toBeTruthy();
+    expect(component['erro']('dataInicio')).toBeTruthy();
   });
 
-  it('deve validar e permitir avanço entre as etapas do formulário', () => {
-    // Tenta avançar sem preencher
-    component['irPara'](2);
-    expect(component['activeStep']()).toBe(1);
-
-    // Preenche etapa 1 com dados cadastrais
-    component['form'].patchValue({
-      numero: '1228694',
-      titulo: 'SUBESTAÇÃO CENTRAL'
-    });
-    component['irPara'](2);
-    expect(component['activeStep']()).toBe(2);
-
-    // Tenta avançar para etapa 3 sem preencher planejamento completo
-    component['irPara'](3);
-    expect(component['activeStep']()).toBe(2);
-
-    // Preenche etapa 2 completa (incluindo supervisor e coordenador)
-    component['form'].patchValue({
-      idProcesso: 'proc-1',
-      idBaseOperacional: 'base-1',
-      idMunicipio: 'mun-1',
-      idCentroCusto: 'cc-1',
-      idSupervisor: 'sup-1',
-      idCoordenador: 'coord-1',
-      idStatusObra: 'st-1',
-      dataInicio: new Date(2026, 2, 1),
-      dataPrevisaoFim: new Date(2026, 8, 30)
-    });
-    component['irPara'](3);
-    expect(component['activeStep']()).toBe(3);
-
-    // Avança para revisão (etapa 4)
-    component['irPara'](4);
-    expect(component['activeStep']()).toBe(4);
+  it('só mostra erro depois da primeira tentativa de salvar', () => {
+    expect(component['erro']('numero')).toBeUndefined();
   });
 
-  it('deve bloquear etapa 2 se Supervisor ou Coordenador não forem selecionados', () => {
-    component['form'].patchValue({
-      numero: '1228694',
-      titulo: 'SUBESTAÇÃO CENTRAL',
-      idProcesso: 'proc-1',
-      idBaseOperacional: 'base-1',
-      idMunicipio: 'mun-1',
-      idCentroCusto: 'cc-1',
-      idStatusObra: 'st-1',
-      dataInicio: new Date(2026, 2, 1),
-      dataPrevisaoFim: new Date(2026, 8, 30),
-      idSupervisor: null,
-      idCoordenador: null
-    });
-
-    expect(component['isStep2Valid']()).toBe(false);
-
-    component['form'].patchValue({ idSupervisor: 'sup-1' });
-    expect(component['isStep2Valid']()).toBe(false);
-
-    component['form'].patchValue({ idCoordenador: 'coord-1' });
-    expect(component['isStep2Valid']()).toBe(true);
-  });
-
-  it('deve resolver os nomes de Supervisor e Coordenador para os cards de revisão', () => {
-    component['form'].patchValue({
-      idSupervisor: 'sup-1',
-      idCoordenador: 'coord-1'
-    });
-
-    expect(component['getSupervisorNome']()).toBe('CARLOS SILVA');
-    expect(component['getCoordenadorNome']()).toBe('MARCOS OLIVEIRA');
-  });
-
-  it('deve submeter o cadastro da obra com sucesso contendo supervisor e coordenador', () => {
-    component['form'].patchValue({
-      numero: '1228694',
-      titulo: 'SUBESTAÇÃO CENTRAL',
-      idProcesso: 'proc-1',
-      idBaseOperacional: 'base-1',
-      idMunicipio: 'mun-1',
-      idCentroCusto: 'cc-1',
-      idSupervisor: 'sup-1',
-      idCoordenador: 'coord-1',
-      idStatusObra: 'st-1',
-      dataInicio: new Date(2026, 2, 1),
-      dataPrevisaoFim: new Date(2026, 8, 30)
-    });
+  it('envia o cadastro com número e título limpos, avisa quem abriu e fecha', () => {
+    const salva = vi.fn();
+    component.salva.subscribe(salva);
+    preencherObrigatorios();
+    component['numero'].set('b-1228694');
+    component['titulo'].set('  reforma   geral  ');
 
     component['salvar']();
+
     expect(obrasService.criarObra).toHaveBeenCalledWith(
       expect.objectContaining({
+        numero: '1228694',
+        titulo: 'REFORMA GERAL',
         idSupervisor: 'sup-1',
-        idCoordenador: 'coord-1'
+        idCoordenador: 'coord-1',
+        idStatusObra: 'st-1',
+        idObraPai: null,
+        tipoVinculoPai: null
       })
     );
+    expect(salva).toHaveBeenCalledWith(mockObra);
+    expect(component['aberto']()).toBe(false);
   });
 
-  it('deve validar vínculo de subprojeto exigindo seleção da obra principal e tipo de vínculo', () => {
-    component['form'].patchValue({
-      ehSubprojeto: true,
-      idObraPai: null,
-      tipoVinculoPai: null
-    });
+  it('obra nova avisa com a opção de abrir; não sai da tela sozinha', () => {
+    const notificacoes = TestBed.inject(NotificationService) as unknown as { success: ReturnType<typeof vi.fn> };
+    const navegar = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    preencherObrigatorios();
 
-    expect(component['isStep3Valid']()).toBe(false);
+    component['salvar']();
 
-    component['form'].patchValue({
-      idObraPai: 'obra-pai-1',
-      tipoVinculoPai: 'KIT'
-    });
-
-    expect(component['isStep3Valid']()).toBe(true);
+    expect(navegar).not.toHaveBeenCalled();
+    const { action } = notificacoes.success.mock.calls[0][1];
+    expect(action.label).toBe('Abrir obra');
+    action.run();
+    expect(navegar).toHaveBeenCalledWith(['/obras', 'obra-1']);
   });
 
-  it('deve formatar corretamente a exibição da obra pai em getObraPaiDisplay', () => {
-    component['obrasPrincipaisList'].set([
-      { id: 'obra-pai-1', numero: '1228600', titulo: 'SUBESTAÇÃO PRINCIPAL' } as any
-    ]);
-    component['form'].patchValue({ idObraPai: 'obra-pai-1' });
+  it('subprojeto exige a obra principal e o tipo de vínculo', () => {
+    preencherObrigatorios();
+    component['ehSubprojeto'].set(true);
+    component['tipoVinculoPai'].set(null);
 
-    expect(component['getObraPaiDisplay']()).toBe('1228600 — SUBESTAÇÃO PRINCIPAL');
+    component['salvar']();
+    expect(obrasService.criarObra).not.toHaveBeenCalled();
+    expect(component['erro']('idObraPai')).toBeTruthy();
+    expect(component['erro']('tipoVinculoPai')).toBeTruthy();
+
+    component['idObraPai'].set('obra-pai-1');
+    component['tipoVinculoPai'].set(TipoVinculoSubprojeto.KIT);
+    component['salvar']();
+    expect(obrasService.criarObra).toHaveBeenCalledWith(expect.objectContaining({ idObraPai: 'obra-pai-1', tipoVinculoPai: 'KIT' }));
+  });
+
+  it('em edição, carrega a obra, não conta como alteração e atualiza', () => {
+    const edicao = TestBed.createComponent(ObraFormComponent);
+    edicao.componentRef.setInput('idObra', 'obra-1');
+    edicao.detectChanges();
+    const tela = edicao.componentInstance;
+
+    expect(obrasService.buscarObraPorId).toHaveBeenCalledWith('obra-1');
+    expect(tela['numero']()).toBe('1228694');
+    expect(tela['idSupervisor']()).toBe('sup-1');
+    expect(tela['alterado']()).toBe(false);
+
+    tela['idProcesso'].set('proc-1');
+    tela['idBaseOperacional'].set('base-1');
+    tela['idMunicipio'].set('mun-1');
+    tela['idCentroCusto'].set('cc-1');
+    tela['salvar']();
+    expect(obrasService.atualizarObra).toHaveBeenCalledWith('obra-1', expect.objectContaining({ numero: '1228694' }));
+  });
+
+  it('a obra principal não oferece a própria obra', () => {
+    obrasService.listarObras.mockReturnValue(of({ content: [
+      { id: 'obra-1', numero: '1228694', titulo: 'ELA MESMA' },
+      { id: 'obra-pai-1', numero: '1228600', titulo: 'SUBESTAÇÃO PRINCIPAL' }
+    ] }));
+    const edicao = TestBed.createComponent(ObraFormComponent);
+    edicao.componentRef.setInput('idObra', 'obra-1');
+    edicao.detectChanges();
+
+    expect(edicao.componentInstance['obrasPaiOpcoes']()).toEqual([{ label: '1228600 — SUBESTAÇÃO PRINCIPAL', value: 'obra-pai-1' }]);
   });
 });

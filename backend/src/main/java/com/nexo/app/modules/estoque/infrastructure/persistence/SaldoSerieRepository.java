@@ -24,6 +24,9 @@ public interface SaldoSerieRepository extends JpaRepository<SaldoSerie, UUID>, J
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"estoque", "material"})
     java.util.List<SaldoSerie> findAllByNumSerieInAndAtivoTrue(java.util.Collection<String> numSeries);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"material"})
+    java.util.List<SaldoSerie> findByEstoqueIdAndAtivoTrue(UUID estoqueId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select serie from SaldoSerie serie

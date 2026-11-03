@@ -385,7 +385,6 @@ export interface CarteiraObraResponse {
   prazoRegulado?: string | null; // dd/MM/yyyy
   prioridade?: PrioridadeObra | null;
   lotePrevisto?: string | null;
-  situacaoCarteira?: string | null;
   valorMaterialPrevisto?: number | null;
   valorServicoPrevisto?: number | null;
   observacaoStatus?: string | null;
@@ -401,7 +400,6 @@ export interface CarteiraObraRequest {
   prazoRegulado?: string | null; // dd/MM/yyyy
   prioridade?: PrioridadeObra | null;
   lotePrevisto?: string | null;
-  situacaoCarteira?: string | null;
   valorProjeto?: number | null;
   valorMaterialPrevisto?: number | null;
   valorServicoPrevisto?: number | null;

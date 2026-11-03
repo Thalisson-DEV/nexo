@@ -52,17 +52,17 @@ import {
   isoLocal,
   moeda,
   moedaCompacta,
+  obrasEmDestaque,
   ordenarEquipesOperacional,
   percentual,
   serieAcumulada,
   serieMensal,
   seriePorEquipe,
-  tiposEmDestaque,
   tomDaMeta,
   variacao
 } from '../execucao-dashboards.utils';
 import { RecorteDashboardService } from '../recorte-dashboard.service';
-import { chaveTipo, vistaOperacional } from '../analise/analise-operacional';
+import { vistaOperacional } from '../analise/analise-operacional';
 import { graficosDaAnalise } from '../analise/analise-copiloto';
 import { visaoOperacional } from '../analise/visao-gerencial';
 import { atualizarPeriodicamente } from '../../../../shared/components/dashboard/atualizacao-automatica';
@@ -71,8 +71,8 @@ type FiltroEquipes = 'todas' | 'abaixo' | 'sem-producao';
 type PeriodoRapido = 'mes' | 'mes-anterior' | '7-dias';
 
 /**
- * Dashboard operacional: quanto cada equipe produziu no período, como isso se compara
- * à meta proporcional e se o ritmo atual fecha a meta.
+ * Dashboard operacional do processo de obras: quanto cada equipe executou nas obras no período (o mesmo
+ * executado do boletim), como isso se compara à meta proporcional e se o ritmo atual fecha a meta.
  */
 @Component({
   selector: 'app-dashboard-operacional',
@@ -110,7 +110,6 @@ export class DashboardOperacionalComponent implements OnInit {
   protected readonly analise = inject(NavegacaoAnaliseService);
   private readonly copiloto = inject(CopilotoPainelService);
   protected readonly copilotoDisponivel = this.copiloto.disponivelParaUsuario();
-  protected readonly chaveTipo = chaveTipo;
 
   protected readonly situacaoMeta = SITUACAO_META;
   protected readonly moeda = moeda;
@@ -119,7 +118,14 @@ export class DashboardOperacionalComponent implements OnInit {
   protected readonly variacao = variacao;
   protected readonly diaMes = diaMes;
   protected readonly tomDaMeta = tomDaMeta;
-  protected readonly tiposEmDestaque = tiposEmDestaque;
+  protected readonly obrasEmDestaque = obrasEmDestaque;
+  protected readonly limiteObras = 10;
+  /** A tabela de obras abre nas maiores; o restante entra sob demanda. */
+  protected readonly todasObras = signal(false);
+  protected readonly obrasVisiveis = computed(() => {
+    const obras = this.data()?.obras ?? [];
+    return this.todasObras() ? obras : obras.slice(0, this.limiteObras);
+  });
 
   protected readonly loading = signal(false);
   protected readonly erro = signal<string | null>(null);
@@ -180,7 +186,7 @@ export class DashboardOperacionalComponent implements OnInit {
         case 'abaixo':
           return e.situacao === 'ABAIXO_DO_RITMO';
         case 'sem-producao':
-          return e.notas === 0;
+          return this.semExecucao(e);
         default:
           return true;
       }
@@ -193,7 +199,7 @@ export class DashboardOperacionalComponent implements OnInit {
     return {
       todas: equipes.length,
       abaixo: equipes.filter((e) => e.situacao === 'ABAIXO_DO_RITMO').length,
-      'sem-producao': equipes.filter((e) => e.notas === 0).length
+      'sem-producao': equipes.filter((e) => this.semExecucao(e)).length
     } satisfies Record<FiltroEquipes, number>;
   });
 
@@ -246,9 +252,9 @@ export class DashboardOperacionalComponent implements OnInit {
     return {
       id: 'execucao.operacional',
       nome: 'Dashboard operacional',
-      modulo: 'Execução',
+      modulo: 'Obras',
       descricao:
-        'Produção lançada por equipe no período, meta proporcional aos dias úteis, ritmo necessário para fechar a meta e projeção.',
+        'Produção das equipes de obras no período (executado apontado nas obras), meta proporcional aos dias úteis, ritmo necessário para fechar a meta, projeção e produção por obra.',
       rota: '/execucao/dashboard-operacional',
       periodo: periodoPainel(f.inicio ? dataLocal(f.inicio) : null, f.fim ? dataLocal(f.fim) : null),
       filtros: [
@@ -264,8 +270,9 @@ export class DashboardOperacionalComponent implements OnInit {
               comparacao: { rotulo: 'meta', valorAnterior: 100, melhorQuando: 'maior' }
             }),
             metricaPainel('projecao', 'Projeção das equipes com meta', d.resumo.projecaoEquipesComMeta, 'moeda'),
-            metricaPainel('notas', 'Notas lançadas', d.resumo.notas, 'inteiro'),
-            metricaPainel('valorMedioNota', 'Valor médio por nota', d.resumo.valorMedioNota, 'moeda'),
+            metricaPainel('obrasAtendidas', 'Obras atendidas', d.resumo.obrasAtendidas, 'inteiro'),
+            metricaPainel('valorMedioObra', 'Produção média por obra', d.resumo.valorMedioObra, 'moeda'),
+            metricaPainel('servicos', 'Serviços apontados', d.resumo.servicos, 'inteiro'),
             metricaPainel('equipesAbaixoDoRitmo', 'Equipes abaixo do ritmo', d.resumo.equipesAbaixoDoRitmo, 'inteiro', {
               descricao: `de ${d.resumo.equipesComMeta} equipes com meta`
             })
@@ -280,7 +287,8 @@ export class DashboardOperacionalComponent implements OnInit {
               equipes.map((e) => e.codigo),
               [
                 { nome: 'Produção (R$)', valores: equipes.map((e) => e.producao) },
-                { nome: 'Notas', valores: equipes.map((e) => e.notas) },
+                { nome: 'Obras', valores: equipes.map((e) => e.obrasAtendidas) },
+                { nome: 'Serviços', valores: equipes.map((e) => e.servicos) },
                 { nome: '% da meta', valores: equipes.map((e) => e.percentualMeta) }
               ],
               { metrica: 'produção', dimensao: 'equipe', totalCategorias: equipes.length * 3 }
@@ -291,27 +299,28 @@ export class DashboardOperacionalComponent implements OnInit {
               this.serieTemporal().series.map((s) => ({ nome: s.name, valores: s.values })), { metrica: 'produção', dimensao: this.visaoSerie(), formato: 'moeda' }),
             graficoPainel('producaoMetaEquipe', 'barra', 'Produção × meta por equipe', this.seriePorEquipe().rotulos,
               this.seriePorEquipe().series.map((s) => ({ nome: s.name, valores: s.values })), { metrica: 'produção', dimensao: 'equipe', formato: 'moeda' }),
-            graficoPainel('tiposServico', 'tabela', 'Tipos de serviço', d.tiposServico.map((t) => t.descricao), [
-              { nome: 'Notas', valores: d.tiposServico.map((t) => t.notas) },
-              { nome: 'Produção (R$)', valores: d.tiposServico.map((t) => t.producao) }
-            ], { metrica: 'notas e produção', dimensao: 'tipo de serviço' }),
+            graficoPainel('obras', 'tabela', 'Obras do período', d.obras.map((o) => o.numero), [
+              { nome: 'Produção (R$)', valores: d.obras.map((o) => o.producao) },
+              { nome: 'Serviços', valores: d.obras.map((o) => o.servicos) },
+              { nome: 'Equipes', valores: d.obras.map((o) => o.equipes) }
+            ], { metrica: 'produção', dimensao: 'obra' }),
             ...graficosDaAnalise(this.analiseNoCopiloto())
           ]
         : [],
-      datasets: ['execucoes_comerciais', 'execucoes_acoes', 'execucoes_materiais', 'turnos', 'equipes'],
+      datasets: ['turnos', 'equipes'],
       sugestoes: [
         {
           rotulo: 'Equipes abaixo do ritmo',
           icone: 'pi pi-flag',
           requer: ['dados'],
           pergunta:
-            'Quais equipes estão abaixo do ritmo da meta neste recorte e o que explica a diferença (dias com turno, notas por dia, valor médio por nota)?'
+            'Quais equipes de obras estão abaixo do ritmo da meta neste recorte e o que explica a diferença (dias com turno, dias com execução, obras atendidas)?'
         },
         {
-          rotulo: 'Ações que mais faturam',
-          icone: 'pi pi-chart-bar',
+          rotulo: 'Obras que mais produzem',
+          icone: 'pi pi-building',
           requer: ['dados'],
-          pergunta: 'Quais ações executadas mais contribuíram para a produção deste período, por equipe?'
+          pergunta: 'Quais obras concentraram a produção deste período e quais equipes executaram nelas?'
         }
       ]
     };
@@ -409,22 +418,23 @@ export class DashboardOperacionalComponent implements OnInit {
     this.aplicar();
   }
 
-  protected abrirTurnos(): void {
-    const f = this.aplicado();
-    void this.router.navigate(['/execucao/dashboard-turnos'], {
-      queryParams: { base: f.idBaseOperacional ?? null, processo: f.idProcesso ?? null }
+  protected abrirBoletim(): void {
+    void this.router.navigate(['/obras/boletim'], {
+      queryParams: { base: this.aplicado().idBaseOperacional ?? null }
     });
   }
 
-  /** Abre a listagem de execuções filtrada pela equipe e pelo período em tela. */
-  protected linkNotas(equipe: EquipeOperacional): Record<string, string> {
+  /** Abre os turnos de obra da equipe abertos no período em tela. */
+  protected linkTurnos(equipe: EquipeOperacional): Record<string, string> {
     const f = this.aplicado();
     return {
       equipe: equipe.idEquipe,
-      ...(f.inicio ? { lancamentoDe: f.inicio } : {}),
-      ...(f.fim ? { lancamentoAte: f.fim } : {}),
-      res: '1'
+      ...(f.inicio || f.fim ? { abertura: `${f.inicio ?? ''}~${f.fim ?? ''}` } : {})
     };
+  }
+
+  protected semExecucao(equipe: EquipeOperacional): boolean {
+    return equipe.producao === 0 && equipe.servicos === 0;
   }
 
   // ------------------------------------------------------------------ análise detalhada

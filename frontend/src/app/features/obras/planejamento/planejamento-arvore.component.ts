@@ -17,6 +17,9 @@ const ALTURA_LINHA = 36;
         <input type="search" placeholder="Buscar ponto, material ou serviço" aria-label="Buscar no planejamento"
           [value]="busca()" (input)="busca.set($any($event.target).value)" />
       </span>
+      @if (podeProgramar() && temPendente()) {
+        <ces-icon-button icon="pi pi-check-square" variant="ghost" size="icon-sm" label="Selecionar tudo o que está pendente" tooltip="Selecionar pendentes" (pressed)="selecionarPendentes.emit()"></ces-icon-button>
+      }
       <ces-icon-button [icon]="soServicos() ? 'pi pi-wrench' : 'pi pi-box'" variant="ghost" size="icon-sm"
         [label]="soServicos() ? 'Mostrando só serviços. Mostrar também materiais' : 'Mostrando serviços e materiais. Mostrar só serviços'"
         [tooltip]="soServicos() ? 'Só serviços' : 'Serviços e materiais'" (pressed)="soServicos.set(!soServicos())"></ces-icon-button>
@@ -53,7 +56,8 @@ const ALTURA_LINHA = 36;
             }
             @if (linha.selecionavel) {
               <input type="checkbox" class="linha__marca" [attr.aria-label]="'Selecionar ' + linha.titulo"
-                [checked]="linha.idItem ? itensSelecionados().has(linha.idItem) : locaisSelecionados().has(linha.idLocal!)"
+                [checked]="linha.idItem ? itensSelecionados().has(linha.idItem) || locaisSelecionados().has(linha.idLocal!) : locaisSelecionados().has(linha.idLocal!)"
+                [disabled]="!!linha.idItem && locaisSelecionados().has(linha.idLocal!)"
                 (change)="linha.idItem ? marcarItem.emit(linha.idItem) : marcarLocal.emit(linha.idLocal!)" />
             }
             @switch (linha.tipo) {
@@ -82,6 +86,18 @@ const ALTURA_LINHA = 36;
                   <strong>{{ linha.titulo }}</strong><span class="linha__detalhe">{{ linha.detalhe }}</span>
                 </button>
               }
+            }
+            @if (linha.programacao; as p) {
+              <button type="button" class="linha__programacao" [attr.data-situacao]="p.situacao"
+                [title]="'Programação #' + p.numero + ', ' + p.codigoEquipe + ', ' + p.inicio + ' a ' + p.fim"
+                [attr.aria-label]="'Abrir programação ' + p.numero + ' da equipe ' + p.codigoEquipe" (click)="abrirProgramacao.emit(p.id)">
+                @if (p.situacao === 'ATRASADA') { <i class="pi pi-exclamation-triangle" aria-hidden="true"></i> }
+                #{{ p.numero }}
+              </button>
+            }
+            @if (linha.podeRetirar && podeProgramar()) {
+              <ces-icon-button icon="pi pi-minus-circle" variant="ghost" size="icon-sm" [label]="'Retirar ' + linha.titulo + ' da programação'" tooltip="Retirar da programação"
+                (pressed)="retirar.emit({ idProgramacao: linha.programacao!.id, idItem: linha.idItem!, descricao: linha.titulo })"></ces-icon-button>
             }
             @if (linha.etiqueta) {
               <span class="linha__etiqueta" [class.linha__etiqueta--programado]="linha.statusItem && linha.statusItem !== 'PENDENTE'">{{ linha.etiqueta }}</span>
@@ -123,10 +139,15 @@ const ALTURA_LINHA = 36;
     .linha__tipo[data-material='true'] { background: var(--ces-info-soft); color: var(--ces-info-text); }
     .linha__etiqueta { flex: none; padding: 0 0.375rem; border-radius: 999px; background: var(--ces-surface-muted); color: var(--ces-foreground-muted); font-size: 0.6875rem; line-height: 1.125rem; }
     .linha__etiqueta--programado { background: var(--ces-info-soft); color: var(--ces-info-text); }
+    .linha__programacao { flex: none; display: inline-flex; gap: 0.25rem; align-items: center; padding: 0 0.375rem; border: 0; border-radius: 999px; background: var(--ces-warning-soft); color: var(--ces-warning-text); font-size: 0.6875rem; font-weight: 600; line-height: 1.125rem; cursor: pointer; }
+    .linha__programacao[data-situacao='ATRASADA'] { background: var(--ces-danger-soft); color: var(--ces-danger-text); }
+    .linha__programacao i { font-size: 0.625rem; }
+    .linha__programacao:focus-visible { outline: 2px solid var(--ces-brand); outline-offset: 1px; }
     .linha__estado { flex: none; width: 0.625rem; height: 0.625rem; border: 2px solid var(--ces-foreground-muted); border-radius: 50%; }
     .linha__estado[data-estado='sem-kit'] { border-style: dashed; border-color: var(--ces-danger); }
     .linha__estado[data-estado='pendente'] { border-color: var(--ces-brand); }
     .linha__estado[data-estado='programado'] { border-color: var(--ces-warning); border-radius: 2px; transform: rotate(45deg); }
+    .linha__estado[data-estado='atrasado'] { border-color: var(--ces-danger); border-radius: 2px; background: var(--ces-danger); transform: rotate(45deg); }
     .linha__estado[data-estado='andamento'] { border-color: var(--ces-info); border-radius: 2px; background: var(--ces-info); }
     .linha__estado[data-estado='concluido'] { border-color: var(--ces-success); background: var(--ces-success); }
   `]
@@ -137,12 +158,18 @@ export class PlanejamentoArvoreComponent {
   readonly locaisSelecionados = input.required<ReadonlySet<string>>();
   readonly itensSelecionados = input.required<ReadonlySet<string>>();
   readonly ativo = input<string | null>(null);
+  readonly podeProgramar = input(false);
+  readonly selecionarPendentes = output<void>();
+  readonly abrirProgramacao = output<string>();
+  readonly retirar = output<{ idProgramacao: string; idItem: string; descricao: string }>();
 
   readonly alternar = output<string>();
   readonly marcarLocal = output<string>();
   readonly marcarItem = output<string>();
   readonly abrirLocal = output<string>();
   readonly irPagina = output<number>();
+
+  protected readonly temPendente = computed(() => this.plano().kits.some((k) => !k.executadoAntes && k.itens.some((i) => i.status === 'PENDENTE')));
 
   protected readonly rolagem = viewChild<ElementRef<HTMLElement>>('rolagem');
   protected readonly alturaLinha = ALTURA_LINHA;

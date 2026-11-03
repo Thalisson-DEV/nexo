@@ -21,6 +21,9 @@ import com.nexo.app.modules.obras.domain.OperacaoItemKit;
 import com.nexo.app.modules.obras.domain.OrigemPlanejamento;
 import com.nexo.app.modules.obras.domain.PlanejamentoObra;
 import com.nexo.app.modules.obras.domain.PontoPlanejamento;
+import com.nexo.app.modules.obras.domain.Programacao;
+import com.nexo.app.modules.obras.domain.ProgramacaoItem;
+import com.nexo.app.modules.obras.domain.StatusProgramacao;
 import com.nexo.app.modules.obras.domain.StatusItemPlanejado;
 import com.nexo.app.modules.obras.domain.TipoItemKit;
 import com.nexo.app.modules.obras.domain.TipoPontoPlanejamento;
@@ -31,7 +34,10 @@ import com.nexo.app.modules.obras.infrastructure.persistence.KitAplicadoReposito
 import com.nexo.app.modules.obras.infrastructure.persistence.ObraRepository;
 import com.nexo.app.modules.obras.infrastructure.persistence.PlanejamentoObraRepository;
 import com.nexo.app.modules.obras.infrastructure.persistence.PontoPlanejamentoRepository;
+import com.nexo.app.modules.obras.infrastructure.persistence.ProgramacaoRepository;
 import com.nexo.app.modules.obras.infrastructure.persistence.VaoPlanejamentoRepository;
+import com.nexo.app.modules.rh.EquipeApi;
+import com.nexo.app.modules.rh.EquipeResponse;
 import com.nexo.app.shared.domain.BaseEntity;
 import com.nexo.app.shared.domain.exception.InvarianteVioladaException;
 import com.nexo.app.shared.domain.exception.RecursoNaoEncontradoException;
@@ -54,6 +60,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Comandos e leitura do planejamento da obra. Cada comando grava uma alteração pequena e devolve o planejamento
@@ -74,6 +81,8 @@ public class PlanejamentoObraUseCases {
     private final KitAplicadoRepository kitAplicadoRepository;
     private final AnotacaoPlanejamentoRepository anotacaoRepository;
     private final KitConstrutivoUseCases kitUseCases;
+    private final ProgramacaoRepository programacaoRepository;
+    private final EquipeApi equipeApi;
 
     @Transactional(readOnly = true)
     public PlanejamentoObraResponse buscar(UUID idObra) {
@@ -419,6 +428,9 @@ public class PlanejamentoObraUseCases {
         List<VaoPlanejamento> vaos = vaoRepository.findByIdObraAndAtivoTrue(idObra);
         List<KitAplicado> kits = kitAplicadoRepository.listarComItens(idObra);
         Map<UUID, Map<UUID, BigDecimal>> valores = valoresPorContrato(kits);
+        List<Programacao> programacoes = programacaoRepository.listarDaObraComItens(idObra);
+        Map<UUID, ProgramacaoItem> congelados = new HashMap<>();
+        programacoes.forEach(p -> p.getItensAtivos().forEach(v -> congelados.put(v.getItemPlanejado().getId(), v)));
 
         Set<UUID> locaisComKit = new HashSet<>();
         for (KitAplicado kit : kits) {
@@ -431,15 +443,30 @@ public class PlanejamentoObraUseCases {
                 pontos.stream().map(PlanejamentoObraUseCases::paraResponse).toList(),
                 vaos.stream().map(v -> new PlanejamentoObraResponse.Vao(v.getId(), v.getIdPontoA(), v.getIdPontoB(),
                         v.getMetragem(), v.getOrigem(), v.getVersao())).toList(),
-                kits.stream().map(k -> paraResponse(k, valores.getOrDefault(k.getIdContrato(), Map.of()))).toList(),
+                kits.stream().map(k -> paraResponse(k, valores.getOrDefault(k.getIdContrato(), Map.of()), congelados)).toList(),
                 anotacaoRepository.findByIdObraAndAtivoTrue(idObra).stream()
                         .map(a -> new PlanejamentoObraResponse.Anotacao(a.getId(), a.getPagina(), a.getX(), a.getY(),
                                 a.getTexto(), a.getUsuarioCriacao(), a.getDataCriacao(), a.getVersao()))
                         .toList(),
-                indicadores(kits, valores,
+                indicadores(kits, valores, congelados,
                         (int) pontos.stream().filter(p -> !locaisComKit.contains(p.getId())).count(),
                         (int) vaos.stream().filter(v -> !locaisComKit.contains(v.getId())).count()),
-                avancoPorKit(kits, valores));
+                avancoPorKit(kits, valores),
+                programacoesAbertas(programacoes));
+    }
+
+    private List<PlanejamentoObraResponse.ProgramacaoDoPlano> programacoesAbertas(List<Programacao> programacoes) {
+        List<Programacao> abertas = programacoes.stream().filter(p -> p.getStatus() == StatusProgramacao.PROGRAMADA).toList();
+        if (abertas.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> codigos = equipeApi.buscarPorIdsResponse(abertas.stream().map(Programacao::getIdEquipe).collect(Collectors.toSet()))
+                .stream().collect(Collectors.toMap(EquipeResponse::id, EquipeResponse::codigo, (a, b) -> a));
+        LocalDate hoje = LocalDate.now();
+        return abertas.stream()
+                .map(p -> new PlanejamentoObraResponse.ProgramacaoDoPlano(p.getId(), p.getNumero(), p.getIdEquipe(),
+                        codigos.get(p.getIdEquipe()), p.getDataInicio(), p.getDataFim(), p.situacaoEm(hoje)))
+                .toList();
     }
 
     private PlanejamentoObraResponse.ProjetoMestre projetoMestre(UUID idObra, PlanejamentoObra planejamento) {
@@ -466,20 +493,36 @@ public class PlanejamentoObraUseCases {
                 p.getOrigem(), p.getUsuarioCriacao(), p.getDataCriacao(), p.getVersao());
     }
 
-    private static PlanejamentoObraResponse.Kit paraResponse(KitAplicado k, Map<UUID, BigDecimal> valores) {
+    private static PlanejamentoObraResponse.Kit paraResponse(KitAplicado k, Map<UUID, BigDecimal> valores,
+                                                             Map<UUID, ProgramacaoItem> congelados) {
         return new PlanejamentoObraResponse.Kit(k.getId(), k.getIdPonto(), k.getIdVao(), k.getIdKit(), k.getCodigoKit(),
                 k.getDescricaoKit(), k.getGrupoKit(), k.getOperacao(), k.getMultiplicador(), k.isExecutadoAntes(),
                 k.getVersao(),
                 k.getItensAtivos().stream()
                         .map(i -> new PlanejamentoObraResponse.Item(i.getId(), i.getTipo(), i.getCodigo(), i.getDescricao(),
                                 i.getOperacao(), i.getUnidade(), i.getQuantidadePrevista(), i.getQuantidadeExecutada(),
-                                i.getStatus(), i.getTipo() == TipoItemKit.SERVICO ? valores.get(i.getIdAcao()) : null,
+                                i.getStatus(), valorUnitario(i, valores, congelados),
+                                congelados.containsKey(i.getId()) ? congelados.get(i.getId()).getProgramacao().getId() : null,
                                 i.getVersao()))
                         .toList());
     }
 
+    /** Serviço programado vale o que foi congelado; sem programação, o vigente hoje. Material não tem valor. */
+    private static BigDecimal valorUnitario(ItemPlanejado item, Map<UUID, BigDecimal> valores, Map<UUID, ProgramacaoItem> congelados) {
+        if (item.getTipo() != TipoItemKit.SERVICO) {
+            return null;
+        }
+        ProgramacaoItem congelado = congelados.get(item.getId());
+        return congelado != null ? congelado.getValorUnitario() : valores.get(item.getIdAcao());
+    }
+
     static PlanejamentoObraResponse.Indicadores indicadores(List<KitAplicado> kits, Map<UUID, Map<UUID, BigDecimal>> valores,
                                                             int pontosSemKit, int vaosSemKit) {
+        return indicadores(kits, valores, new HashMap<>(), pontosSemKit, vaosSemKit);
+    }
+
+    static PlanejamentoObraResponse.Indicadores indicadores(List<KitAplicado> kits, Map<UUID, Map<UUID, BigDecimal>> valores,
+                                                            Map<UUID, ProgramacaoItem> congelados, int pontosSemKit, int vaosSemKit) {
         BigDecimal executado = BigDecimal.ZERO;
         BigDecimal programado = BigDecimal.ZERO;
         BigDecimal pendente = BigDecimal.ZERO;
@@ -491,7 +534,7 @@ public class PlanejamentoObraUseCases {
                 if (item.getTipo() != TipoItemKit.SERVICO) {
                     continue;
                 }
-                BigDecimal unitario = valoresKit.get(item.getIdAcao());
+                BigDecimal unitario = valorUnitario(item, valoresKit, congelados);
                 if (unitario == null) {
                     semValor++;
                     continue;

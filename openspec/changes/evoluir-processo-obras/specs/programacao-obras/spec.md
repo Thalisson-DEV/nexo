@@ -59,6 +59,16 @@ já executados.
 - **WHEN** o usuário move a programação #1687 da equipe LVL-02 para LNV-02 informando "turma errada"
 - **THEN** a programação passa à nova equipe e o histórico registra origem, destino, períodos e observação
 
+### Requirement: Reprogramar arrastando
+Nas visões de semana e mês, o usuário com `obras:programacao:write` SHALL poder arrastar a barra para outro dia ou equipe e esticá-la pelas
+pontas para mudar a duração. A alteração MUST ser gravada ao soltar, com opção de desfazer e registro no histórico com equipes e períodos de
+antes e depois. O arraste não pede observação: a observação registrada indica que foi um ajuste na linha do tempo. Conflito de agenda MUST ser
+avisado sem impedir. Programação cancelada ou concluída não arrasta.
+
+#### Scenario: Arrastar para outra equipe
+- **WHEN** o usuário solta a barra da programação #1687 na linha da equipe LNV-02, dois dias depois
+- **THEN** a programação muda de equipe e de datas, e a notificação oferece desfazer
+
 ### Requirement: Histórico de reprogramações
 O sistema SHALL listar todas as edições, reprogramações, cancelamentos e exclusões de programações com data/hora, tipo,
 programação, obra, equipe origem e destino, período original e novo, usuário e observação, filtrável por tipo e por texto.
@@ -67,8 +77,18 @@ programação, obra, equipe origem e destino, período original e novo, usuário
 - **WHEN** o usuário filtra por "Excluídos"
 - **THEN** somente eventos de exclusão aparecem
 
-### Requirement: Visão Gantt
-O sistema SHALL exibir as programações em linha do tempo por equipe, com navegação por período, cores por status e acesso ao
+### Requirement: Filtros da programação e do histórico
+A programação e o histórico SHALL ter atalhos de situação ou tipo com a contagem do recorte, combináveis, além de filtros por obra, equipe e
+demais dados. O histórico MUST filtrar também por usuário, período da alteração e o que mudou (equipe ou período). A programação MUST filtrar
+também por município, prioridade, supervisor, coordenador, disponibilidade, turno, linha viva, desligamento, finaliza obra e intervenção.
+As contagens MUST ignorar o próprio atalho, para o número não sumir ao filtrar.
+
+#### Scenario: Ver só o que está atrasado
+- **WHEN** o usuário clica no atalho "Atrasada" com o contador em 3
+- **THEN** só as 3 programações atrasadas do recorte aparecem, inclusive as de antes do período exibido
+
+### Requirement: Visões da programação
+O sistema SHALL exibir as programações em tabela e em linha do tempo por equipe, semanal e mensal, incluindo as equipes livres, com navegação por período, cores por status e acesso ao
 planejamento da obra. A tela MUST carregar diretamente pela URL com o período e os filtros nela.
 
 #### Scenario: Abrir Gantt pela URL

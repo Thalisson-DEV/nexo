@@ -1,18 +1,19 @@
+import { of } from 'rxjs';
 import { CesDataTableColumn } from '@ces/ui';
 import {
   DashboardOperacionalFiltros,
   DashboardOperacionalResponse,
   EquipeOperacional,
-  NotaDoRecorte,
-  ProducaoPorTipoServico
+  ProducaoPorObra
 } from '../../../../core/models/dashboard.models';
 import { DashboardService } from '../../../../core/services/dashboard.service';
 import {
   AlvoAnalise,
   DestaqueAnalise,
+  DetalheRegistro,
   GraficoAnalise,
   KpiAnalise,
-  LinkAnalise,
+  OrigemAnalise,
   VistaAnalise,
   chaveDoAlvo
 } from '../../../../shared/components/dashboard/dashboard-analise.models';
@@ -27,21 +28,11 @@ import {
   tomDaMeta,
   variacao
 } from '../execucao-dashboards.utils';
-import {
-  SEM_TIPO,
-  agrupar,
-  diaDe,
-  diaHora,
-  fatia,
-  graficosDasNotas,
-  linkListagemNotas,
-  origemNotas,
-  plural
-} from './analise-comum';
+import { fatia, plural } from './analise-comum';
 
 /**
- * Análises (drill-down) do dashboard operacional. Cada alvo vira uma `VistaAnalise`: o que o número
- * clicado significa, os gráficos que o explicam (clicáveis, aprofundando) e as notas que o compõem.
+ * Análises (drill-down) do dashboard operacional de obras. Cada alvo vira uma `VistaAnalise`: o que o número
+ * clicado significa, os gráficos que o explicam (clicáveis, aprofundando) e as obras que o compõem.
  */
 
 export interface ContextoAnaliseOperacional {
@@ -57,10 +48,6 @@ const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julh
 const alvo = (dimension: string, value: string): AlvoAnalise => ({ dimension, value });
 const navegar = (dimension: string, value: string) => ({ tipo: 'navegar' as const, alvo: alvo(dimension, value) });
 
-export function chaveTipo(tipo: Pick<ProducaoPorTipoServico, 'idTipoServico'>): string {
-  return tipo.idTipoServico ?? SEM_TIPO;
-}
-
 function diaPorExtenso(iso: string): string {
   return dataLocal(iso).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 }
@@ -68,23 +55,12 @@ function diaPorExtenso(iso: string): string {
 function recorteTexto(c: ContextoAnaliseOperacional): string {
   const partes = [`${diaMes(c.d.inicio)} a ${diaMes(c.d.fim)}`];
   partes.push(c.nomeBase ?? 'todas as bases');
-  partes.push(c.nomeProcesso ?? 'todos os processos');
+  partes.push(c.nomeProcesso ?? 'todos os processos de obras');
   return partes.join(' · ');
 }
 
-function filtrosNotas(c: ContextoAnaliseOperacional) {
-  return {
-    inicio: c.d.inicio,
-    fim: c.d.fim,
-    idBaseOperacional: c.filtros.idBaseOperacional,
-    idProcesso: c.filtros.idProcesso
-  };
-}
-
-/** A listagem de notas não filtra por base/processo: só oferece o atalho quando o recorte cabe nela. */
-function verTudo(c: ContextoAnaliseOperacional, extra: { idEquipe?: string; inicio?: string; fim?: string; tipo?: string | null } = {}): LinkAnalise | undefined {
-  if (!extra.idEquipe && (c.filtros.idBaseOperacional?.length || c.filtros.idProcesso?.length)) return undefined;
-  return linkListagemNotas({ inicio: c.d.inicio, fim: c.d.fim, ...extra });
+function rotuloObra(o: Pick<ProducaoPorObra, 'numero' | 'titulo'>): string {
+  return o.titulo ? `${o.numero} · ${o.titulo}` : o.numero;
 }
 
 function alturaBarras(n: number): number {
@@ -115,18 +91,20 @@ function graficoEquipes(equipes: readonly EquipeOperacional[], titulo: string, d
   };
 }
 
-function graficoTipos(tipos: readonly ProducaoPorTipoServico[], aoSelecionar: (t: ProducaoPorTipoServico) => ReturnType<NonNullable<GraficoAnalise['aoSelecionar']>>): GraficoAnalise {
+/** As maiores obras por produção, clicáveis para a análise da obra. */
+function graficoObras(obras: readonly ProducaoPorObra[], titulo = 'Produção por obra'): GraficoAnalise {
+  const lista = obras.slice(0, 20);
   return {
-    id: 'producao-por-tipo',
-    titulo: 'Produção por tipo de serviço',
-    descricao: 'Clique numa fatia para analisar o tipo.',
-    tipo: 'doughnut',
-    rotulos: tipos.map((t) => t.descricao),
-    series: [{ name: 'Produção', values: tipos.map((t) => t.producao) }],
+    id: 'producao-por-obra',
+    titulo,
+    descricao: obras.length > lista.length ? `As ${lista.length} maiores de ${obras.length} obras. Clique para analisar a obra.` : 'Clique numa obra para analisá-la.',
+    tipo: 'bar-horizontal',
+    rotulos: lista.map((o) => o.numero),
+    series: [{ name: 'Produção', values: lista.map((o) => o.producao) }],
     formato: 'currency',
-    altura: 240,
-    aoSelecionar: (i) => aoSelecionar(tipos[i]),
-    rotuloSelecao: 'Analisar tipo'
+    altura: alturaBarras(lista.length),
+    aoSelecionar: (i) => navegar('obra', lista[i].idObra),
+    rotuloSelecao: 'Analisar obra'
   };
 }
 
@@ -134,13 +112,13 @@ const colunasEquipes: CesDataTableColumn<EquipeOperacional>[] = [
   { key: 'codigo', header: 'Equipe', priority: 1 },
   { key: 'baseOperacional', header: 'Base', priority: 2, display: (e) => e.baseOperacional ?? '—' },
   { key: 'situacao', header: 'Situação', priority: 1, value: (e) => SITUACAO_META[e.situacao].rotulo },
-  { key: 'notas', header: 'Notas', type: 'integer', priority: 2 },
+  { key: 'obrasAtendidas', header: 'Obras', type: 'integer', priority: 2 },
+  { key: 'servicos', header: 'Serviços', type: 'integer', priority: 3 },
   { key: 'producao', header: 'Produção', type: 'currency', priority: 1 },
-  { key: 'valorMedioNota', header: 'Por nota', type: 'currency', priority: 3 },
   { key: 'metaPeriodo', header: 'Meta do período', type: 'currency', priority: 2 },
   { key: 'percentualMeta', header: '% da meta', type: 'percent', priority: 1 },
   { key: 'diasComTurno', header: 'Dias com turno', type: 'integer', priority: 3 },
-  { key: 'diasComProducao', header: 'Dias com produção', type: 'integer', priority: 3 }
+  { key: 'diasComProducao', header: 'Dias com execução', type: 'integer', priority: 3 }
 ];
 
 function tabelaEquipes(equipes: readonly EquipeOperacional[], titulo = 'Equipes'): NonNullable<VistaAnalise['tabelas']>[number] {
@@ -159,6 +137,52 @@ function tabelaEquipes(equipes: readonly EquipeOperacional[], titulo = 'Equipes'
   };
 }
 
+const colunasObras: CesDataTableColumn<ProducaoPorObra>[] = [
+  { key: 'numero', header: 'Obra', priority: 1 },
+  { key: 'titulo', header: 'Título', priority: 2, display: (o) => o.titulo ?? '—' },
+  { key: 'equipes', header: 'Equipes', type: 'integer', priority: 3 },
+  { key: 'servicos', header: 'Serviços', type: 'integer', priority: 2 },
+  { key: 'diasComExecucao', header: 'Dias com execução', type: 'integer', priority: 3 },
+  { key: 'producao', header: 'Produção', type: 'currency', priority: 1 },
+  { key: 'percentualProducao', header: 'Fatia', type: 'percent', priority: 2 },
+  { key: 'ultimoApontamento', header: 'Último apontamento', priority: 3, value: (o) => o.ultimoApontamento ?? '', display: (o) => (o.ultimoApontamento ? diaMes(o.ultimoApontamento) : '—') }
+];
+
+function detalheObra(o: ProducaoPorObra): DetalheRegistro {
+  return {
+    titulo: `Obra ${o.numero}`,
+    subtitulo: o.titulo ?? undefined,
+    campos: [
+      { rotulo: 'Produção no recorte', valor: moeda(o.producao), icone: 'pi pi-wallet' },
+      { rotulo: 'Fatia da produção', valor: percentual(o.percentualProducao), icone: 'pi pi-chart-pie' },
+      { rotulo: 'Serviços apontados', valor: o.servicos.toLocaleString('pt-BR'), icone: 'pi pi-wrench' },
+      { rotulo: 'Equipes', valor: o.equipes.toLocaleString('pt-BR'), icone: 'pi pi-users' },
+      { rotulo: 'Dias com execução', valor: o.diasComExecucao.toLocaleString('pt-BR'), icone: 'pi pi-calendar' },
+      { rotulo: 'Último apontamento', valor: o.ultimoApontamento ? diaMes(o.ultimoApontamento) : '—', icone: 'pi pi-clock' }
+    ],
+    links: [{ rotulo: 'Abrir a obra', icone: 'pi pi-building', rota: ['/obras', o.idObra] }]
+  };
+}
+
+/** As obras que somam o número analisado (já em mãos: vêm no próprio dashboard), conferidas contra o painel. */
+function origemObras(obras: readonly ProducaoPorObra[], esperado: { quantidade: number; valor: number }, nomeArquivo: string): OrigemAnalise<ProducaoPorObra> {
+  return {
+    chave: `obras:${nomeArquivo}`,
+    titulo: 'Obras que compõem este número',
+    rotuloAba: 'Origem · obras',
+    icone: 'pi pi-building',
+    descricao: 'Obras com execução apontada no recorte, as mesmas que o painel soma. Clique numa obra para ver o detalhe e abri-la.',
+    colunas: colunasObras,
+    carregar: () => of({ linhas: [...obras], total: obras.length }),
+    chaveLinha: (o) => o.idObra,
+    rotuloLinha: (o) => `Obra ${o.numero}`,
+    conferencia: { quantidadeEsperada: esperado.quantidade, valorEsperado: esperado.valor, somar: (o) => o.producao, formato: 'moeda' },
+    detalhar: (o) => detalheObra(o),
+    nomeArquivo,
+    vazio: 'Nenhuma obra com execução neste recorte'
+  };
+}
+
 /** Resolve o alvo contra os dados em tela; alvo desconhecido (link antigo, recorte mudou) devolve `null`. */
 export function vistaOperacional(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise | null {
   switch (a.dimension) {
@@ -166,14 +190,14 @@ export function vistaOperacional(a: AlvoAnalise, c: ContextoAnaliseOperacional):
       switch (a.value) {
         case 'producao': return vistaProducao(a, c);
         case 'meta': return vistaMeta(a, c);
-        case 'notas': return vistaNotas(a, c);
+        case 'obras': return vistaObras(a, c);
         case 'ritmo': return vistaRitmo(a, c);
         default: return null;
       }
     case 'dia': return vistaDia(a, c);
     case 'mes': return vistaMes(a, c);
     case 'equipe': return vistaEquipe(a, c);
-    case 'tipo': return vistaTipo(a, c);
+    case 'obra': return vistaObra(a, c);
     default: return null;
   }
 }
@@ -187,7 +211,7 @@ function vistaProducao(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnal
   const top = produtoras.slice(0, 3);
   const topFatia = fatia(top.reduce((t, e) => t + e.producao, 0), r.producao);
   const melhorDia = [...d.producaoDiaria].sort((x, y) => y.valor - x.valor)[0];
-  const diasComProducao = d.producaoDiaria.filter((p) => p.notas > 0).length;
+  const diasComProducao = d.producaoDiaria.filter((p) => p.obras > 0).length;
   const temMeta = d.producaoDiaria.some((p) => p.meta != null);
 
   const destaques: DestaqueAnalise[] = [];
@@ -206,11 +230,11 @@ function vistaProducao(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnal
     });
   }
   if (melhorDia && melhorDia.valor > 0) {
-    destaques.push({ tom: 'neutral', icone: 'pi pi-star', texto: `Melhor dia: ${diaPorExtenso(melhorDia.data)}, com ${moedaCompacta(melhorDia.valor)} em ${plural(melhorDia.notas, 'nota', 'notas')}.` });
+    destaques.push({ tom: 'neutral', icone: 'pi pi-star', texto: `Melhor dia: ${diaPorExtenso(melhorDia.data)}, com ${moedaCompacta(melhorDia.valor)} em ${plural(melhorDia.obras, 'obra', 'obras')}.` });
   }
   const paradas = r.equipesAtivas - r.equipesComProducao;
   if (paradas > 0) {
-    destaques.push({ tom: 'warning', icone: 'pi pi-exclamation-circle', texto: `${plural(paradas, 'equipe ativa não lançou', 'equipes ativas não lançaram')} nenhuma nota no período.` });
+    destaques.push({ tom: 'warning', icone: 'pi pi-exclamation-circle', texto: `${plural(paradas, 'equipe ativa não apontou', 'equipes ativas não apontaram')} execução no período.` });
   }
 
   const bases = agruparEquipes(d.equipes, (e) => e.baseOperacional ?? 'Sem base');
@@ -218,7 +242,7 @@ function vistaProducao(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnal
     {
       id: 'producao-por-dia',
       titulo: 'Produção por dia',
-      descricao: 'Clique num dia para ver as equipes e as notas daquele dia.',
+      descricao: 'Clique num dia para ver as equipes daquele dia.',
       tipo: 'bar',
       rotulos: d.producaoDiaria.map((p) => diaMes(p.data)),
       series: [
@@ -231,9 +255,9 @@ function vistaProducao(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnal
       aoSelecionar: (i) => navegar('dia', d.producaoDiaria[i].data),
       rotuloSelecao: 'Analisar dia'
     },
-    graficoEquipes(d.equipes, 'Produção por equipe', 'Da maior para a menor. Clique para analisar a equipe.', false),
-    graficoTipos(d.tiposServico, (t) => navegar('tipo', chaveTipo(t)))
+    graficoEquipes(d.equipes, 'Produção por equipe', 'Da maior para a menor. Clique para analisar a equipe.', false)
   ];
+  if (d.obras.length) graficos.push(graficoObras(d.obras));
   if (bases.length > 1) {
     graficos.push({
       id: 'producao-por-base',
@@ -249,31 +273,24 @@ function vistaProducao(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnal
   const kpis: KpiAnalise[] = [
     { rotulo: 'Produção', valor: moeda(r.producao), tom: 'brand', icone: 'pi pi-wallet', detalhe: r.variacaoPercentual != null ? `${variacao(r.variacaoPercentual)} vs. anterior` : undefined },
     { rotulo: 'Período anterior', valor: moedaCompacta(r.producaoPeriodoAnterior), icone: 'pi pi-history' },
-    { rotulo: 'Notas', valor: r.notas.toLocaleString('pt-BR'), icone: 'pi pi-file-check', detalhe: `${moedaCompacta(r.valorMedioNota)} por nota` },
-    { rotulo: 'Equipes que lançaram', valor: `${r.equipesComProducao} de ${r.equipesAtivas}`, icone: 'pi pi-users', tom: paradas > 0 ? 'warning' : 'success' },
-    { rotulo: 'Média por dia com produção', valor: diasComProducao ? moedaCompacta(r.producao / diasComProducao) : '—', icone: 'pi pi-calendar', detalhe: plural(diasComProducao, 'dia com notas', 'dias com notas') }
+    { rotulo: 'Obras atendidas', valor: r.obrasAtendidas.toLocaleString('pt-BR'), icone: 'pi pi-building', detalhe: `${moedaCompacta(r.valorMedioObra)} por obra` },
+    { rotulo: 'Equipes que executaram', valor: `${r.equipesComProducao} de ${r.equipesAtivas}`, icone: 'pi pi-users', tom: paradas > 0 ? 'warning' : 'success' },
+    { rotulo: 'Média por dia com execução', valor: diasComProducao ? moedaCompacta(r.producao / diasComProducao) : '—', icone: 'pi pi-calendar', detalhe: plural(diasComProducao, 'dia com execução', 'dias com execução') }
   ];
 
   return {
     chave: chaveDoAlvo(a),
     eyebrow: 'Produção no período',
-    titulo: `${moeda(r.producao)} em ${plural(r.notas, 'nota', 'notas')}`,
+    titulo: `${moeda(r.producao)} em ${plural(r.obrasAtendidas, 'obra', 'obras')}`,
     descricao: recorteTexto(c),
     kpis,
     destaques,
     graficos,
     tabelas: [tabelaEquipes(d.equipes, 'Ranking de equipes')],
-    origem: origemNotas({
-      service: c.service,
-      filtros: filtrosNotas(c),
-      esperado: { notas: r.notas, valor: r.producao },
-      derivados: (notas) => graficosDasNotas(notas),
-      verTudo: verTudo(c),
-      nomeArquivo: `notas-${d.inicio}-a-${d.fim}`
-    }),
+    origem: origemObras(d.obras, { quantidade: r.obrasAtendidas, valor: r.producao }, `obras-${d.inicio}-a-${d.fim}`),
     copiloto: {
       foco: { tipo: 'metrica', id: 'producao', rotulo: 'Produção no período' },
-      pergunta: `Analise a produção de ${diaMes(d.inicio)} a ${diaMes(d.fim)} (${moeda(r.producao)} em ${r.notas} notas, ${variacao(r.variacaoPercentual)} vs. o período anterior): quais equipes, dias e tipos de serviço explicam o resultado e onde está a maior oportunidade?`
+      pergunta: `Analise a produção das equipes de obras de ${diaMes(d.inicio)} a ${diaMes(d.fim)} (${moeda(r.producao)} em ${r.obrasAtendidas} obras, ${variacao(r.variacaoPercentual)} vs. o período anterior): quais equipes, dias e obras explicam o resultado e onde está a maior oportunidade?`
     }
   };
 }
@@ -386,39 +403,51 @@ function vistaMeta(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise 
     }],
     copiloto: {
       foco: { tipo: 'metrica', id: 'percentualMeta', rotulo: 'Meta das equipes' },
-      pergunta: `As equipes com meta atingiram ${percentual(r.percentualMeta)} da meta do período e a projeção é ${moedaCompacta(r.projecaoEquipesComMeta)}. Quais equipes mais pesam no resultado e o que cada uma precisa fazer por dia útil para fechar a meta?`
+      pergunta: `As equipes de obras com meta atingiram ${percentual(r.percentualMeta)} da meta do período e a projeção é ${moedaCompacta(r.projecaoEquipesComMeta)}. Quais equipes mais pesam no resultado e o que cada uma precisa executar por dia útil para fechar a meta?`
     }
   };
 }
 
-function vistaNotas(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise {
+function vistaObras(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise {
   const { d } = c;
   const r = d.resumo;
-  const maiorDia = [...d.producaoDiaria].sort((x, y) => y.notas - x.notas)[0];
-  const semTipo = d.tiposServico.find((t) => !t.idTipoServico);
-  const comNotas = d.equipes.filter((e) => e.notas > 0).sort((x, y) => y.valorMedioNota - x.valorMedioNota);
-  const tipos = [...d.tiposServico].sort((x, y) => y.notas - x.notas);
+  const maior = d.obras[0];
+  const top3 = fatia(d.obras.slice(0, 3).reduce((t, o) => t + o.producao, 0), r.producao);
+  const comObras = d.equipes.filter((e) => e.obrasAtendidas > 0).sort((x, y) => y.obrasAtendidas - x.obrasAtendidas || x.codigo.localeCompare(y.codigo, 'pt-BR'));
+  const variasEquipes = d.obras.filter((o) => o.equipes > 1).length;
+
+  const destaques: DestaqueAnalise[] = [];
+  if (maior) {
+    destaques.push({ tom: 'info', icone: 'pi pi-star', texto: `Maior produção: ${rotuloObra(maior)}, com ${moedaCompacta(maior.producao)} (${percentual(maior.percentualProducao)}).` });
+  }
+  if (d.obras.length > 3) {
+    destaques.push({ tom: top3 >= 70 ? 'warning' : 'neutral', icone: 'pi pi-chart-pie', texto: `As 3 maiores obras concentram ${percentual(top3)} da produção.` });
+  }
+  if (variasEquipes) {
+    destaques.push({ tom: 'neutral', icone: 'pi pi-users', texto: `${plural(variasEquipes, 'obra teve', 'obras tiveram')} mais de uma equipe executando no período.` });
+  }
 
   return {
     chave: chaveDoAlvo(a),
-    eyebrow: 'Notas lançadas',
-    titulo: `${plural(r.notas, 'nota concluída', 'notas concluídas')}`,
+    eyebrow: 'Obras atendidas',
+    titulo: plural(r.obrasAtendidas, 'obra com execução', 'obras com execução'),
     descricao: recorteTexto(c),
     kpis: [
-      { rotulo: 'Notas', valor: r.notas.toLocaleString('pt-BR'), tom: 'brand', icone: 'pi pi-file-check' },
-      { rotulo: 'Valor médio por nota', valor: moeda(r.valorMedioNota), icone: 'pi pi-tag' },
-      { rotulo: 'Notas por dia útil', valor: d.diasUteisEncerrados ? (r.notas / Math.max(1, d.diasUteisEncerrados)).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—', icone: 'pi pi-calendar', detalhe: 'nos dias úteis encerrados' },
-      { rotulo: 'Dia com mais notas', valor: maiorDia && maiorDia.notas ? diaMes(maiorDia.data) : '—', icone: 'pi pi-star', detalhe: maiorDia && maiorDia.notas ? plural(maiorDia.notas, 'nota', 'notas') : undefined },
-      { rotulo: 'Sem tipo de serviço', valor: (semTipo?.notas ?? 0).toLocaleString('pt-BR'), icone: 'pi pi-question-circle', tom: semTipo?.notas ? 'warning' : 'success', detalhe: semTipo ? `${percentual(semTipo.percentualNotas)} das notas` : 'todas classificadas' }
+      { rotulo: 'Obras atendidas', valor: r.obrasAtendidas.toLocaleString('pt-BR'), tom: 'brand', icone: 'pi pi-building' },
+      { rotulo: 'Produção média por obra', valor: moeda(r.valorMedioObra), icone: 'pi pi-wallet' },
+      { rotulo: 'Serviços apontados', valor: r.servicos.toLocaleString('pt-BR'), icone: 'pi pi-wrench' },
+      { rotulo: 'Obras por dia útil', valor: d.diasUteisEncerrados ? (d.producaoDiaria.reduce((t, p) => t + p.obras, 0) / Math.max(1, d.diasUteisEncerrados)).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '—', icone: 'pi pi-calendar', detalhe: 'frentes de obra por dia útil encerrado' }
     ],
+    destaques,
     graficos: [
+      graficoObras(d.obras),
       {
-        id: 'notas-por-dia',
-        titulo: 'Notas por dia',
-        descricao: 'Clique num dia para ver as notas dele.',
+        id: 'obras-por-dia',
+        titulo: 'Obras com execução por dia',
+        descricao: 'Clique num dia para analisá-lo.',
         tipo: 'bar',
         rotulos: d.producaoDiaria.map((p) => diaMes(p.data)),
-        series: [{ name: 'Notas', values: d.producaoDiaria.map((p) => p.notas) }],
+        series: [{ name: 'Obras', values: d.producaoDiaria.map((p) => p.obras) }],
         formato: 'integer',
         altura: 240,
         inteiro: true,
@@ -426,40 +455,21 @@ function vistaNotas(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise
         rotuloSelecao: 'Analisar dia'
       },
       {
-        id: 'valor-medio-por-equipe',
-        titulo: 'Valor médio por nota, por equipe',
-        descricao: 'Equipes com notas mais valiosas no topo.',
+        id: 'obras-por-equipe',
+        titulo: 'Obras atendidas por equipe',
         tipo: 'bar-horizontal',
-        rotulos: comNotas.map((e) => e.codigo),
-        series: [{ name: 'Valor médio', values: comNotas.map((e) => e.valorMedioNota) }],
-        formato: 'currency',
-        altura: alturaBarras(comNotas.length),
-        aoSelecionar: (i) => navegar('equipe', comNotas[i].idEquipe),
-        rotuloSelecao: 'Analisar equipe'
-      },
-      {
-        id: 'notas-por-tipo',
-        titulo: 'Notas por tipo de serviço',
-        tipo: 'bar-horizontal',
-        rotulos: tipos.map((t) => t.descricao),
-        series: [{ name: 'Notas', values: tipos.map((t) => t.notas) }],
+        rotulos: comObras.map((e) => e.codigo),
+        series: [{ name: 'Obras', values: comObras.map((e) => e.obrasAtendidas) }],
         formato: 'integer',
-        altura: alturaBarras(tipos.length),
-        aoSelecionar: (i) => navegar('tipo', chaveTipo(tipos[i])),
-        rotuloSelecao: 'Analisar tipo'
+        altura: alturaBarras(comObras.length),
+        aoSelecionar: (i) => navegar('equipe', comObras[i].idEquipe),
+        rotuloSelecao: 'Analisar equipe'
       }
     ],
-    origem: origemNotas({
-      service: c.service,
-      filtros: filtrosNotas(c),
-      esperado: { notas: r.notas, valor: r.producao },
-      derivados: (notas) => graficosDasNotas(notas),
-      verTudo: verTudo(c),
-      nomeArquivo: `notas-${d.inicio}-a-${d.fim}`
-    }),
+    origem: origemObras(d.obras, { quantidade: r.obrasAtendidas, valor: r.producao }, `obras-${d.inicio}-a-${d.fim}`),
     copiloto: {
-      foco: { tipo: 'metrica', id: 'notas', rotulo: 'Notas lançadas' },
-      pergunta: `Foram ${r.notas} notas com valor médio de ${moeda(r.valorMedioNota)}. Como o volume e o valor médio por nota variam entre equipes e tipos de serviço, e há notas sem tipo que precisam de atenção?`
+      foco: { tipo: 'metrica', id: 'obrasAtendidas', rotulo: 'Obras atendidas' },
+      pergunta: `Foram ${r.obrasAtendidas} obras com execução, ${moeda(r.valorMedioObra)} em média por obra. Como a produção se distribui entre as obras e as equipes, e há obras com execução parada ou concentrada demais?`
     }
   };
 }
@@ -472,7 +482,8 @@ function vistaRitmo(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise
   const distancia = comMeta
     .map((e) => ({ e, valor: e.producao - (e.metaEsperadaAteAgora ?? 0) }))
     .sort((x, y) => x.valor - y.valor);
-  const atencao = d.equipes.filter((e) => e.situacao === 'ABAIXO_DO_RITMO' || e.notas === 0);
+  const semExecucao = (e: EquipeOperacional) => e.producao === 0 && e.servicos === 0;
+  const atencao = d.equipes.filter((e) => e.situacao === 'ABAIXO_DO_RITMO' || semExecucao(e));
   const abaixo = d.equipes.filter((e) => e.situacao === 'ABAIXO_DO_RITMO');
   const deficit = abaixo.reduce((t, e) => t + Math.max(0, (e.metaEsperadaAteAgora ?? 0) - e.producao), 0);
   const necessarioPorDia = (e: EquipeOperacional) =>
@@ -488,14 +499,14 @@ function vistaRitmo(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise
 
   const colunas: CesDataTableColumn<EquipeOperacional>[] = [
     { key: 'codigo', header: 'Equipe', priority: 1 },
-    { key: 'situacao', header: 'Situação', priority: 1, value: (e) => (e.notas === 0 ? 'Sem lançamento' : SITUACAO_META[e.situacao].rotulo) },
+    { key: 'situacao', header: 'Situação', priority: 1, value: (e) => (semExecucao(e) ? 'Sem execução' : SITUACAO_META[e.situacao].rotulo) },
     { key: 'producao', header: 'Produção', type: 'currency', priority: 1 },
     { key: 'metaEsperadaAteAgora', header: 'Esperado até ontem', type: 'currency', priority: 2 },
     { key: 'deficit', header: 'Abaixo do esperado', type: 'currency', priority: 1, value: (e) => Math.max(0, (e.metaEsperadaAteAgora ?? 0) - e.producao) },
     { key: 'necessario', header: 'Necessário por dia útil', type: 'currency', priority: 2, value: (e) => necessarioPorDia(e) },
     { key: 'diasComTurno', header: 'Dias com turno', type: 'integer', priority: 3 },
-    { key: 'diasComProducao', header: 'Dias com produção', type: 'integer', priority: 3 },
-    { key: 'ultimoLancamento', header: 'Último lançamento', priority: 3, value: (e) => e.ultimoLancamento ?? '', display: (e) => diaHora(e.ultimoLancamento) }
+    { key: 'diasComProducao', header: 'Dias com execução', type: 'integer', priority: 3 },
+    { key: 'ultimoApontamento', header: 'Último apontamento', priority: 3, value: (e) => e.ultimoApontamento ?? '', display: (e) => (e.ultimoApontamento ? diaMes(e.ultimoApontamento) : '—') }
   ];
 
   return {
@@ -506,7 +517,7 @@ function vistaRitmo(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise
     kpis: [
       { rotulo: 'Abaixo do ritmo', valor: `${r.equipesAbaixoDoRitmo} de ${r.equipesComMeta}`, icone: 'pi pi-exclamation-triangle', tom: r.equipesAbaixoDoRitmo ? 'warning' : 'success' },
       { rotulo: 'Déficit somado', valor: moedaCompacta(deficit), icone: 'pi pi-arrow-down', detalhe: 'contra o esperado até ontem', tom: deficit > 0 ? 'warning' : 'success' },
-      { rotulo: 'Sem lançamento', valor: (r.equipesAtivas - r.equipesComProducao).toLocaleString('pt-BR'), icone: 'pi pi-ban', detalhe: 'equipes sem nota no período' },
+      { rotulo: 'Sem execução', valor: (r.equipesAtivas - r.equipesComProducao).toLocaleString('pt-BR'), icone: 'pi pi-ban', detalhe: 'equipes sem apontamento no período' },
       { rotulo: 'Dias úteis', valor: `${d.diasUteisEncerrados} de ${d.diasUteisPeriodo}`, icone: 'pi pi-calendar', detalhe: 'encerrados' }
     ],
     destaques,
@@ -525,13 +536,13 @@ function vistaRitmo(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise
       },
       {
         id: 'dias-turno-producao',
-        titulo: 'Dias com turno × dias com produção',
-        descricao: 'Equipes de atenção: turno aberto sem nota lançada aparece como diferença entre as barras.',
+        titulo: 'Dias com turno × dias com execução',
+        descricao: 'Equipes de atenção: turno aberto sem execução apontada aparece como diferença entre as barras.',
         tipo: 'bar-horizontal',
         rotulos: atencao.map((e) => e.codigo),
         series: [
           { name: 'Dias com turno', values: atencao.map((e) => e.diasComTurno) },
-          { name: 'Dias com produção', values: atencao.map((e) => e.diasComProducao) }
+          { name: 'Dias com execução', values: atencao.map((e) => e.diasComProducao) }
         ],
         formato: 'integer',
         altura: alturaBarras(atencao.length),
@@ -543,7 +554,7 @@ function vistaRitmo(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise
       id: 'equipes-atencao',
       titulo: 'Equipes de atenção',
       icone: 'pi pi-exclamation-triangle',
-      descricao: 'Abaixo do ritmo ou sem nenhuma nota no período.',
+      descricao: 'Abaixo do ritmo ou sem nenhuma execução no período.',
       colunas,
       linhas: atencao,
       chaveLinha: (e: EquipeOperacional) => e.idEquipe,
@@ -555,7 +566,7 @@ function vistaRitmo(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise
     }],
     copiloto: {
       foco: { tipo: 'metrica', id: 'equipesAbaixoDoRitmo', rotulo: 'Equipes abaixo do ritmo' },
-      pergunta: `${r.equipesAbaixoDoRitmo} equipes estão abaixo do ritmo (déficit de ${moedaCompacta(deficit)} contra o esperado). Para cada uma, o que explica a diferença — dias sem turno, poucas notas por dia ou valor médio baixo — e quanto precisa produzir por dia útil restante?`
+      pergunta: `${r.equipesAbaixoDoRitmo} equipes de obras estão abaixo do ritmo (déficit de ${moedaCompacta(deficit)} contra o esperado). Para cada uma, o que explica a diferença — dias sem turno, dias sem execução ou poucas obras — e quanto precisa produzir por dia útil restante?`
     }
   };
 }
@@ -569,48 +580,48 @@ function vistaDia(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise |
   const dia = d.producaoDiaria[indice];
   const doDia = d.equipes
     .map((e) => ({ e, p: e.producaoDiaria.find((p) => p.data === dia.data) }))
-    .filter((x) => x.p && (x.p.notas > 0 || (x.p.meta ?? 0) > 0))
+    .filter((x) => x.p && (x.p.obras > 0 || (x.p.meta ?? 0) > 0))
     .sort((x, y) => (y.p!.valor - x.p!.valor) || x.e.codigo.localeCompare(y.e.codigo, 'pt-BR'));
-  const comProducao = d.producaoDiaria.filter((p) => p.notas > 0);
+  const comProducao = d.producaoDiaria.filter((p) => p.obras > 0);
   const media = comProducao.length ? comProducao.reduce((t, p) => t + p.valor, 0) / comProducao.length : 0;
   const pctMeta = dia.meta ? (dia.valor / dia.meta) * 100 : null;
   const anterior = d.producaoDiaria[indice - 1];
   const proximo = d.producaoDiaria[indice + 1];
-  const lancaram = doDia.filter((x) => x.p!.notas > 0).length;
+  const executaram = doDia.filter((x) => x.p!.obras > 0).length;
 
   const destaques: DestaqueAnalise[] = [];
-  if (media > 0 && dia.notas > 0) {
+  if (media > 0 && dia.obras > 0) {
     const dif = ((dia.valor - media) / media) * 100;
     destaques.push({
       tom: dif >= 0 ? 'success' : 'warning',
       icone: dif >= 0 ? 'pi pi-arrow-up-right' : 'pi pi-arrow-down-right',
-      texto: `${variacao(dif)} em relação à média dos dias com produção no período (${moedaCompacta(media)}).`
+      texto: `${variacao(dif)} em relação à média dos dias com execução no período (${moedaCompacta(media)}).`
     });
   }
   if (dia.meta === 0 || dia.meta == null) {
     destaques.push({ tom: 'neutral', icone: 'pi pi-calendar-times', texto: dia.meta === 0 ? 'Dia não útil: não há meta diária.' : 'Nenhuma equipe do recorte tem meta cadastrada.' });
   }
-  if (!dia.notas) destaques.push({ tom: 'warning', icone: 'pi pi-inbox', texto: 'Nenhuma nota concluída neste dia.' });
+  if (!dia.obras) destaques.push({ tom: 'warning', icone: 'pi pi-inbox', texto: 'Nenhuma execução apontada nas obras neste dia.' });
 
   return {
     chave: chaveDoAlvo(a),
     eyebrow: 'Dia',
     titulo: diaPorExtenso(dia.data).replace(/^./, (l) => l.toLocaleUpperCase('pt-BR')),
-    descricao: `${c.nomeBase ?? 'Todas as bases'} · ${c.nomeProcesso ?? 'todos os processos'}`,
+    descricao: `${c.nomeBase ?? 'Todas as bases'} · ${c.nomeProcesso ?? 'todos os processos de obras'}`,
     anterior: anterior ? { alvo: alvo('dia', anterior.data), rotulo: diaMes(anterior.data) } : undefined,
     proximo: proximo ? { alvo: alvo('dia', proximo.data), rotulo: diaMes(proximo.data) } : undefined,
     kpis: [
       { rotulo: 'Produção do dia', valor: moeda(dia.valor), tom: 'brand', icone: 'pi pi-wallet' },
       { rotulo: 'Meta do dia', valor: dia.meta ? moedaCompacta(dia.meta) : '—', icone: 'pi pi-flag', detalhe: pctMeta != null ? `${percentual(pctMeta)} atingido` : undefined, tom: pctMeta == null ? 'neutral' : tomDaMeta(pctMeta) },
-      { rotulo: 'Notas', valor: dia.notas.toLocaleString('pt-BR'), icone: 'pi pi-file-check', detalhe: dia.notas ? `${moedaCompacta(dia.valor / dia.notas)} por nota` : undefined },
-      { rotulo: 'Equipes que lançaram', valor: `${lancaram} de ${d.equipes.length}`, icone: 'pi pi-users' },
-      { rotulo: 'Média dos dias', valor: moedaCompacta(media), icone: 'pi pi-chart-line', detalhe: 'dias com produção no período' }
+      { rotulo: 'Obras', valor: dia.obras.toLocaleString('pt-BR'), icone: 'pi pi-building', detalhe: plural(dia.servicos, 'serviço apontado', 'serviços apontados') },
+      { rotulo: 'Equipes que executaram', valor: `${executaram} de ${d.equipes.length}`, icone: 'pi pi-users' },
+      { rotulo: 'Média dos dias', valor: moedaCompacta(media), icone: 'pi pi-chart-line', detalhe: 'dias com execução no período' }
     ],
     destaques,
     graficos: doDia.length ? [{
       id: 'equipes-no-dia',
       titulo: 'Produção por equipe no dia',
-      descricao: 'Clique numa equipe para filtrar as notas dela neste dia.',
+      descricao: 'Clique numa equipe para analisá-la.',
       tipo: 'bar-horizontal',
       rotulos: doDia.map((x) => x.e.codigo),
       series: [
@@ -620,29 +631,18 @@ function vistaDia(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise |
       formato: 'currency',
       altura: alturaBarras(doDia.length),
       inteiro: true,
-      aoSelecionar: (i) => ({
-        tipo: 'filtrar',
-        filtro: { chave: `equipe-${doDia[i].e.idEquipe}`, rotulo: `Equipe ${doDia[i].e.codigo}`, aceita: (n: NotaDoRecorte) => n.idEquipe === doDia[i].e.idEquipe }
-      }),
-      rotuloSelecao: 'Ver notas da equipe'
+      aoSelecionar: (i) => navegar('equipe', doDia[i].e.idEquipe),
+      rotuloSelecao: 'Analisar equipe'
     }] : [],
-    origem: origemNotas({
-      service: c.service,
-      filtros: { ...filtrosNotas(c), inicio: dia.data, fim: dia.data },
-      esperado: { notas: dia.notas, valor: dia.valor },
-      derivados: (notas) => graficosDasNotas(notas),
-      verTudo: verTudo(c, { inicio: dia.data, fim: dia.data }),
-      nomeArquivo: `notas-${dia.data}`
-    }),
     links: [{
-      rotulo: 'Abrir no dashboard de turnos',
-      icone: 'pi pi-clock',
-      rota: '/execucao/dashboard-turnos',
-      queryParams: { dia: dia.data, base: c.filtros.idBaseOperacional ?? null, processo: c.filtros.idProcesso ?? null }
+      rotulo: 'Abrir no boletim das equipes',
+      icone: 'pi pi-th-large',
+      rota: '/obras/boletim',
+      queryParams: { dia: dia.data, base: c.filtros.idBaseOperacional ?? null }
     }],
     copiloto: {
       foco: { tipo: 'grafico', id: 'producaoDiaria', rotulo: `Produção de ${diaMes(dia.data)}` },
-      pergunta: `Em ${diaPorExtenso(dia.data)} a produção foi ${moeda(dia.valor)} em ${dia.notas} notas${dia.meta ? ` (meta do dia ${moedaCompacta(dia.meta)})` : ''}. Quais equipes puxaram o resultado para cima ou para baixo e o que explica a diferença para a média do período?`
+      pergunta: `Em ${diaPorExtenso(dia.data)} as equipes de obras executaram ${moeda(dia.valor)} em ${dia.obras} obras${dia.meta ? ` (meta do dia ${moedaCompacta(dia.meta)})` : ''}. Quais equipes puxaram o resultado para cima ou para baixo e o que explica a diferença para a média do período?`
     }
   };
 }
@@ -653,7 +653,7 @@ function vistaMes(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise |
   if (!dias.length) return null;
   const [ano, mes] = a.value.split('-').map(Number);
   const valor = dias.reduce((t, p) => t + p.valor, 0);
-  const notas = dias.reduce((t, p) => t + p.notas, 0);
+  const servicos = dias.reduce((t, p) => t + p.servicos, 0);
   const temMeta = dias.some((p) => p.meta != null);
   const meta = dias.reduce((t, p) => t + (p.meta ?? 0), 0);
   const equipes = d.equipes
@@ -668,14 +668,14 @@ function vistaMes(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise |
     chave: chaveDoAlvo(a),
     eyebrow: 'Mês',
     titulo: `${MESES[mes - 1].replace(/^./, (l) => l.toLocaleUpperCase('pt-BR'))} de ${ano}`,
-    descricao: `${diaMes(dias[0].data)} a ${diaMes(dias[dias.length - 1].data)} · ${c.nomeBase ?? 'todas as bases'} · ${c.nomeProcesso ?? 'todos os processos'}`,
+    descricao: `${diaMes(dias[0].data)} a ${diaMes(dias[dias.length - 1].data)} · ${c.nomeBase ?? 'todas as bases'} · ${c.nomeProcesso ?? 'todos os processos de obras'}`,
     anterior: i > 0 ? { alvo: alvo('mes', meses[i - 1]), rotulo: nomeMes(meses[i - 1]) } : undefined,
     proximo: i < meses.length - 1 ? { alvo: alvo('mes', meses[i + 1]), rotulo: nomeMes(meses[i + 1]) } : undefined,
     kpis: [
       { rotulo: 'Produção', valor: moeda(valor), tom: 'brand', icone: 'pi pi-wallet' },
       { rotulo: 'Meta', valor: temMeta ? moedaCompacta(meta) : '—', icone: 'pi pi-flag', detalhe: temMeta && meta ? `${percentual((valor / meta) * 100)} atingido` : undefined, tom: temMeta && meta ? tomDaMeta((valor / meta) * 100) : 'neutral' },
-      { rotulo: 'Notas', valor: notas.toLocaleString('pt-BR'), icone: 'pi pi-file-check', detalhe: notas ? `${moedaCompacta(valor / notas)} por nota` : undefined },
-      { rotulo: 'Equipes que lançaram', valor: equipes.length.toLocaleString('pt-BR'), icone: 'pi pi-users' }
+      { rotulo: 'Serviços apontados', valor: servicos.toLocaleString('pt-BR'), icone: 'pi pi-wrench' },
+      { rotulo: 'Equipes que executaram', valor: equipes.length.toLocaleString('pt-BR'), icone: 'pi pi-users' }
     ],
     graficos: [
       {
@@ -707,17 +707,9 @@ function vistaMes(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise |
         rotuloSelecao: 'Analisar equipe'
       }
     ],
-    origem: origemNotas({
-      service: c.service,
-      filtros: { ...filtrosNotas(c), inicio: dias[0].data, fim: dias[dias.length - 1].data },
-      esperado: { notas, valor },
-      derivados: (n) => graficosDasNotas(n),
-      verTudo: verTudo(c, { inicio: dias[0].data, fim: dias[dias.length - 1].data }),
-      nomeArquivo: `notas-${a.value}`
-    }),
     copiloto: {
       foco: { tipo: 'grafico', id: 'producaoDiaria', rotulo: `Produção de ${nomeMes(a.value)}` },
-      pergunta: `Em ${MESES[mes - 1]} de ${ano} a produção foi ${moeda(valor)} em ${notas} notas. Como o mês evoluiu semana a semana e quais equipes mais contribuíram?`
+      pergunta: `Em ${MESES[mes - 1]} de ${ano} as equipes de obras executaram ${moeda(valor)}. Como o mês evoluiu semana a semana e quais equipes mais contribuíram?`
     }
   };
 }
@@ -733,18 +725,43 @@ function vistaEquipe(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalis
   const acumulado = serieAcumulada(e.producaoDiaria);
   const temMeta = e.producaoDiaria.some((p) => p.meta != null);
   const situacao = SITUACAO_META[e.situacao];
-  const filtroDia = (data: string) => ({
-    tipo: 'filtrar' as const,
-    filtro: { chave: `dia-${data}`, rotulo: `Lançadas em ${diaMes(data)}`, aceita: (n: NotaDoRecorte) => diaDe(n.dataLancamento) === data }
-  });
 
   const destaques: DestaqueAnalise[] = [{ tom: situacao.tom, icone: situacao.icone, texto: `${situacao.rotulo}.` + (e.metaPeriodo != null ? ` ${moedaCompacta(e.producao)} de ${moedaCompacta(e.metaPeriodo)} (${percentual(e.percentualMeta)}).` : '') }];
   if (necessario != null && necessario > 0) {
-    destaques.push({ tom: 'info', icone: 'pi pi-calculator', texto: `Para fechar a meta, precisa de ${moedaCompacta(necessario)} por dia útil nos ${diasRestantes} dias úteis restantes (média atual: ${moedaCompacta(e.producaoMediaPorDia)} por dia com produção).` });
+    destaques.push({ tom: 'info', icone: 'pi pi-calculator', texto: `Para fechar a meta, precisa de ${moedaCompacta(necessario)} por dia útil nos ${diasRestantes} dias úteis restantes (média atual: ${moedaCompacta(e.producaoMediaPorDia)} por dia com execução).` });
   }
   if (e.diasComTurno > e.diasComProducao) {
-    destaques.push({ tom: 'warning', icone: 'pi pi-clock', texto: `${plural(e.diasComTurno - e.diasComProducao, 'dia', 'dias')} com turno aberto e nenhuma nota concluída.` });
+    destaques.push({ tom: 'warning', icone: 'pi pi-clock', texto: `${plural(e.diasComTurno - e.diasComProducao, 'dia', 'dias')} com turno aberto e nenhuma execução apontada.` });
   }
+
+  const graficos: GraficoAnalise[] = [
+    {
+      id: 'equipe-por-dia',
+      titulo: 'Produção por dia × meta do dia',
+      descricao: 'Clique num dia para analisá-lo.',
+      tipo: 'bar',
+      rotulos: e.producaoDiaria.map((p) => diaMes(p.data)),
+      series: [
+        { name: 'Produção', values: e.producaoDiaria.map((p) => p.valor) },
+        ...(temMeta ? [{ name: 'Meta do dia', values: e.producaoDiaria.map((p) => p.meta) }] : [])
+      ],
+      formato: 'currency',
+      altura: 240,
+      inteiro: true,
+      aoSelecionar: (k) => navegar('dia', e.producaoDiaria[k].data),
+      rotuloSelecao: 'Analisar dia'
+    },
+    {
+      id: 'equipe-acumulado',
+      titulo: 'Acumulado × meta',
+      tipo: 'line',
+      rotulos: acumulado.rotulos,
+      series: acumulado.series,
+      formato: 'currency',
+      altura: 240
+    }
+  ];
+  if (e.obras.length) graficos.push(graficoObras(e.obras, 'Produção por obra'));
 
   return {
     chave: chaveDoAlvo(a),
@@ -756,151 +773,74 @@ function vistaEquipe(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalis
     kpis: [
       { rotulo: 'Produção', valor: moeda(e.producao), tom: 'brand', icone: 'pi pi-wallet' },
       { rotulo: 'Meta do período', valor: e.metaPeriodo != null ? percentual(e.percentualMeta) : 'Sem meta', icone: 'pi pi-flag', tom: tomDaMeta(e.percentualMeta), detalhe: e.metaPeriodo != null ? `de ${moedaCompacta(e.metaPeriodo)}` : undefined },
-      { rotulo: 'Notas', valor: e.notas.toLocaleString('pt-BR'), icone: 'pi pi-file-check', detalhe: e.notas ? `${moedaCompacta(e.valorMedioNota)} por nota` : undefined },
-      { rotulo: 'Dias com turno', valor: e.diasComTurno.toLocaleString('pt-BR'), icone: 'pi pi-calendar', detalhe: `${e.diasComProducao} com produção` },
-      { rotulo: 'Média por dia', valor: e.diasComProducao ? moedaCompacta(e.producaoMediaPorDia) : '—', icone: 'pi pi-chart-bar', detalhe: 'dias com produção' },
-      { rotulo: 'Projeção', valor: moedaCompacta(e.projecao), icone: 'pi pi-chart-line', detalhe: e.ultimoLancamento ? `último lançamento ${diaHora(e.ultimoLancamento)}` : 'sem lançamentos' }
+      { rotulo: 'Obras', valor: e.obrasAtendidas.toLocaleString('pt-BR'), icone: 'pi pi-building', detalhe: plural(e.servicos, 'serviço apontado', 'serviços apontados') },
+      { rotulo: 'Dias com turno', valor: e.diasComTurno.toLocaleString('pt-BR'), icone: 'pi pi-calendar', detalhe: `${e.diasComProducao} com execução` },
+      { rotulo: 'Média por dia', valor: e.diasComProducao ? moedaCompacta(e.producaoMediaPorDia) : '—', icone: 'pi pi-chart-bar', detalhe: 'dias com execução' },
+      { rotulo: 'Projeção', valor: moedaCompacta(e.projecao), icone: 'pi pi-chart-line', detalhe: e.ultimoApontamento ? `último apontamento ${diaMes(e.ultimoApontamento)}` : 'sem apontamentos' }
     ],
     destaques,
-    graficos: [
-      {
-        id: 'equipe-por-dia',
-        titulo: 'Produção por dia × meta do dia',
-        descricao: 'Clique num dia para ver as notas dele.',
-        tipo: 'bar',
-        rotulos: e.producaoDiaria.map((p) => diaMes(p.data)),
-        series: [
-          { name: 'Produção', values: e.producaoDiaria.map((p) => p.valor) },
-          ...(temMeta ? [{ name: 'Meta do dia', values: e.producaoDiaria.map((p) => p.meta) }] : [])
-        ],
-        formato: 'currency',
-        altura: 240,
-        inteiro: true,
-        aoSelecionar: (k) => filtroDia(e.producaoDiaria[k].data),
-        rotuloSelecao: 'Ver notas do dia'
-      },
-      {
-        id: 'equipe-acumulado',
-        titulo: 'Acumulado × meta',
-        tipo: 'line',
-        rotulos: acumulado.rotulos,
-        series: acumulado.series,
-        formato: 'currency',
-        altura: 240,
-        aoSelecionar: (k) => filtroDia(e.producaoDiaria[k].data),
-        rotuloSelecao: 'Ver notas do dia'
-      },
-      ...(e.tiposServico.length ? [{
-        id: 'equipe-tipos',
-        titulo: 'Notas por tipo de serviço',
-        descricao: 'Clique numa fatia para filtrar as notas.',
-        tipo: 'doughnut' as const,
-        rotulos: e.tiposServico.map((t) => t.descricao),
-        series: [{ name: 'Notas', values: e.tiposServico.map((t) => t.notas) }],
-        formato: 'integer' as const,
-        altura: 240,
-        aoSelecionar: (k: number) => ({
-          tipo: 'filtrar' as const,
-          filtro: { chave: `tipo-${chaveTipo(e.tiposServico[k])}`, rotulo: e.tiposServico[k].descricao, aceita: (n: NotaDoRecorte) => (n.idTipoServico ?? SEM_TIPO) === chaveTipo(e.tiposServico[k]) }
-        }),
-        rotuloSelecao: 'Ver notas do tipo'
-      }] : [])
-    ],
-    origem: origemNotas({
-      service: c.service,
-      filtros: { inicio: d.inicio, fim: d.fim, idEquipe: e.idEquipe },
-      esperado: { notas: e.notas, valor: e.producao },
-      derivados: (n) => graficosDasNotas(n),
-      verTudo: verTudo(c, { idEquipe: e.idEquipe }),
-      mostrarEquipe: false,
-      nomeArquivo: `notas-${e.codigo}-${d.inicio}-a-${d.fim}`
-    }),
+    graficos,
+    origem: origemObras(e.obras, { quantidade: e.obrasAtendidas, valor: e.producao }, `obras-${e.codigo}-${d.inicio}-a-${d.fim}`),
     links: [{
       rotulo: 'Turnos da equipe',
       icone: 'pi pi-clock',
-      rota: '/execucao/turnos',
-      queryParams: { equipe: e.idEquipe, aberturaDe: d.inicio, aberturaAte: d.fim, res: '1' }
+      rota: '/obras/turnos',
+      queryParams: { equipe: e.idEquipe, abertura: `${d.inicio}~${d.fim}` }
     }],
     copiloto: {
       foco: { tipo: 'secao', id: `equipe.${e.codigo}`, rotulo: `Equipe ${e.codigo}` },
-      pergunta: `Analise a equipe ${e.codigo} de ${diaMes(d.inicio)} a ${diaMes(d.fim)}: ${moeda(e.producao)} em ${e.notas} notas, ${e.diasComTurno} dias com turno e ${e.diasComProducao} com produção${e.metaPeriodo != null ? `, ${percentual(e.percentualMeta)} da meta` : ''}. O que explica o desempenho e o que a equipe precisa mudar?`
+      pergunta: `Analise a equipe de obras ${e.codigo} de ${diaMes(d.inicio)} a ${diaMes(d.fim)}: ${moeda(e.producao)} em ${e.obrasAtendidas} obras, ${e.diasComTurno} dias com turno e ${e.diasComProducao} com execução${e.metaPeriodo != null ? `, ${percentual(e.percentualMeta)} da meta` : ''}. O que explica o desempenho e o que a equipe precisa mudar?`
     }
   };
 }
 
-function vistaTipo(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise | null {
+function vistaObra(a: AlvoAnalise, c: ContextoAnaliseOperacional): VistaAnalise | null {
   const { d } = c;
-  const i = d.tiposServico.findIndex((t) => chaveTipo(t) === a.value);
+  const i = d.obras.findIndex((o) => o.idObra === a.value);
   if (i < 0) return null;
-  const t = d.tiposServico[i];
+  const o = d.obras[i];
   const porEquipe = d.equipes
-    .map((e) => ({ e, t: e.tiposServico.find((x) => chaveTipo(x) === a.value) }))
-    .filter((x) => x.t && x.t.notas > 0)
-    .sort((x, y) => y.t!.producao - x.t!.producao);
-  const dif = d.resumo.valorMedioNota ? ((t.valorMedioNota - d.resumo.valorMedioNota) / d.resumo.valorMedioNota) * 100 : null;
-  const anterior = d.tiposServico[i - 1];
-  const proximo = d.tiposServico[i + 1];
+    .map((e) => ({ e, o: e.obras.find((x) => x.idObra === a.value) }))
+    .filter((x) => x.o && x.o.producao > 0)
+    .sort((x, y) => y.o!.producao - x.o!.producao);
+  const dif = d.resumo.valorMedioObra ? ((o.producao - d.resumo.valorMedioObra) / d.resumo.valorMedioObra) * 100 : null;
+  const anterior = d.obras[i - 1];
+  const proximo = d.obras[i + 1];
 
   return {
     chave: chaveDoAlvo(a),
-    eyebrow: 'Tipo de serviço',
-    titulo: t.codigo ? `${t.codigo} · ${t.descricao}` : t.descricao,
+    eyebrow: 'Obra',
+    titulo: rotuloObra(o),
     descricao: recorteTexto(c),
-    anterior: anterior ? { alvo: alvo('tipo', chaveTipo(anterior)), rotulo: anterior.descricao } : undefined,
-    proximo: proximo ? { alvo: alvo('tipo', chaveTipo(proximo)), rotulo: proximo.descricao } : undefined,
+    anterior: anterior ? { alvo: alvo('obra', anterior.idObra), rotulo: anterior.numero } : undefined,
+    proximo: proximo ? { alvo: alvo('obra', proximo.idObra), rotulo: proximo.numero } : undefined,
     kpis: [
-      { rotulo: 'Notas', valor: t.notas.toLocaleString('pt-BR'), tom: 'brand', icone: 'pi pi-file-check', detalhe: `${percentual(t.percentualNotas)} das notas` },
-      { rotulo: 'Produção', valor: moeda(t.producao), icone: 'pi pi-wallet', detalhe: `${percentual(fatia(t.producao, d.resumo.producao))} da produção` },
-      { rotulo: 'Valor médio por nota', valor: moeda(t.valorMedioNota), icone: 'pi pi-tag', detalhe: dif != null ? `${variacao(dif)} vs. média geral` : undefined, tom: dif == null ? 'neutral' : dif >= 0 ? 'success' : 'warning' },
-      { rotulo: 'Equipes', valor: porEquipe.length.toLocaleString('pt-BR'), icone: 'pi pi-users', detalhe: 'lançaram este tipo' }
+      { rotulo: 'Produção', valor: moeda(o.producao), tom: 'brand', icone: 'pi pi-wallet', detalhe: `${percentual(o.percentualProducao)} da produção` },
+      { rotulo: 'Contra a média por obra', valor: dif != null ? variacao(dif) : '—', icone: 'pi pi-chart-bar', tom: dif == null ? 'neutral' : dif >= 0 ? 'success' : 'warning', detalhe: `média ${moedaCompacta(d.resumo.valorMedioObra)}` },
+      { rotulo: 'Serviços apontados', valor: o.servicos.toLocaleString('pt-BR'), icone: 'pi pi-wrench' },
+      { rotulo: 'Equipes', valor: o.equipes.toLocaleString('pt-BR'), icone: 'pi pi-users', detalhe: plural(o.diasComExecucao, 'dia com execução', 'dias com execução') }
     ],
-    destaques: !t.idTipoServico ? [{ tom: 'warning', icone: 'pi pi-info-circle', texto: 'Notas lançadas antes do cadastro de tipos de serviço ou por versões antigas do aplicativo.' }] : [],
+    destaques: o.ultimoApontamento ? [{ tom: 'neutral', icone: 'pi pi-clock', texto: `Último apontamento no recorte em ${diaMes(o.ultimoApontamento)}.` }] : [],
     graficos: [{
-      id: 'tipo-por-equipe',
+      id: 'obra-por-equipe',
       titulo: 'Por equipe',
-      descricao: 'Clique numa equipe para filtrar as notas dela.',
+      descricao: 'Clique numa equipe para analisá-la.',
       tipo: 'bar-horizontal',
       rotulos: porEquipe.map((x) => x.e.codigo),
-      series: [{ name: 'Produção', values: porEquipe.map((x) => x.t!.producao) }],
+      series: [{ name: 'Produção', values: porEquipe.map((x) => x.o!.producao) }],
       formato: 'currency',
       altura: alturaBarras(porEquipe.length),
-      aoSelecionar: (k) => ({
-        tipo: 'filtrar',
-        filtro: { chave: `equipe-${porEquipe[k].e.idEquipe}`, rotulo: `Equipe ${porEquipe[k].e.codigo}`, aceita: (n: NotaDoRecorte) => n.idEquipe === porEquipe[k].e.idEquipe }
-      }),
-      rotuloSelecao: 'Ver notas da equipe'
+      aoSelecionar: (k) => navegar('equipe', porEquipe[k].e.idEquipe),
+      rotuloSelecao: 'Analisar equipe'
     }],
-    origem: origemNotas({
-      service: c.service,
-      filtros: { ...filtrosNotas(c), ...(t.idTipoServico ? { idTipoServico: t.idTipoServico } : { semTipoServico: true }) },
-      esperado: { notas: t.notas, valor: t.producao },
-      derivados: (notas) => [graficoNotasPorDia(notas), ...graficosDasNotas(notas, { faixas: false })],
-      verTudo: verTudo(c, { tipo: t.idTipoServico ?? SEM_TIPO }),
-      nomeArquivo: `notas-tipo-${t.codigo ?? 'nao-informado'}`
-    }),
+    links: [
+      { rotulo: 'Abrir a obra', icone: 'pi pi-building', rota: ['/obras', o.idObra] },
+      { rotulo: 'Turnos da obra', icone: 'pi pi-clock', rota: '/obras/turnos', queryParams: { obra: o.numero, abertura: `${d.inicio}~${d.fim}` } }
+    ],
     copiloto: {
-      foco: { tipo: 'tabela', id: 'tiposServico', rotulo: `Tipo de serviço ${t.descricao}` },
-      pergunta: `O tipo de serviço "${t.descricao}" teve ${t.notas} notas e ${moeda(t.producao)} (${moeda(t.valorMedioNota)} por nota). Quais equipes mais executam esse tipo e como o valor médio delas se compara?`
+      foco: { tipo: 'tabela', id: 'obras', rotulo: `Obra ${o.numero}` },
+      pergunta: `A obra ${rotuloObra(o)} teve ${moeda(o.producao)} executados no período, com ${o.equipes} equipes e ${o.servicos} serviços apontados em ${o.diasComExecucao} dias. Como a execução evoluiu e quais equipes mais contribuíram?`
     }
-  };
-}
-
-function graficoNotasPorDia(notas: readonly NotaDoRecorte[]): GraficoAnalise {
-  const dias = agrupar(notas, (n) => diaDe(n.dataLancamento), (n) => diaMes(diaDe(n.dataLancamento))).sort((x, y) => x.chave.localeCompare(y.chave));
-  return {
-    id: 'notas-por-dia-tipo',
-    titulo: 'Notas por dia',
-    descricao: 'Clique num dia para filtrar as notas.',
-    tipo: 'bar',
-    rotulos: dias.map((x) => x.rotulo),
-    series: [{ name: 'Notas', values: dias.map((x) => x.notas) }],
-    formato: 'integer',
-    altura: 220,
-    aoSelecionar: (k) => ({
-      tipo: 'filtrar',
-      filtro: { chave: `dia-${dias[k].chave}`, rotulo: `Lançadas em ${dias[k].rotulo}`, aceita: (n: NotaDoRecorte) => diaDe(n.dataLancamento) === dias[k].chave }
-    }),
-    rotuloSelecao: 'Ver notas do dia'
   };
 }
 

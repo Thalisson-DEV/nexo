@@ -71,6 +71,19 @@ export interface AplicacaoKit {
               </li>
             }
           </ul>
+        } @else if (usadosNaObra().length) {
+          <p class="busca__titulo">Usados nesta obra</p>
+          <ul class="resultados">
+            @for (kit of usadosNaObra(); track kit.idKit) {
+              <li>
+                <button type="button" (click)="aplicar.emit({ idKit: kit.idKit, operacao: operacao() })" [disabled]="jaAplicado(kit.idKit)">
+                  <code>{{ kit.codigo }}</code>
+                  <span>{{ kit.descricao }}</span>
+                  @if (jaAplicado(kit.idKit)) { <small>já aplicado</small> } @else { <i class="pi pi-plus" aria-hidden="true"></i> }
+                </button>
+              </li>
+            }
+          </ul>
         }
       </div>
     }
@@ -157,6 +170,7 @@ export interface AplicacaoKit {
     .segmento button[aria-pressed='true'] { background: var(--ces-brand-soft); color: var(--ces-brand); font-weight: 600; }
     .busca__tensao { display: flex; gap: 0.375rem; align-items: center; color: var(--ces-foreground-muted); font-size: 0.75rem; cursor: pointer; }
     .aviso { margin: 0; color: var(--ces-warning-text); font-size: 0.75rem; }
+    .busca__titulo { margin: 0.25rem 0 0; color: var(--ces-foreground-muted); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
     .resultados { max-height: 14rem; margin: 0; padding: 0; overflow-y: auto; border: 1px solid var(--ces-border); border-radius: var(--ces-radius-md); list-style: none; }
     .resultados li + li { border-top: 1px solid var(--ces-border); }
     .resultados button { display: flex; gap: 0.5rem; align-items: center; width: 100%; padding: 0.375rem 0.5rem; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
@@ -193,6 +207,8 @@ export interface AplicacaoKit {
 export class PlanejamentoKitsComponent {
   private readonly kitsService = inject(ObrasKitService);
 
+  /** Kits já usados na obra, a um clique quando a busca está vazia. */
+  readonly usadosNaObra = input<readonly { idKit: string; codigo: string; descricao: string }[]>([]);
   readonly kits = input<readonly KitAplicado[]>([]);
   readonly idContrato = input<string | null | undefined>(null);
   readonly classeTensao = input<ClasseTensao | null | undefined>(null);

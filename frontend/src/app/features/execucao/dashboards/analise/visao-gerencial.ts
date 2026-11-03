@@ -1,7 +1,7 @@
 import { DashboardOperacionalResponse, DashboardTurnosResponse } from '../../../../core/models/dashboard.models';
 import { LeituraGerencial, VereditoGerencial } from '../../../../shared/components/dashboard/dashboard-visao-gerencial.component';
 import { dataLocal, diaMes, duracao, moedaCompacta, percentual, variacao } from '../execucao-dashboards.utils';
-import { SEM_TIPO, fatia, horaDe, plural, rotuloHora } from './analise-comum';
+import { fatia, horaDe, plural, rotuloHora } from './analise-comum';
 
 /**
  * Visão gerencial dos dashboards de execução: um veredito do recorte e leituras acionáveis, cada uma
@@ -76,16 +76,16 @@ export function visaoOperacional(d: DashboardOperacionalResponse): VisaoGerencia
     });
   }
   const paradas = r.equipesAtivas - r.equipesComProducao;
-  const turnoSemNota = d.equipes.filter((e) => e.diasComTurno > e.diasComProducao).length;
+  const turnoSemExecucao = d.equipes.filter((e) => e.diasComTurno > e.diasComProducao).length;
   leituras.push({
     id: 'paradas',
-    tom: paradas ? 'danger' : turnoSemNota ? 'warning' : 'success',
+    tom: paradas ? 'danger' : turnoSemExecucao ? 'warning' : 'success',
     icone: 'pi pi-ban',
-    titulo: paradas ? 'Equipes sem nenhuma nota' : 'Turno aberto sem produção',
-    valor: paradas ? `${paradas} de ${r.equipesAtivas}` : plural(turnoSemNota, 'equipe', 'equipes'),
+    titulo: paradas ? 'Equipes sem execução' : 'Turno aberto sem execução',
+    valor: paradas ? `${paradas} de ${r.equipesAtivas}` : plural(turnoSemExecucao, 'equipe', 'equipes'),
     texto: paradas
-      ? 'Equipes ativas do recorte que não concluíram nenhuma nota no período.'
-      : turnoSemNota ? 'Tiveram dias com turno aberto e nenhuma nota concluída.' : 'Todo dia com turno teve ao menos uma nota concluída.',
+      ? 'Equipes de obras ativas no recorte que não apontaram execução no período.'
+      : turnoSemExecucao ? 'Tiveram dias com turno aberto e nenhum apontamento nas obras.' : 'Todo dia com turno teve execução apontada.',
     acao: { rotulo: 'Ver equipes de atenção', alvo: kpi('ritmo') }
   });
   if (r.variacaoPercentual != null) {
@@ -121,7 +121,7 @@ export function visaoOperacional(d: DashboardOperacionalResponse): VisaoGerencia
       icone: 'pi pi-calendar-minus',
       titulo: 'Dia útil mais fraco',
       valor: diaMes(pior.data),
-      texto: `${moedaCompacta(pior.valor)} em ${plural(pior.notas, 'nota', 'notas')}, contra ${moedaCompacta(pior.meta)} de meta do dia.`,
+      texto: `${moedaCompacta(pior.valor)} em ${plural(pior.obras, 'obra', 'obras')}, contra ${moedaCompacta(pior.meta)} de meta do dia.`,
       acao: { rotulo: 'Entender o dia', alvo: { dimension: 'dia', value: pior.data } }
     });
   }
@@ -135,21 +135,21 @@ export function visaoOperacional(d: DashboardOperacionalResponse): VisaoGerencia
       titulo: 'Equipe destaque',
       valor: destaque.codigo,
       texto: destaque.percentualMeta != null
-        ? `${percentual(destaque.percentualMeta)} da meta, ${moedaCompacta(destaque.producao)} em ${plural(destaque.notas, 'nota', 'notas')}.`
-        : `${moedaCompacta(destaque.producao)} em ${plural(destaque.notas, 'nota', 'notas')}.`,
+        ? `${percentual(destaque.percentualMeta)} da meta, ${moedaCompacta(destaque.producao)} em ${plural(destaque.obrasAtendidas, 'obra', 'obras')}.`
+        : `${moedaCompacta(destaque.producao)} em ${plural(destaque.obrasAtendidas, 'obra', 'obras')}.`,
       acao: { rotulo: 'Ver o que a equipe fez', alvo: { dimension: 'equipe', value: destaque.idEquipe } }
     });
   }
-  const semTipo = d.tiposServico.find((t) => !t.idTipoServico);
-  if (semTipo && semTipo.notas > 0) {
+  const maiorObra = d.obras[0];
+  if (maiorObra && d.obras.length > 1) {
     leituras.push({
-      id: 'sem-tipo',
-      tom: 'warning',
-      icone: 'pi pi-question-circle',
-      titulo: 'Notas sem tipo de serviço',
-      valor: percentual(semTipo.percentualNotas),
-      texto: `${plural(semTipo.notas, 'nota', 'notas')} sem classificação deixam a leitura por tipo incompleta.`,
-      acao: { rotulo: 'Ver as notas', alvo: { dimension: 'tipo', value: SEM_TIPO } }
+      id: 'maior-obra',
+      tom: 'info',
+      icone: 'pi pi-building',
+      titulo: 'Obra com mais produção',
+      valor: maiorObra.numero,
+      texto: `${moedaCompacta(maiorObra.producao)} (${percentual(maiorObra.percentualProducao)} da produção) com ${plural(maiorObra.equipes, 'equipe', 'equipes')}, entre ${plural(d.obras.length, 'obra atendida', 'obras atendidas')}.`,
+      acao: { rotulo: 'Analisar a obra', alvo: { dimension: 'obra', value: maiorObra.idObra } }
     });
   }
 

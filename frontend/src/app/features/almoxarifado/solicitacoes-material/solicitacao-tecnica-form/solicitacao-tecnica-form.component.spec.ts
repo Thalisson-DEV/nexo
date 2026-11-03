@@ -1,9 +1,10 @@
 import '@angular/compiler';
 import { CUSTOM_ELEMENTS_SCHEMA, NO_ERRORS_SCHEMA } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router, ActivatedRoute } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationService } from '@ces/ui';
 import { AlmoxarifadoService } from '../../../../core/services/almoxarifado.service';
@@ -21,7 +22,6 @@ try {
 describe('SolicitacaoTecnicaFormComponent', () => {
   let fixture: ComponentFixture<SolicitacaoTecnicaFormComponent>;
   let component: SolicitacaoTecnicaFormComponent;
-  let router: Router;
 
   const criarMock = vi.fn(() =>
     of<CriacaoSolicitacaoTecnicaResponse>({
@@ -183,23 +183,21 @@ describe('SolicitacaoTecnicaFormComponent', () => {
     TestBed.overrideComponent(SolicitacaoTecnicaFormComponent, {
       set: {
         imports: [],
-        template: '<span>Obra e Atendimento</span>',
+        template: '',
       },
     });
 
     await TestBed.compileComponents();
-
-    router = TestBed.inject(Router);
-    vi.spyOn(router, 'navigate').mockResolvedValue(true);
 
     fixture = TestBed.createComponent(SolicitacaoTecnicaFormComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
-  it('inicia na etapa 1 (Obra e Atendimento)', () => {
-    expect(component['activeStep']()).toBe(1);
-    expect(fixture.nativeElement.textContent).toContain('Obra e Atendimento');
+  it('abre com o tipo padrão do modo e a carteira para escolher a obra', () => {
+    expect(component['tipoMovimentacao']()).toBe('ADICAO_COMUM');
+    expect(component['obraOptions']()).toHaveLength(2);
+    expect(component['alterado']()).toBe(false);
   });
 
   it('exibe somente o código nas labels dos tipos técnicos', () => {
@@ -209,38 +207,47 @@ describe('SolicitacaoTecnicaFormComponent', () => {
     expect(component['tipoDescricao']('DEVOLUCAO_CONCRETO')).toBe('922');
   });
 
-  it('impede avanço para a etapa 2 sem preencher campos obrigatórios', () => {
-    component['nextStep']();
-    expect(component['activeStep']()).toBe(1);
+  it('não envia sem os campos obrigatórios', () => {
+    component['submit']();
+    expect(criarMock).not.toHaveBeenCalled();
     expect(component['fieldErrors']()['idObra']).toBeTruthy();
     expect(component['fieldErrors']()['idAlmoxarifadoAtendimento']).toBeTruthy();
   });
 
-  it('permite avançar para a etapa 2 após selecionar obra comum e almoxarifado', () => {
+  it('com obra e almoxarifado, só falta o material', () => {
     component['selectObra']('obra-comum');
     component['idAlmoxarifado'].set('almox-1');
     fixture.detectChanges();
 
-    component['nextStep']();
-    expect(component['activeStep']()).toBe(2);
+    component['submit']();
+    expect(criarMock).not.toHaveBeenCalled();
+    expect(component['fieldErrors']()['itens']).toBeTruthy();
   });
 
   it('exige ocorrência normalizada para obra CORRETIVA', () => {
     component['selectObra']('obra-corretiva');
     component['idAlmoxarifado'].set('almox-1');
+    component['itens'].set([
+      {
+        idMaterial: 'mat-comum',
+        tipoMovimentacao: 'ADICAO_COMUM',
+        codigoOperacao: '221',
+        quantidade: 1,
+        codigo: 'MAT01',
+        descricao: 'Cabo 10mm',
+      },
+    ]);
     fixture.detectChanges();
 
     expect(component['ocorrenciaObrigatoria']()).toBe(true);
 
-    // Tentar avançar sem ocorrência
-    component['nextStep']();
-    expect(component['activeStep']()).toBe(1);
+    component['submit']();
+    expect(criarMock).not.toHaveBeenCalled();
     expect(component['fieldErrors']()['ocorrencia']).toBeTruthy();
 
-    // Preencher ocorrência com espaços múltiplos
     component['ocorrencia'].set('   oc   1042 ');
-    component['nextStep']();
-    expect(component['activeStep']()).toBe(2);
+    component['submit']();
+    expect((criarMock.mock.calls as any)[0][0].ocorrencia).toBe('OC 1042');
   });
 
   it('seleciona sugestão de ocorrência normalizando o valor', () => {
@@ -310,7 +317,6 @@ describe('SolicitacaoTecnicaFormComponent', () => {
   it('adiciona múltiplos materiais de tipos técnicos diferentes (221, 921, 222)', () => {
     component['selectObra']('obra-comum');
     component['idAlmoxarifado'].set('almox-1');
-    component['goToStep'](2);
 
     // 1. Adicionar material comum com direção ADICAO -> 221
     component['idMaterial'].set('mat-comum');
@@ -341,14 +347,10 @@ describe('SolicitacaoTecnicaFormComponent', () => {
     expect(component['itens']()[2].codigoOperacao).toBe('222');
     expect(component['itens']()[2].tipoMovimentacao).toBe('DEVOLUCAO_COMUM');
 
-    // Avançar para a etapa 3 de revisão
-    component['nextStep']();
-    fixture.detectChanges();
-    expect(component['activeStep']()).toBe(3);
     expect(component['tiposPresentes']()).toHaveLength(3);
   });
 
-  it('submete criação única e navega diretamente para o detalhe', () => {
+  it('submete, avisa quem abriu e fecha o drawer', () => {
     criarMock.mockReturnValue(
       of<CriacaoSolicitacaoTecnicaResponse>({
         solicitacoesCriadas: [
@@ -356,6 +358,8 @@ describe('SolicitacaoTecnicaFormComponent', () => {
         ],
       }),
     );
+    const criadas = vi.fn();
+    component.criadas.subscribe(criadas);
 
     component['selectObra']('obra-comum');
     component['idAlmoxarifado'].set('almox-1');
@@ -364,7 +368,7 @@ describe('SolicitacaoTecnicaFormComponent', () => {
         idMaterial: 'mat-comum',
         tipoMovimentacao: 'ADICAO_COMUM',
         codigoOperacao: '221',
-        quantidade: 5,
+        quantidade: 1,
         codigo: 'MAT01',
         descricao: 'Cabo 10mm',
       },
@@ -377,15 +381,16 @@ describe('SolicitacaoTecnicaFormComponent', () => {
     expect(callArgs[0].idObra).toBe('obra-comum');
     expect(callArgs[0].ocorrencia).toBeUndefined();
     expect(callArgs[0].itens[0].tipoMovimentacao).toBe('ADICAO_COMUM');
-    expect(router.navigate).toHaveBeenCalledWith(['/almoxarifado/solicitacoes-tecnicas', 'sol-1']);
+    expect(criadas).toHaveBeenCalledWith([expect.objectContaining({ id: 'sol-1' })]);
+    expect(component['aberto']()).toBe(false);
   });
 
-  it('submete criação com múltiplos tipos e avança para a etapa 4 com listagem independente', () => {
+  it('com vários tipos, informa as solicitações independentes criadas', () => {
     criarMock.mockReturnValue(
       of<CriacaoSolicitacaoTecnicaResponse>({
         solicitacoesCriadas: [
           { id: 'sol-221', tipo: 'ADICAO_COMUM' as const, codigo: '221' as const },
-          { id: 'sol-222', tipo: 'DEVOLUCAO_COMUM' as const, codigo: '222' as const },
+          { id: 'sol-921', tipo: 'ADICAO_CONCRETO' as const, codigo: '921' as const },
         ],
       }),
     );
@@ -397,26 +402,25 @@ describe('SolicitacaoTecnicaFormComponent', () => {
         idMaterial: 'mat-comum',
         tipoMovimentacao: 'ADICAO_COMUM',
         codigoOperacao: '221',
-        quantidade: 5,
+        quantidade: 1,
         codigo: 'MAT01',
         descricao: 'Cabo 10mm',
       },
-      {
+      { ...{
         idMaterial: 'mat-comum',
-        tipoMovimentacao: 'DEVOLUCAO_COMUM',
-        codigoOperacao: '222',
-        quantidade: 2,
+        tipoMovimentacao: 'ADICAO_COMUM',
+        codigoOperacao: '221',
+        quantidade: 1,
         codigo: 'MAT01',
         descricao: 'Cabo 10mm',
-      },
+      }, tipoMovimentacao: 'ADICAO_CONCRETO', codigoOperacao: '921' },
     ]);
 
     component['submit']();
 
     expect(criarMock).toHaveBeenCalledTimes(1);
-    expect(component['activeStep']()).toBe(4);
-    expect(component['solicitacoesCriadas']()).toHaveLength(2);
-    expect(notificationsMock.success).toHaveBeenCalled();
+    expect(notificationsMock.success).toHaveBeenCalledWith('2 solicitações independentes criadas: 221, 921.');
+    expect(component['aberto']()).toBe(false);
   });
 
   it('serializa data civil e omite ocorrencia para OBRA', () => {
@@ -441,16 +445,63 @@ describe('SolicitacaoTecnicaFormComponent', () => {
     expect(Object.prototype.hasOwnProperty.call(request, 'ocorrencia')).toBe(false);
   });
 
-  it('inicializa no modo devolucao com tipo DEVOLUCAO_COMUM quando snapshot indica modo devolucao', () => {
-    const route = TestBed.inject(ActivatedRoute);
-    (route.snapshot as any).data = { modo: 'devolucao' };
+  it('oferece só os tipos de adição: devolução tem drawer próprio', () => {
+    expect(component['tipoOpcoes']().map((t) => t.value)).toEqual(['ADICAO_COMUM', 'ADICAO_CONCRETO']);
+  });
 
+  it('aberto de dentro da obra, a obra já vem definida e não conta como alteração', () => {
     const compFixture = TestBed.createComponent(SolicitacaoTecnicaFormComponent);
+    compFixture.componentRef.setInput('idObra', 'obra-comum');
+    compFixture.detectChanges();
     const comp = compFixture.componentInstance;
-    comp.ngOnInit();
 
-    expect(comp['modo']()).toBe('devolucao');
-    expect(comp['tipoMovimentacao']()).toBe('DEVOLUCAO_COMUM');
-    expect(comp['breadcrumb']()[2].label).toBe('Nova Devolução');
+    expect(comp['idObra']()).toBe('obra-comum');
+    expect(comp['obraOptions']()).toHaveLength(0);
+    expect(comp['obraRotulo']()).toBe('OB01 · Obra Convencional');
+    expect(comp['alterado']()).toBe(false);
+  });
+
+  it('falha de conexão trava o formulário e reenvia a mesma solicitação com a mesma chave', () => {
+    criarMock.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 0 })));
+    component['selectObra']('obra-comum');
+    component['idAlmoxarifado'].set('almox-1');
+    component['itens'].set([
+      {
+        idMaterial: 'mat-comum',
+        tipoMovimentacao: 'ADICAO_COMUM',
+        codigoOperacao: '221',
+        quantidade: 1,
+        codigo: 'MAT01',
+        descricao: 'Cabo 10mm',
+      },
+    ]);
+
+    component['submit']();
+    expect(component['formLocked']()).toBe(true);
+    expect(component['aberto']()).toBe(true);
+
+    component['submit']();
+    const chamadas = criarMock.mock.calls as any;
+    expect(chamadas[1][1]).toBe(chamadas[0][1]);
+    expect(component['formLocked']()).toBe(false);
+  });
+
+  it('ajusta a quantidade na lista e ignora valor inválido', () => {
+    component['itens'].set([
+      {
+        idMaterial: 'mat-comum',
+        tipoMovimentacao: 'ADICAO_COMUM',
+        codigoOperacao: '221',
+        quantidade: 1,
+        codigo: 'MAT01',
+        descricao: 'Cabo 10mm',
+      },
+    ]);
+
+    component['updateQuantidade'](0, 7.5);
+    expect(component['itens']()[0].quantidade).toBe(7.5);
+
+    component['updateQuantidade'](0, 0);
+    expect(component['itens']()[0].quantidade).toBe(7.5);
   });
 });

@@ -128,6 +128,132 @@ class InterpretadorPropostaProjetoTest {
         assertThat(proposta.avisos()).anyMatch(a -> a.contains("Parte da folha"));
     }
 
+    private static LeitorCamadaProjeto.CamadaPagina camada(LeitorCamadaProjeto.Candidato... candidatos) {
+        return new LeitorCamadaProjeto.CamadaPagina(List.of(candidatos), 1000, 800, 600);
+    }
+
+    private static final LeitorCamadaProjeto.Candidato D1 = new LeitorCamadaProjeto.Candidato("D1234567", 0.10, 0.10, List.of());
+    private static final LeitorCamadaProjeto.Candidato D2 = new LeitorCamadaProjeto.Candidato("D2234567", 0.10, 0.50, List.of("9/400", "IM-1"));
+    private static final LeitorCamadaProjeto.Candidato D3 = new LeitorCamadaProjeto.Candidato("D3234567", 0.10, 0.90, List.of());
+
+    @Test
+    void textoDoPdfValeMesmoSemResposta() {
+        InterpretadorPropostaProjeto interpretador = novo(Set.of());
+        interpretador.adicionarCamada(camada(D1, D2));
+
+        PropostaPlanejamento proposta = interpretador.concluir();
+
+        assertThat(proposta.pontos()).extracting(PropostaPlanejamento.PontoSugerido::barramento).containsExactly("D1234567", "D2234567");
+        assertThat(proposta.pontos().get(1).kits()).extracting(PropostaPlanejamento.KitSugerido::codigo).contains("LMI-0057", "LMI-0688");
+    }
+
+    @Test
+    void modeloAjustaAPosicaoPertoDaEtiquetaMasNaoTrocaOCodigo() {
+        InterpretadorPropostaProjeto interpretador = novo(Set.of());
+        interpretador.adicionarCamada(camada(D1, D2));
+
+        interpretador.adicionarBloco("""
+                {"pontos":[{"id":"D1234567","tipo":"TRANSFORMADOR","x":0.12,"y":0.11,"barramento":"XXX"},
+                           {"id":"D2234567","x":0.9,"y":0.9}]}
+                """, PAGINA_INTEIRA);
+
+        List<PropostaPlanejamento.PontoSugerido> pontos = interpretador.concluir().pontos();
+        assertThat(pontos.get(0).barramento()).isEqualTo("D1234567");
+        assertThat(pontos.get(0).tipo()).isEqualTo(TipoPontoPlanejamento.TRANSFORMADOR);
+        assertThat(pontos.get(0).x()).isEqualByComparingTo("0.12");
+        // Longe demais da etiqueta: é erro do modelo, e fica a posição do texto.
+        assertThat(pontos.get(1).x()).isEqualByComparingTo("0.1");
+    }
+
+    @Test
+    void numeraOsPontosSemNumeroNaSequenciaDaRede() {
+        InterpretadorPropostaProjeto interpretador = novo(Set.of("7"));
+        interpretador.adicionarCamada(camada(D2, D3, D1));
+
+        interpretador.adicionarBloco("""
+                {"vaos":[{"de":"D1234567","para":"D2234567"},{"de":"D2234567","para":"D3234567"}]}
+                """, PAGINA_INTEIRA);
+
+        PropostaPlanejamento proposta = interpretador.concluir();
+        assertThat(proposta.pontos())
+                .extracting(PropostaPlanejamento.PontoSugerido::referencia, PropostaPlanejamento.PontoSugerido::numero)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("D1234567", "8"),
+                        org.assertj.core.groups.Tuple.tuple("D2234567", "9"),
+                        org.assertj.core.groups.Tuple.tuple("D3234567", "10"));
+    }
+
+    @Test
+    void estimaAMetragemPelaEscalaEAvisaQueEEstimada() {
+        InterpretadorPropostaProjeto interpretador = novo(Set.of());
+        interpretador.adicionarCamada(camada(D1, D2));
+
+        interpretador.adicionarBloco("""
+                {"vaos":[{"de":"D1234567","para":"D2234567"}]}
+                """, PAGINA_INTEIRA);
+
+        // 0,4 de 600 pt = 240 pt = 84,67 mm no papel, ou 84,7 m em 1:1000.
+        PropostaPlanejamento.VaoSugerido vao = interpretador.concluir().vaos().get(0);
+        assertThat(vao.metragem()).isEqualByComparingTo("84.7");
+        assertThat(vao.textosLidos()).anyMatch(t -> t.contains("estimada pela escala 1:1000"));
+    }
+
+    @Test
+    void posteDaOutraFolhaLigaAoQueJaExisteSemDuplicar() {
+        InterpretadorPropostaProjeto interpretador = new InterpretadorPropostaProjeto(2, Set.of("5"), java.util.Map.of("D1234567", "5"), CATALOGO);
+        interpretador.adicionarCamada(camada(D1, D2));
+
+        interpretador.adicionarBloco("""
+                {"vaos":[{"de":"D1234567","para":"D2234567","metragem":40}]}
+                """, PAGINA_INTEIRA);
+
+        PropostaPlanejamento proposta = interpretador.concluir();
+        assertThat(proposta.pontos()).extracting(PropostaPlanejamento.PontoSugerido::referencia).containsExactly("D2234567");
+        assertThat(proposta.vaos().get(0).referenciaA()).isEqualTo("5");
+        assertThat(proposta.vaos().get(0).referenciaB()).isEqualTo("D2234567");
+    }
+
+    @Test
+    void caixaLigadaAUmPontoViraInformacaoDele() {
+        InterpretadorPropostaProjeto interpretador = novo(Set.of());
+        interpretador.adicionarCamada(camada(D1, new LeitorCamadaProjeto.Candidato(null, 0.3, 0.3, List.of("9/400", "IM-1"))));
+
+        interpretador.adicionarBloco("""
+                {"pontos":[{"id":"D1234567","x":0.11,"y":0.11},{"id":"CX1","pertence_a":"D1234567","numero":"4"}],
+                 "vaos":[{"de":"CX1","para":"D1234567"}]}
+                """, PAGINA_INTEIRA);
+
+        PropostaPlanejamento proposta = interpretador.concluir();
+        assertThat(proposta.pontos()).hasSize(1);
+        assertThat(proposta.pontos().get(0).numero()).isEqualTo("4");
+        assertThat(proposta.pontos().get(0).barramento()).isEqualTo("D1234567");
+        assertThat(proposta.pontos().get(0).kits()).extracting(PropostaPlanejamento.KitSugerido::codigo).contains("LMI-0057");
+        assertThat(proposta.vaos()).isEmpty();
+    }
+
+    @Test
+    void toleraComentarioEVirgulaSobrandoEAvisaQuemChamaQuandoNaoEJson() {
+        InterpretadorPropostaProjeto interpretador = novo(Set.of());
+
+        assertThat(interpretador.tentarBloco("{\"pontos\":[{\"numero\":\"1\",\"x\":0.1,\"y\":0.1,},], // fim\n}", PAGINA_INTEIRA)).isTrue();
+        assertThat(interpretador.tentarBloco("não consegui ler", PAGINA_INTEIRA)).isFalse();
+        assertThat(interpretador.tentarBloco("", PAGINA_INTEIRA)).isFalse();
+
+        PropostaPlanejamento proposta = interpretador.concluir();
+        assertThat(proposta.pontos()).hasSize(1);
+        assertThat(proposta.avisos()).isEmpty();
+    }
+
+    @Test
+    void zeroAEsquerdaNaoDuplicaOPonto() {
+        InterpretadorPropostaProjeto interpretador = novo(Set.of());
+
+        interpretador.adicionarBloco("""
+                {"pontos":[{"numero":"03","x":0.1,"y":0.1,"confianca":0.5},{"numero":"3","x":0.2,"y":0.2,"confianca":0.9}]}
+                """, PAGINA_INTEIRA);
+
+        assertThat(interpretador.concluir().pontos()).extracting(PropostaPlanejamento.PontoSugerido::numero).containsExactly("3");
+    }
+
     @Test
     void blocosCobremAFolhaInteiraComSobreposicao() {
         int colunas = RenderizadorPaginaProjeto.quantidade(4000);

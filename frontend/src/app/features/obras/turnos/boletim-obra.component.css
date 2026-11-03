@@ -1,0 +1,94 @@
+.bol-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.375rem 0 0;
+  padding: 0;
+  font-size: 0.8125rem;
+  list-style: none;
+}
+
+.bol-agenda li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bol-agenda__link {
+  padding: 0;
+  color: var(--ces-brand);
+  font-weight: 600;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.bol-agenda__link:hover {
+  text-decoration: underline;
+}
+
+.bol-agenda__link:focus-visible {
+  outline: 2px solid var(--ces-focus-ring);
+  outline-offset: 2px;
+}
+
+.bol-pessoas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0.375rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bol-pessoas li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.bol-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--ces-foreground-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: var(--ces-surface-subtle);
+  border-radius: 50%;
+}
+
+.bol-pessoa {
+  display: flex;
+  flex: 1 1 8rem;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
+}
+
+.bol-pessoa strong {
+  font-weight: 600;
+}
+
+.bol-pessoa small {
+  color: var(--ces-foreground-muted);
+}
+
+.ed-team__facts dd {
+  white-space: normal;
+}
+
+/* A rota é fullBleed: o shell não rola, então a tela rola sozinha, como a área do Copiloto faz no comercial. */
+:host {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+}

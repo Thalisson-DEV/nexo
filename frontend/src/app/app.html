@@ -1,5 +1,16 @@
 <div class="flex flex-col h-screen overflow-hidden bg-[var(--ces-canvas)] text-[var(--ces-foreground)] font-sans print:h-auto print:overflow-visible" [class.!bg-white]="hideLayout()" [class.dark:!bg-[var(--ces-canvas)]]="hideLayout()">
-  <p-toast class="print:hidden"></p-toast>
+  <p-toast class="print:hidden">
+    <ng-template #message let-aviso>
+      <i [class]="iconeAviso(aviso.severity)" aria-hidden="true"></i>
+      <div class="p-toast-message-text">
+        <div class="p-toast-summary">{{ aviso.summary }}</div>
+        <div class="p-toast-detail">{{ aviso.detail }}</div>
+        @if (aviso.data?.cesAction; as acao) {
+          <ces-button class="mt-2 block" variant="outline" size="sm" [label]="acao.label" (pressed)="notificacoes.runAction(acao)"></ces-button>
+        }
+      </div>
+    </ng-template>
+  </p-toast>
   @if (auth.isAuthenticated()) {
     <p-confirmDialog
       class="print:hidden"

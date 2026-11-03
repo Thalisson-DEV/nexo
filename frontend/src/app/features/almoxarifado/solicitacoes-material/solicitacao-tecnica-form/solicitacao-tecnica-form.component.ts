@@ -5,27 +5,30 @@ import {
   OnInit,
   computed,
   inject,
+  input,
+  output,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
-import { forkJoin } from 'rxjs';
-import { MenuItem } from 'primeng/api';
-import { ButtonModule } from 'primeng/button';
-import { SelectModule } from 'primeng/select';
-import { InputNumberModule } from 'primeng/inputnumber';
-import { TableModule } from 'primeng/table';
-import { TooltipModule } from 'primeng/tooltip';
-import { InputTextModule } from 'primeng/inputtext';
-import { TextareaModule } from 'primeng/textarea';
-import { DatePickerModule } from 'primeng/datepicker';
-import { BreadcrumbModule } from 'primeng/breadcrumb';
-import { StepperModule } from 'primeng/stepper';
-import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { NotificationService } from '../../../../design-system/feedback/notification/notification.service';
-import { CesAutocompleteComponent } from '../../../../design-system/forms/controls/ces-autocomplete.component';
-import { CesBooleanControlComponent } from '../../../../design-system/forms/controls/ces-boolean-control.component';
+import { FormsModule } from '@angular/forms';
+import { forkJoin, of } from 'rxjs';
+import {
+  CES_FORM_KIT,
+  CesAsyncStateComponent,
+  CesAutocompleteComponent,
+  CesBooleanControlComponent,
+  CesButtonComponent,
+  CesCalloutComponent,
+  CesDatepickerComponent,
+  CesIconButtonComponent,
+  CesNumberInputComponent,
+  CesSelectComponent,
+  CesSelectOption,
+  CesStatusComponent,
+  CesTextInputComponent,
+  CesTextareaComponent,
+  NotificationService,
+  cesFocusFirstInvalid,
+} from '@ces/ui';
 import { AlmoxarifadoService } from '../../../../core/services/almoxarifado.service';
 import { ObrasService } from '../../../../core/services/obras.service';
 import { RhService } from '../../../../core/services/rh.service';
@@ -55,32 +58,13 @@ import {
 } from '../../../../core/utils/solicitacao-tecnica-error.util';
 import { getErrorMessage } from '../../../../core/models/shared.models';
 import {
-  tipoTecnicoDescricaoCompleta,
   tipoTecnicoEhAdicao,
   tipoTecnicoIcon,
   tipoTecnicoLabel,
-  tipoTecnicoNome,
 } from '../solicitacao-tecnica-presentation';
+import { saidaDoDrawer } from '../../../../shared/utils/drawer-navegacao.utils';
 import { LookupStore } from '../../../../core/lookup/store/lookup.store';
 import { RemoteLookup as CursorRemoteLookup } from '../../../../core/lookup/store/remote-lookup';
-import { LookupOption } from '../../../../core/lookup/models/lookup-option';
-import { NavigationHistoryService, bindStepToUrl, createFormDraft } from '../../../../core/navigation';
-
-/** Rascunho do wizard (ver docs/state-restoration/GUIA.md). */
-interface RascunhoSolicitacaoTecnica {
-  idObra: string | null;
-  ocorrencia: string;
-  idAlmoxarifado: string | null;
-  almoxarifado: LookupOption<string>[];
-  idEquipe: string | null;
-  saqueForaEquipe: boolean;
-  idColaboradorSaque: string | null;
-  colaboradorSaque: LookupOption<string>[];
-  dataPrevista: Date | null;
-  observacao: string;
-  tipoMovimentacao: TipoSolicitacaoTecnica;
-  itens: AddedMaterialItem[];
-}
 
 export interface AddedMaterialItem extends ItemIntencaoSolicitacaoTecnica {
   codigo: string;
@@ -89,29 +73,36 @@ export interface AddedMaterialItem extends ItemIntencaoSolicitacaoTecnica {
   codigoOperacao: CodigoOperacaoTecnica;
 }
 
+const TIPOS: { value: TipoSolicitacaoTecnica; nome: string }[] = [
+  { value: 'ADICAO_COMUM', nome: 'Adição comum' },
+  { value: 'ADICAO_CONCRETO', nome: 'Adição concreto' },
+];
+
+/**
+ * Solicitação técnica de material em drawer. Com `idObra`, a obra já vem definida (aberta de dentro
+ * da obra ou da carteira). A tela que abre monta o componente só enquanto o drawer está aberto.
+ */
 @Component({
   selector: 'app-solicitacao-tecnica-form',
   standalone: true,
   imports: [
-    CommonModule,
+    ...CES_FORM_KIT,
     FormsModule,
-    ReactiveFormsModule,
-    BreadcrumbModule,
-    ButtonModule,
-    SelectModule,
-    InputNumberModule,
-    TableModule,
-    TooltipModule,
-    InputTextModule,
-    TextareaModule,
-    DatePickerModule,
-    StepperModule,
-    ProgressSpinnerModule,
-    CesBooleanControlComponent,
+    CesAsyncStateComponent,
     CesAutocompleteComponent,
+    CesBooleanControlComponent,
+    CesButtonComponent,
+    CesCalloutComponent,
+    CesDatepickerComponent,
+    CesIconButtonComponent,
+    CesNumberInputComponent,
+    CesSelectComponent,
+    CesStatusComponent,
+    CesTextInputComponent,
+    CesTextareaComponent,
   ],
   templateUrl: './solicitacao-tecnica-form.component.html',
-  styleUrl: './solicitacao-tecnica-form.component.css',
+  styleUrl: '../solicitacao-form-itens.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SolicitacaoTecnicaFormComponent implements OnInit {
@@ -122,9 +113,6 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
   private readonly notifications = inject(NotificationService);
   private readonly lookupStore = inject(LookupStore);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly router = inject(Router);
-  private readonly navegacao = inject(NavigationHistoryService);
-  private readonly route = inject(ActivatedRoute);
   private readonly collaboratorLookup = new CursorRemoteLookup<string>({
     loader: ({ query, cursor }) => this.lookupStore.searchCollaborators({ query, cursor }),
     selectedValues: () => {
@@ -143,21 +131,20 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
     destroyRef: this.destroyRef,
   });
 
-  protected readonly modo = signal<'adicao' | 'devolucao'>('adicao');
-  protected readonly breadcrumb = computed<MenuItem[]>(() => [
-    { label: 'Almoxarifado' },
-    { label: 'Solicitações Técnicas', routerLink: '/almoxarifado/solicitacoes-tecnicas' },
-    { label: this.modo() === 'devolucao' ? 'Nova Devolução' : 'Nova Solicitação' },
-  ]);
+  /** Obra já definida por quem abriu. */
+  readonly obraInicial = input<string | null>(null, { alias: 'idObra' });
+  readonly criadas = output<SolicitacaoTecnicaCriada[]>();
+  /** Depois de fechar, por qualquer meio. */
+  readonly fechado = output<void>();
 
+  protected readonly aberto = signal(true);
+  private readonly aoSair = saidaDoDrawer(() => this.fechado.emit());
   protected readonly loadingLookups = signal(true);
-  protected readonly activeStep = signal<1 | 2 | 3 | 4>(1);
   protected readonly lookupError = signal('');
   protected readonly submitting = signal(false);
   protected readonly fieldErrors = signal<Record<string, string>>({});
   protected readonly retryRequest = signal<CriarSolicitacaoTecnicaRequest | null>(null);
   protected readonly retryKey = signal<string | null>(null);
-  protected readonly solicitacoesCriadas = signal<SolicitacaoTecnicaCriada[]>([]);
 
   // Lookups data
   protected readonly obras = signal<ObraResumoResponse[]>([]);
@@ -291,68 +278,29 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
   });
 
   protected readonly formLocked = computed(() => this.submitting() || this.retryRequest() !== null);
-  protected readonly formErrorMessages = computed(() =>
-    Array.from(new Set(Object.values(this.fieldErrors()))),
+  protected readonly obraFixa = computed(() => !!this.obraInicial());
+  protected readonly obraRotulo = computed(() => {
+    const obra = this.obraDetalhe() ?? this.selectedObra();
+    return obra ? `${obra.numero} · ${obra.titulo}` : undefined;
+  });
+  protected readonly tipoOpcoes = computed<CesSelectOption<TipoSolicitacaoTecnica>[]>(() =>
+    TIPOS.map((t) => ({ value: t.value, label: `${tipoTecnicoLabel(t.value)} · ${t.nome}` })),
+  );
+  protected readonly alterado = computed(
+    () =>
+      this.itens().length > 0 ||
+      !!(this.idAlmoxarifado() || this.idEquipe() || this.idColaboradorSaque() || this.dataPrevista() || this.idMaterial()) ||
+      !!(this.observacao().trim() || this.ocorrencia().trim()) ||
+      (!this.obraFixa() && !!this.idObra()),
   );
 
-  private readonly passoUrl = bindStepToUrl(this.activeStep);
-  /** Rascunho restaurado, aplicado quando os catálogos chegam (a obra recarrega dependências). */
-  private rascunhoPendente: RascunhoSolicitacaoTecnica | null = null;
-  // Só em memória: o rascunho carrega o nome do colaborador do saque (dado pessoal).
-  private readonly rascunho = createFormDraft<RascunhoSolicitacaoTecnica>({
-    persist: false,
-    read: () =>
-      this.rascunhoPendente ?? {
-        idObra: this.idObra(),
-        ocorrencia: this.ocorrencia(),
-        idAlmoxarifado: this.idAlmoxarifado(),
-        almoxarifado: this.stockLookup.items().filter((opcao) => opcao.value === this.idAlmoxarifado()),
-        idEquipe: this.idEquipe(),
-        saqueForaEquipe: this.saqueForaEquipe(),
-        idColaboradorSaque: this.idColaboradorSaque(),
-        colaboradorSaque: this.collaboratorLookup
-          .items()
-          .filter((opcao) => opcao.value === this.idColaboradorSaque()),
-        dataPrevista: this.dataPrevista(),
-        observacao: this.observacao(),
-        tipoMovimentacao: this.tipoMovimentacao(),
-        itens: this.itens(),
-      },
-    write: (valor) => (this.rascunhoPendente = valor),
-  });
-
   ngOnInit(): void {
-    const modoData =
-      this.route.snapshot.data?.['modo'] || this.route.snapshot.queryParamMap.get('modo');
-    if (modoData === 'devolucao') {
-      this.modo.set('devolucao');
-      this.tipoMovimentacao.set('DEVOLUCAO_COMUM');
-    }
-    const restaurado = this.rascunho.restore();
-    const idObraParam = this.route.snapshot.queryParamMap.get('idObra');
-    if (restaurado && idObraParam && this.rascunhoPendente?.idObra !== idObraParam) {
-      // Aberto a partir de outra obra: o rascunho antigo não vale para esta.
-      this.rascunhoPendente = null;
-      this.rascunho.clear();
-    }
-    this.passoUrl.restore((passo) => !!this.rascunhoPendente && passo < 4);
     this.loadLookups();
   }
 
-  private aplicarRascunho(valor: RascunhoSolicitacaoTecnica): void {
-    this.rascunhoPendente = null;
-    this.selectObra(valor.idObra);
-    this.ocorrencia.set(valor.ocorrencia);
-    if (valor.almoxarifado?.length) this.stockLookup.seedSelected(valor.almoxarifado);
-    this.idAlmoxarifado.set(valor.idAlmoxarifado);
-    this.idEquipe.set(valor.idEquipe);
-    this.saqueForaEquipe.set(valor.saqueForaEquipe);
-    if (valor.colaboradorSaque?.length) this.collaboratorLookup.seedSelected(valor.colaboradorSaque);
-    this.idColaboradorSaque.set(valor.idColaboradorSaque);
-    this.dataPrevista.set(valor.dataPrevista);
-    this.observacao.set(valor.observacao);
-    this.tipoMovimentacao.set(valor.tipoMovimentacao);
-    this.itens.set(valor.itens ?? []);
+  protected fechar(): void {
+    this.aberto.set(false);
+    this.aoSair();
   }
 
   protected onEquipeChange(id: string | null): void {
@@ -447,8 +395,10 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
   protected loadLookups(): void {
     this.loadingLookups.set(true);
     this.lookupError.set('');
+    const obraInicial = this.obraInicial();
     forkJoin({
-      obras: this.obrasService.listarObras({ ativo: true, size: 1000, sort: 'numero,asc' }),
+      // Com a obra definida não há o que escolher: evita trazer a carteira inteira.
+      obras: obraInicial ? of({ content: [] as ObraResumoResponse[] }) : this.obrasService.listarObras({ ativo: true, size: 1000, sort: 'numero,asc' }),
       equipes: this.rhService.listarEquipes({ ativo: true, size: 1000, sort: 'codigo,asc' }),
     }).subscribe({
       next: ({ obras, equipes }) => {
@@ -457,12 +407,7 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
         this.equipesElegiveis.set(equipes.content);
         this.loadingLookups.set(false);
 
-        const idObraParam = this.route.snapshot.queryParamMap.get('idObra');
-        if (this.rascunhoPendente) {
-          this.aplicarRascunho(this.rascunhoPendente);
-        } else if (idObraParam) {
-          this.selectObra(idObraParam);
-        }
+        if (obraInicial) this.selectObra(obraInicial);
       },
       error: (error) => {
         this.loadingLookups.set(false);
@@ -590,35 +535,12 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
     this.itens.update((items) => items.filter((_, i) => i !== index));
   }
 
+  protected updateQuantidade(index: number, quantidade: number | null): void {
+    if (!quantidade || quantidade < 0.001) return;
+    this.itens.update((items) => items.map((item, i) => (i === index ? { ...item, quantidade } : item)));
+  }
+
   protected readonly tipoDescricao = tipoTecnicoLabel;
-  protected readonly tipoDescricaoCompleta = tipoTecnicoDescricaoCompleta;
-  protected readonly tipoNome = tipoTecnicoNome;
-
-  protected goToStep(step: 1 | 2 | 3 | 4): void {
-    if (this.formLocked() || step === this.activeStep()) return;
-    if (step === 4 && this.solicitacoesCriadas().length === 0) return;
-    if (step < this.activeStep()) {
-      this.activeStep.set(step);
-      return;
-    }
-    if (!this.validateContext()) return;
-    if (step >= 3 && !this.validateItems()) return;
-    this.activeStep.set(step);
-  }
-
-  protected nextStep(): void {
-    if (this.activeStep() === 1) {
-      if (this.validateContext()) this.activeStep.set(2);
-      return;
-    }
-    if (this.activeStep() === 2 && this.validateItems()) this.activeStep.set(3);
-  }
-
-  protected previousStep(): void {
-    if (this.activeStep() === 4) return;
-    if (this.activeStep() === 3) this.activeStep.set(2);
-    else if (this.activeStep() === 2) this.activeStep.set(1);
-  }
 
   protected submit(): void {
     const request = this.retryRequest() ?? this.buildRequest();
@@ -633,25 +555,15 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
         this.submitting.set(false);
         this.retryRequest.set(null);
         this.retryKey.set(null);
-        this.rascunho.clear();
         const criadas = response.solicitacoesCriadas || [];
-        this.solicitacoesCriadas.set(criadas);
-
-        if (criadas.length === 1) {
-          const unica = criadas[0];
-          this.notifications.success(
-            `Solicitação técnica (${unica.codigo} · ${unica.tipo}) criada com sucesso.`,
-          );
-          void this.router.navigate(['/almoxarifado/solicitacoes-tecnicas', unica.id]);
-        } else if (criadas.length > 1) {
-          this.notifications.success(
-            `${criadas.length} solicitações técnicas independentes foram criadas com sucesso.`,
-          );
-          this.activeStep.set(4);
-        } else {
-          this.notifications.success('Solicitação criada com sucesso.');
-          void this.router.navigate(['/almoxarifado/solicitacoes-tecnicas']);
-        }
+        const codigos = criadas.map((c) => c.codigo).join(', ');
+        this.notifications.success(
+          criadas.length > 1
+            ? `${criadas.length} solicitações independentes criadas: ${codigos}.`
+            : `Solicitação ${codigos} criada.`,
+        );
+        this.criadas.emit(criadas);
+        this.fechar();
       },
       error: (error) => {
         this.submitting.set(false);
@@ -676,34 +588,9 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
     });
   }
 
-  protected navegarParaSolicitacao(id: string): void {
-    void this.router.navigate(['/almoxarifado/solicitacoes-tecnicas', id]);
-  }
-
-  protected novaSolicitacao(): void {
-    this.solicitacoesCriadas.set([]);
-    this.itens.set([]);
-    this.idMaterial.set(null);
-    this.selectedMaterial.set(null);
-    this.quantidade.set(null);
-    this.observacao.set('');
-    this.ocorrencia.set('');
-    this.idObra.set(null);
-    this.idEquipe.set(null);
-    this.idColaboradorSaque.set(null);
-    this.saqueForaEquipe.set(false);
-    this.idAlmoxarifado.set(null);
-    this.activeStep.set(1);
-  }
-
   protected discardRetry(): void {
     this.retryRequest.set(null);
     this.retryKey.set(null);
-  }
-
-  protected close(): void {
-    this.rascunho.clear();
-    this.navegacao.back(['/almoxarifado/solicitacoes-tecnicas']);
   }
 
   protected fieldError(field: string): string | undefined {
@@ -726,7 +613,8 @@ export class SolicitacaoTecnicaFormComponent implements OnInit {
 
     this.fieldErrors.set(errors);
     if (Object.keys(errors).length) {
-      this.notifications.warning('Preencha os campos obrigatórios para continuar.');
+      this.notifications.warning('Preencha os campos destacados para enviar.');
+      setTimeout(() => cesFocusFirstInvalid());
       return false;
     }
     return true;

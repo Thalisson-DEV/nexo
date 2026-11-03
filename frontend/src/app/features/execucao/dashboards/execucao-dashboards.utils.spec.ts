@@ -40,15 +40,15 @@ describe('utilitários dos dashboards de execução', () => {
 
   it('normaliza as barras de produção pelo maior dia e mantém visível o dia pequeno', () => {
     const barras = barrasProducao([
-      { data: '2026-10-01', notas: 2, valor: 1000, meta: null },
-      { data: '2026-10-02', notas: 0, valor: 0, meta: null },
-      { data: '2026-10-05', notas: 1, valor: 10, meta: null }
+      { data: '2026-10-01', obras: 2, servicos: 2, valor: 1000, meta: null },
+      { data: '2026-10-02', obras: 0, servicos: 0, valor: 0, meta: null },
+      { data: '2026-10-05', obras: 1, servicos: 1, valor: 10, meta: null }
     ]);
 
     expect(barras.map((b) => b.altura)).toEqual([100, 0, 6]);
     expect(barras[1].vazio).toBe(true);
-    expect(barras[1].rotulo).toBe('02/10: sem lançamentos');
-    expect(barras[0].rotulo).toContain('2 notas');
+    expect(barras[1].rotulo).toBe('02/10: sem execução');
+    expect(barras[0].rotulo).toContain('2 obras');
   });
 
   it('posiciona os lançamentos na janela do turno aberto até agora', () => {
@@ -165,9 +165,9 @@ describe('utilitários dos dashboards de execução', () => {
 
   it('monta as séries de produção × meta acumulada e mensal', () => {
     const dias = [
-      { data: '2026-09-30', notas: 1, valor: 500, meta: 1000 },
-      { data: '2026-10-01', notas: 2, valor: 1200, meta: 1000 },
-      { data: '2026-10-03', notas: 0, valor: 0, meta: 0 }
+      { data: '2026-09-30', obras: 1, servicos: 1, valor: 500, meta: 1000 },
+      { data: '2026-10-01', obras: 2, servicos: 2, valor: 1200, meta: 1000 },
+      { data: '2026-10-03', obras: 0, servicos: 0, valor: 0, meta: 0 }
     ];
 
     const acumulada = serieAcumulada(dias);
@@ -182,7 +182,7 @@ describe('utilitários dos dashboards de execução', () => {
   });
 
   it('omite a série de meta quando ninguém tem meta e ordena equipes pela produção', () => {
-    expect(serieAcumulada([{ data: '2026-10-01', notas: 1, valor: 10, meta: null }]).series).toHaveLength(1);
+    expect(serieAcumulada([{ data: '2026-10-01', obras: 1, servicos: 1, valor: 10, meta: null }]).series).toHaveLength(1);
 
     const porEquipe = seriePorEquipe([
       { codigo: 'EQ-01', producao: 100, metaPeriodo: 500 },

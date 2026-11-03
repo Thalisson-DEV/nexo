@@ -17,6 +17,23 @@ import java.util.UUID;
 @Repository
 public interface MovimentacaoEstoqueRepository extends JpaRepository<MovimentacaoEstoque, UUID>, JpaSpecificationExecutor<MovimentacaoEstoque> {
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"estoqueOrigem", "estoqueDestino", "material", "solicitacao"})
+    java.util.List<MovimentacaoEstoque> findByIdObraOrderByDataHoraDesc(UUID idObra, Pageable pageable);
+
+    /** O que foi lançado para a obra e o que entrou ou saiu do estoque dela, mesmo sem vínculo com a obra. */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"estoqueOrigem", "estoqueDestino", "material", "solicitacao"})
+    @org.springframework.data.jpa.repository.Query("""
+            select movimentacao from MovimentacaoEstoque movimentacao
+            where movimentacao.idObra = :idObra
+               or movimentacao.estoqueOrigem.id = :idEstoque
+               or movimentacao.estoqueDestino.id = :idEstoque
+            order by movimentacao.dataHora desc
+            """)
+    java.util.List<MovimentacaoEstoque> findDaObraOuDoEstoque(
+            @org.springframework.data.repository.query.Param("idObra") UUID idObra,
+            @org.springframework.data.repository.query.Param("idEstoque") UUID idEstoque,
+            Pageable pageable);
+
     List<MovimentacaoEstoque> findAllBySolicitacaoIdOrderByDataHoraAscIdAsc(UUID idSolicitacao);
 
     List<MovimentacaoEstoque> findAllByIdReferenciaOperacaoInOrderByDataHoraAscIdAsc(

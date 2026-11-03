@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ObraResponse } from '../../../core/models/obras.models';
 import { AuthService } from '../../../core/services/auth.service';
+import { ObrasProgramacaoService } from '../../../core/services/obras-programacao.service';
 import { ContratoService } from '../../../core/services/contrato.service';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
@@ -63,7 +64,8 @@ describe('ObraDetalheComponent', () => {
         { provide: ContratoService, useValue: { listarContratosAtivos: () => of({ content: [{ id: 'c1', numeroContrato: 'CT-01', cliente: 'Cliente' }] }) } },
         { provide: RhService, useValue: { listarEquipes: vi.fn(() => of({ content: [{ id: 'eq-1', codigo: 'EQ-01', tipoEquipe: { nome: 'LINHA VIVA' }, baseOperacional: { nome: 'BASE JUAZEIRO' } }] })) } },
         { provide: AuthService, useValue: { currentUser: () => ({ permissoes }) } },
-        { provide: SolicitacaoMaterialTecnicaService, useValue: { obterProjecaoObra: vi.fn(() => of({ idObra: 'obra-1', tipoObra: 'OBRA', ocorrencias: [], solicitacoes: [] })) } },
+        { provide: ObrasProgramacaoService, useValue: { resumos: vi.fn(() => of([])), listarDaObra: vi.fn(() => of([])) } },
+        { provide: SolicitacaoMaterialTecnicaService, useValue: { obterProjecaoObra: vi.fn(() => of({ idObra: 'obra-1', tipoObra: 'OBRA', ocorrencias: [], solicitacoes: [] })), obterSaldoObra: vi.fn(() => of({ idEstoque: null, itens: [] })) } },
         { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: 'obra-1' })) } }
       ]
     }).compileComponents();
@@ -115,6 +117,23 @@ describe('ObraDetalheComponent', () => {
     expect(texto).toContain('Não há orçamento importado');
   });
 
+  it('entrega solicitações e movimentações ao bloco de materiais', async () => {
+    await abrir();
+    const servicoSolicitacao = TestBed.inject(SolicitacaoMaterialTecnicaService) as unknown as { obterProjecaoObra: ReturnType<typeof vi.fn> };
+    servicoSolicitacao.obterProjecaoObra.mockReturnValue(of({
+      idObra: 'obra-1',
+      tipoObra: 'OBRA',
+      ocorrencias: [],
+      solicitacoes: [{ id: 'sol-12345678', tipo: 'ADICAO_COMUM', status: 'APROVADO', itens: [] }],
+      movimentacoes: [{ idReferencia: 'ref-1', tipo: 'DEVOLUCAO', dataHora: '2026-10-31T11:00:00-03:00', itens: [] }]
+    }));
+
+    (tela as unknown as { carregarSolicitacoes(id: string): void }).carregarSolicitacoes('obra-1');
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('app-obra-materiais .mat-bloco').length).toBe(2);
+  });
+
   it('mostra os pontos de atenção entre os indicadores e os dados, com a ação que resolve', async () => {
     const semTensao = { ...mockObra, anexos: [], carteira: { ...mockObra.carteira, classeTensao: null, classeTensaoRotulo: null } } as ObraResponse;
     const el = await abrir(semTensao);
@@ -135,14 +154,14 @@ describe('ObraDetalheComponent', () => {
     expect(el.querySelector('.obra-atencao')!.textContent).toContain('Classe de tensão não informada');
     expect(el.querySelector('.obra-atencao')!.textContent).not.toContain('Informar tensão');
     expect(el.querySelector('.obra-acoes')!.textContent).not.toContain('Atualizar obra');
-    expect(el.querySelector('.obra-acoes')!.textContent).toContain('Solicitar materiais');
+    expect(el.querySelector('.obra-acoes')!.textContent).toContain('SOLICITAR MATERIAIS');
   });
 
   it('as ações ficam na barra flutuante e "Atualizar obra" reúne o que muda a obra', async () => {
     const el = await abrir();
     const barra = el.querySelector('.obra-acoes')!;
-    expect(barra.textContent).toContain('Voltar');
-    expect(barra.querySelector('button[aria-label="Imprimir relatório"]')).not.toBeNull();
+    expect(barra.textContent).toContain('VOLTAR');
+    expect(barra.textContent).toContain('IMPRIMIR');
     expect(barra.textContent).toContain('Atualizar obra');
     const itens = tela.acoesAtualizar().map((i: MenuItem) => i.label);
     expect(itens).toEqual(['Registrar status', 'Editar carteira', 'Editar cadastro e equipes', 'Adicionar anexo', 'Vincular subprojeto']);
@@ -150,7 +169,7 @@ describe('ObraDetalheComponent', () => {
 
   it('obra concluída não oferece solicitar materiais nem vincular subprojeto', async () => {
     const el = await abrir({ ...mockObra, statusConcluida: true, dataFimEfetiva: '01/06/2026' } as ObraResponse);
-    expect(el.querySelector('.obra-acoes')!.textContent).not.toContain('Solicitar materiais');
+    expect(el.querySelector('.obra-acoes')!.textContent).not.toContain('SOLICITAR MATERIAIS');
     expect(tela.acoesAtualizar().map((i: MenuItem) => i.label)).not.toContain('Vincular subprojeto');
     expect(el.textContent).toContain('Concluída em 01/06/2026');
   });

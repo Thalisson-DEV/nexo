@@ -57,11 +57,15 @@ import {
 import { AuthService } from '../../../core/services/auth.service';
 import { ObrasPlanejamentoService } from '../../../core/services/obras-planejamento.service';
 import { ObrasService } from '../../../core/services/obras.service';
+import { ObrasProgramacaoService } from '../../../core/services/obras-programacao.service';
 import { formatarMoeda } from '../obras-ui';
+import { ProgramacaoDetalheComponent } from '../programacao/programacao-detalhe.component';
+import { ProgramarDrawerComponent } from '../programacao/programar-drawer.component';
+import { sugerirDescricao } from '../programacao/programacao.logic';
 import { PlanejamentoArvoreComponent } from './planejamento-arvore.component';
 import { AplicacaoKit, PlanejamentoKitsComponent } from './planejamento-kits.component';
-import { PlanejamentoRevisaoComponent, PontoEmRevisao } from './planejamento-revisao.component';
-import { EstadoLocal, ROTULO_ESTADO, estadoDoLocal, kitsDoLocal, proximoNumero, rotuloVao } from './planejamento.logic';
+import { PlanejamentoRevisaoComponent, PontoEmRevisao, VaoEmRevisao } from './planejamento-revisao.component';
+import { EstadoLocal, ROTULO_ESTADO, estadoDoLocal, kitsDoLocal, programacoesAtrasadas, proximoNumero, rotuloVao } from './planejamento.logic';
 
 type Ferramenta = 'mao' | 'ponto' | 'vao' | 'selecionar' | 'area' | 'texto' | 'anotar';
 type ItemAtivo = { tipo: 'ponto' | 'vao' | 'anotacao'; id: string };
@@ -92,10 +96,12 @@ const INTERVALO_ANALISE_MS = 3000;
     CesTextareaComponent,
     PlanejamentoArvoreComponent,
     PlanejamentoKitsComponent,
-    PlanejamentoRevisaoComponent
+    PlanejamentoRevisaoComponent,
+    ProgramacaoDetalheComponent,
+    ProgramarDrawerComponent
   ],
   templateUrl: './obra-planejamento.component.html',
-  styleUrl: './obra-planejamento.component.css'
+  styleUrls: ['./obra-planejamento.component.css', './obra-planejamento-cartao.component.css']
 })
 export class ObraPlanejamentoComponent {
   private readonly rota = inject(ActivatedRoute);
@@ -112,10 +118,15 @@ export class ObraPlanejamentoComponent {
 
   protected readonly idObra = this.rota.snapshot.paramMap.get('id') ?? '';
   protected readonly podeEditar = (inject(AuthService).currentUser()?.permissoes ?? []).includes('obras:planejamento:write');
+  protected readonly podeProgramar = (inject(AuthService).currentUser()?.permissoes ?? []).includes('obras:programacao:write');
+  private readonly programacoes = inject(ObrasProgramacaoService);
+  protected readonly programarAberto = signal(false);
+  protected readonly programacaoAberta = signal(false);
+  protected readonly idProgramacao = signal<string | null>(null);
   protected readonly tiposPonto: CesSelectOption<TipoPontoPlanejamento>[] = TIPOS_PONTO;
   protected readonly moeda = formatarMoeda;
   protected readonly rotuloEstado = ROTULO_ESTADO;
-  protected readonly estadosLegenda: EstadoLocal[] = ['sem-kit', 'pendente', 'programado', 'andamento', 'concluido'];
+  protected readonly estadosLegenda: EstadoLocal[] = ['sem-kit', 'pendente', 'programado', 'atrasado', 'andamento', 'concluido'];
 
   // ---- Dados ----
   protected readonly plano = signal<PlanejamentoObra | null>(null);
@@ -186,12 +197,14 @@ export class ObraPlanejamentoComponent {
   protected readonly analise = signal<AnalisePlanejamento | null>(null);
   protected readonly ultimaLeitura = signal<AnalisePlanejamento | null>(null);
   protected readonly sugestoes = signal<PontoEmRevisao[]>([]);
+  protected readonly vaosSugeridos = signal<VaoEmRevisao[]>([]);
   protected readonly ajustes = signal<ReadonlyMap<string, { x: number; y: number }>>(new Map());
   protected readonly destaque = signal<string | null>(null);
   protected readonly aceitando = signal(false);
   protected readonly arrastandoSugestao = signal<string | null>(null);
 
   // ---- Derivados ----
+  private readonly temProjeto = computed(() => !!this.plano()?.projetoMestre);
   protected readonly rotacao = computed(() => this.plano()?.rotacoes[String(this.pagina())] ?? 0);
   protected readonly pontosPorId = computed(() => new Map((this.plano()?.pontos ?? []).map((p) => [p.id, p])));
   protected readonly numerosExistentes = computed<ReadonlySet<string>>(() => new Set((this.plano()?.pontos ?? []).map((p) => p.numero)));
@@ -202,12 +215,13 @@ export class ObraPlanejamentoComponent {
     if (!plano) return [];
     const rotacao = this.rotacao();
     const movendo = this.movendo();
+    const atrasadas = programacoesAtrasadas(plano);
     return plano.pontos
       .filter((p) => p.pagina === this.pagina())
       .map((ponto) => {
         const base = movendo?.id === ponto.id ? movendo : ponto;
         const tela = cesPdfParaTela({ x: Number(base.x), y: Number(base.y) }, rotacao);
-        const estado = estadoDoLocal(kitsDoLocal(plano, ponto.id));
+        const estado = estadoDoLocal(kitsDoLocal(plano, ponto.id), atrasadas);
         return { ponto, left: tela.x * 100, top: tela.y * 100, estado };
       });
   });
@@ -229,7 +243,7 @@ export class ObraPlanejamentoComponent {
       lista.push({
         vao, x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y,
         mx: ((pa.x + pb.x) / 2) * 100, my: ((pa.y + pb.y) / 2) * 100,
-        estado: estadoDoLocal(kitsDoLocal(plano, vao.id)),
+        estado: estadoDoLocal(kitsDoLocal(plano, vao.id), programacoesAtrasadas(plano)),
         rotulo: rotuloVao(vao, pontos)
       });
     }
@@ -276,6 +290,31 @@ export class ObraPlanejamentoComponent {
     });
   });
 
+  protected readonly pontosMarcados = computed(() => {
+    const pagina = this.analise()?.pagina;
+    return (this.plano()?.pontos ?? [])
+      .filter((p) => p.pagina === pagina)
+      .map((p) => ({ numero: p.numero, x: Number(p.x), y: Number(p.y) }));
+  });
+
+  /** Vãos da leitura desenhados sobre a folha, para conferir contra o desenho antes de aceitar. */
+  protected readonly trechosSugeridos = computed(() => {
+    if (!this.revisando() || this.analise()?.pagina !== this.pagina()) return [];
+    const rotacao = this.rotacao();
+    const ajustes = this.ajustes();
+    const posicoes = new Map<string, { x: number; y: number }>();
+    for (const ponto of this.pontosDaPagina()) posicoes.set(ponto.ponto.numero, { x: Number(ponto.ponto.x), y: Number(ponto.ponto.y) });
+    for (const sugestao of this.sugestoes()) posicoes.set(sugestao.referencia, ajustes.get(sugestao.referencia) ?? sugestao);
+    return this.vaosSugeridos().flatMap((vao) => {
+      const a = posicoes.get(vao.referenciaA);
+      const b = posicoes.get(vao.referenciaB);
+      if (!a || !b) return [];
+      const pa = cesPdfParaTela({ x: Number(a.x), y: Number(a.y) }, rotacao);
+      const pb = cesPdfParaTela({ x: Number(b.x), y: Number(b.y) }, rotacao);
+      return [{ chave: vao.referenciaA + vao.referenciaB, x1: pa.x, y1: pa.y, x2: pb.x, y2: pb.y, aceito: vao.aceito }];
+    });
+  });
+
   protected readonly pontoAtivo = computed<PontoPlanejamento | null>(() => {
     const ativo = this.ativo();
     return ativo?.tipo === 'ponto' ? this.pontosPorId().get(ativo.id) ?? null : null;
@@ -317,6 +356,50 @@ export class ObraPlanejamentoComponent {
       }
     }
     return { pontos, vaos, itens: itens.size };
+  });
+
+  /** Tudo o que foi marcado, inclusive o que já está programado: o servidor separa e a tela avisa o que fica de fora. */
+  protected readonly idsSelecionados = computed<string[]>(() => {
+    const plano = this.plano();
+    if (!plano) return [];
+    const locais = this.locaisSelecionados();
+    const itens = new Set(this.itensSelecionados());
+    for (const kit of plano.kits) {
+      if ((kit.idPonto && locais.has(kit.idPonto)) || (kit.idVao && locais.has(kit.idVao))) {
+        kit.itens.forEach((i) => itens.add(i.id));
+      }
+    }
+    return [...itens];
+  });
+
+  protected readonly sugestaoDescricao = computed(() => {
+    const plano = this.plano();
+    if (!plano) return '';
+    const ids = new Set(this.idsSelecionados());
+    const kits = plano.kits.filter((k) => k.itens.some((i) => ids.has(i.id)));
+    const locais = new Set(kits.map((k) => k.idPonto ?? k.idVao));
+    const pontos = new Map(plano.pontos.map((p) => [p.id, p]));
+    const nomes = [
+      ...plano.pontos.filter((p) => locais.has(p.id)).map((p) => `P${p.numero}`),
+      ...plano.vaos.filter((v) => locais.has(v.id)).map((v) => rotuloVao(v, pontos))
+    ];
+    return sugerirDescricao(nomes, kits.map((k) => k.codigo));
+  });
+
+  /** Kits já usados nesta obra: quase sempre são os mesmos, então ficam a um clique, sem digitar. */
+  protected readonly kitsUsadosNaObra = computed(() => {
+    const usados = new Map<string, { idKit: string; codigo: string; descricao: string }>();
+    for (const kit of this.plano()?.kits ?? []) usados.set(kit.idKit, { idKit: kit.idKit, codigo: kit.codigo, descricao: kit.descricao });
+    return [...usados.values()].sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR')).slice(0, 8);
+  });
+
+  protected readonly descricaoLote = computed(() => {
+    const { pontos, vaos } = this.contagemSelecao();
+    const locais = [
+      pontos ? `${pontos} ${pontos === 1 ? 'ponto' : 'pontos'}` : '',
+      vaos ? `${vaos} ${vaos === 1 ? 'vão' : 'vãos'}` : ''
+    ].filter(Boolean).join(' e ');
+    return `O kit será aplicado a ${locais}. Quem já tem o kit fica como está.`;
   });
 
   protected readonly temSelecao = computed(() => {
@@ -395,7 +478,7 @@ export class ObraPlanejamentoComponent {
 
     effect(() => {
       const pagina = this.pagina();
-      if (this.podeEditar && this.plano()?.projetoMestre) this.consultarLeitura(pagina);
+      if (this.podeEditar && this.temProjeto()) this.consultarLeitura(pagina);
     });
   }
 
@@ -911,6 +994,41 @@ export class ObraPlanejamentoComponent {
     this.itensSelecionados.set(new Set());
   }
 
+  // ---- Programação ----
+
+  protected selecionarPendentes(): void {
+    const plano = this.plano();
+    if (!plano) return;
+    const locais = new Set<string>();
+    for (const kit of plano.kits) {
+      const local = kit.idPonto ?? kit.idVao;
+      if (local && !kit.executadoAntes && kit.itens.some((i) => i.status === 'PENDENTE')) locais.add(local);
+    }
+    this.locaisSelecionados.set(locais);
+    this.itensSelecionados.set(new Set());
+  }
+
+  protected aoProgramar(): void {
+    this.limparSelecao();
+    this.carregar();
+  }
+
+  protected abrirProgramacao(id: string): void {
+    this.idProgramacao.set(id);
+    this.programacaoAberta.set(true);
+  }
+
+  protected async retirarDaProgramacao(pedido: { idProgramacao: string; idItem: string; descricao: string }): Promise<void> {
+    const ok = await this.confirmacao.confirm({
+      title: 'Retirar o item da programação?',
+      message: `${pedido.descricao} volta a pendente. Sem serviço do kit na programação, os materiais dele saem junto.`,
+      variant: 'destructive'
+    });
+    if (ok) {
+      this.executar(this.programacoes.retirarItem(pedido.idProgramacao, pedido.idItem).pipe(switchMap(() => this.api.buscar(this.idObra))));
+    }
+  }
+
   // ---- Anotações ----
 
   protected salvarNovaAnotacao(): void {
@@ -1024,6 +1142,7 @@ export class ObraPlanejamentoComponent {
   protected descartarRevisao(): void {
     this.analise.set(null);
     this.sugestoes.set([]);
+    this.vaosSugeridos.set([]);
     this.ajustes.set(new Map());
   }
 
@@ -1037,7 +1156,9 @@ export class ObraPlanejamentoComponent {
         this.plano.set(plano);
         this.descartarRevisao();
         this.ultimaLeitura.set(null);
-        this.notificacoes.success(`Planejamento atualizado: ${aceite.pontos.length} pontos e ${aceite.vaos.length} vãos da leitura.`);
+        const pontos = aceite.pontos.length;
+        const vaos = aceite.vaos.length;
+        this.notificacoes.success(`Planejamento atualizado: ${pontos} ${pontos === 1 ? 'ponto' : 'pontos'} e ${vaos} ${vaos === 1 ? 'vão' : 'vãos'} da leitura.`);
       },
       error: (e) => {
         this.aceitando.set(false);

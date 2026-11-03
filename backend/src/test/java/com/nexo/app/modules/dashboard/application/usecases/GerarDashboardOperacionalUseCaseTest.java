@@ -2,18 +2,17 @@ package com.nexo.app.modules.dashboard.application.usecases;
 
 import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalFilter;
 import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse;
+import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse.ProducaoPorObra;
 import com.nexo.app.modules.dashboard.application.dto.DashboardOperacionalResponse.SituacaoMeta;
-import com.nexo.app.modules.dashboard.application.dto.ProducaoPorTipoServico;
 import com.nexo.app.modules.dashboard.domain.CalendarioOperacional;
-import com.nexo.app.modules.execucao.ExecucaoComercialApi;
-import com.nexo.app.modules.execucao.TipoServicoApi;
 import com.nexo.app.modules.execucao.TurnoApi;
-import com.nexo.app.modules.execucao.application.dto.LancamentoResumido;
-import com.nexo.app.modules.execucao.application.dto.TipoServicoResponse;
 import com.nexo.app.modules.execucao.application.dto.TurnoResponse;
 import com.nexo.app.modules.execucao.domain.StatusTurno;
+import com.nexo.app.modules.obras.ExecucaoObrasApi;
+import com.nexo.app.modules.obras.ExecucaoObrasApi.ExecutadoNoDia;
 import com.nexo.app.modules.rh.BaseOperacionalResponse;
 import com.nexo.app.modules.rh.EquipeResponse;
+import com.nexo.app.modules.rh.ProcessoNegocioResponse;
 import com.nexo.app.shared.domain.exception.InvarianteVioladaException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -41,44 +41,44 @@ class GerarDashboardOperacionalUseCaseTest {
     // Sexta-feira, 09/10/2026, 15h em São Paulo.
     private static final OffsetDateTime AGORA = OffsetDateTime.parse("2026-10-09T15:00:00-03:00");
     private static final BigDecimal META_21_MIL = new BigDecimal("21000");
+    private static final ProcessoNegocioResponse OBRAS = new ProcessoNegocioResponse(UUID.randomUUID(), "OBRAS", true);
+    private static final ProcessoNegocioResponse COMERCIAL = new ProcessoNegocioResponse(UUID.randomUUID(), "COMERCIAL", true);
 
     private final EquipesDoRecorte equipesDoRecorte = mock(EquipesDoRecorte.class);
-    private final ExecucaoComercialApi execucaoApi = mock(ExecucaoComercialApi.class);
+    private final ExecucaoObrasApi execucaoObrasApi = mock(ExecucaoObrasApi.class);
     private final TurnoApi turnoApi = mock(TurnoApi.class);
-    private final TipoServicoApi tipoServicoApi = mock(TipoServicoApi.class);
     private GerarDashboardOperacionalUseCase useCase;
-
-    private static final TipoServicoResponse LIGACAO = tipo("CL", "LIGAÇÃO NOVA");
-    private static final TipoServicoResponse CORTE = tipo("CS", "CORTE");
 
     private final UUID idNoRitmo = UUID.randomUUID();
     private final UUID idSemMeta = UUID.randomUUID();
     private final UUID idAtrasada = UUID.randomUUID();
-    private final List<LancamentoResumido> lancamentos = new ArrayList<>();
+    private final UUID idComercial = UUID.randomUUID();
+    private final UUID obraA = UUID.randomUUID();
+    private final UUID obraB = UUID.randomUUID();
+    private final UUID obraC = UUID.randomUUID();
+    private final List<ExecutadoNoDia> executado = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
-        useCase = new GerarDashboardOperacionalUseCase(equipesDoRecorte, execucaoApi, turnoApi,
-                new TiposServicoDosLancamentos(tipoServicoApi),
+        useCase = new GerarDashboardOperacionalUseCase(equipesDoRecorte, execucaoObrasApi, turnoApi,
                 MetasMensais.das(() -> equipesDoRecorte.listar(null, null)), Clock.fixed(AGORA.toInstant(), CalendarioOperacional.FUSO));
-        when(tipoServicoApi.listarTodos()).thenReturn(List.of(LIGACAO, CORTE));
+        when(execucaoObrasApi.processosComObras()).thenReturn(Set.of(OBRAS.id()));
         when(equipesDoRecorte.listar(any(), any())).thenReturn(List.of(
                 equipe(idNoRitmo, "EQ-01", META_21_MIL),
                 equipe(idSemMeta, "EQ-02", null),
-                equipe(idAtrasada, "EQ-03", META_21_MIL)));
+                equipe(idAtrasada, "EQ-03", META_21_MIL),
+                equipe(idComercial, "CM-01", META_21_MIL, COMERCIAL)));
 
-        // EQ-01: 6.500 até ontem + 100 hoje. EQ-02: 300. EQ-03: 1.000 (nota antiga, sem tipo).
-        lancar(idNoRitmo, "2026-10-01T10:00:00-03:00", "3000", LIGACAO);
-        lancar(idNoRitmo, "2026-10-08T10:00:00-03:00", "3500", LIGACAO);
-        lancar(idNoRitmo, "2026-10-09T09:00:00-03:00", "100", CORTE);
-        lancar(idSemMeta, "2026-10-05T10:00:00-03:00", "300", CORTE);
-        lancar(idAtrasada, "2026-10-02T10:00:00-03:00", "1000", null);
+        // EQ-01: 6.500 até ontem (obra A) + 100 hoje (obra B). EQ-02: 300 (obra B). EQ-03: 1.000 (obra C).
+        executar(idNoRitmo, obraA, "OB-A", "2026-10-01", "3000", 2);
+        executar(idNoRitmo, obraA, "OB-A", "2026-10-08", "3500", 3);
+        executar(idNoRitmo, obraB, "OB-B", "2026-10-09", "100", 1);
+        executar(idSemMeta, obraB, "OB-B", "2026-10-05", "300", 1);
+        executar(idAtrasada, obraC, "OB-C", "2026-10-02", "1000", 1);
 
-        OffsetDateTime inicioOutubro = OffsetDateTime.parse("2026-10-01T00:00:00-03:00");
-        when(execucaoApi.listarLancamentosResumidos(eq(inicioOutubro), any(), any())).thenReturn(lancamentos);
-        when(execucaoApi.listarLancamentosResumidos(any(), eq(inicioOutubro), any())).thenReturn(List.of(
-                new LancamentoResumido(UUID.randomUUID(), idNoRitmo, UUID.randomUUID(), null,
-                        OffsetDateTime.parse("2026-09-28T10:00:00-03:00"), new BigDecimal("8000"))));
+        when(execucaoObrasApi.executadoPorDia(anyCollection(), eq(LocalDate.of(2026, 10, 1)), any())).thenReturn(executado);
+        when(execucaoObrasApi.executadoPorDia(anyCollection(), any(), eq(LocalDate.of(2026, 9, 30)))).thenReturn(List.of(
+                new ExecutadoNoDia(obraA, "OB-A", "Obra A", idNoRitmo, LocalDate.of(2026, 9, 28), new BigDecimal("8000"), 4)));
         when(turnoApi.listarSobrepostosAoPeriodo(any(), any(), any())).thenReturn(List.of(
                 turno(idNoRitmo, "2026-10-01T07:00:00-03:00"),
                 turno(idNoRitmo, "2026-10-08T07:00:00-03:00"),
@@ -86,24 +86,32 @@ class GerarDashboardOperacionalUseCaseTest {
     }
 
     @Test
-    @DisplayName("Tipos de serviço: notas e produção por tipo, no total e por equipe, com as notas sem tipo por último")
-    void tiposDeServico() {
+    @DisplayName("Só entram as equipes dos processos que têm obras")
+    void soEquipesDeObras() {
         DashboardOperacionalResponse resposta = useCase.executar(new DashboardOperacionalFilter(null, null, null, null));
 
-        assertThat(resposta.tiposServico())
-                .extracting(ProducaoPorTipoServico::descricao, ProducaoPorTipoServico::codigo,
-                        ProducaoPorTipoServico::notas, ProducaoPorTipoServico::producao,
-                        ProducaoPorTipoServico::percentualNotas)
+        assertThat(resposta.equipes()).extracting(DashboardOperacionalResponse.Equipe::codigo)
+                .containsExactly("EQ-01", "EQ-02", "EQ-03");
+    }
+
+    @Test
+    @DisplayName("Obras do período: produção, equipes e serviços por obra, no total e por equipe, da maior para a menor")
+    void obrasDoPeriodo() {
+        DashboardOperacionalResponse resposta = useCase.executar(new DashboardOperacionalFilter(null, null, null, null));
+
+        assertThat(resposta.obras())
+                .extracting(ProducaoPorObra::numero, ProducaoPorObra::equipes, ProducaoPorObra::servicos,
+                        ProducaoPorObra::diasComExecucao, ProducaoPorObra::producao, ProducaoPorObra::percentualProducao)
                 .containsExactly(
-                        tuple("LIGAÇÃO NOVA", "CL", 2L, new BigDecimal("6500.00"), new BigDecimal("40.0")),
-                        tuple("CORTE", "CS", 2L, new BigDecimal("400.00"), new BigDecimal("40.0")),
-                        tuple("Não informado", null, 1L, new BigDecimal("1000.00"), new BigDecimal("20.0")));
-        assertThat(equipe(resposta, idNoRitmo).tiposServico())
-                .extracting(ProducaoPorTipoServico::descricao, ProducaoPorTipoServico::notas)
+                        tuple("OB-A", 1, 5L, 2L, new BigDecimal("6500.00"), new BigDecimal("82.3")),
+                        tuple("OB-C", 1, 1L, 1L, new BigDecimal("1000.00"), new BigDecimal("12.7")),
+                        tuple("OB-B", 2, 2L, 2L, new BigDecimal("400.00"), new BigDecimal("5.1")));
+        assertThat(equipe(resposta, idNoRitmo).obras())
+                .extracting(ProducaoPorObra::numero, ProducaoPorObra::producao)
                 .containsExactly(
-                        tuple("LIGAÇÃO NOVA", 2L),
-                        tuple("CORTE", 1L));
-        assertThat(equipe(resposta, idAtrasada).tiposServico().getFirst().idTipoServico()).isNull();
+                        tuple("OB-A", new BigDecimal("6500.00")),
+                        tuple("OB-B", new BigDecimal("100.00")));
+        assertThat(resposta.obras().getFirst().ultimoApontamento()).isEqualTo(LocalDate.of(2026, 10, 8));
     }
 
     @Test
@@ -118,6 +126,8 @@ class GerarDashboardOperacionalUseCaseTest {
         assertThat(resposta.producaoDiaria()).hasSize(9);
         // Meta do dia: 21.000/21 = 1.000 por equipe com meta (duas) em dia útil; zero no fim de semana.
         assertThat(resposta.producaoDiaria().get(0).meta()).isEqualByComparingTo("2000");
+        assertThat(resposta.producaoDiaria().get(0).obras()).isEqualTo(1);
+        assertThat(resposta.producaoDiaria().get(0).servicos()).isEqualTo(2);
         assertThat(resposta.producaoDiaria().get(2).meta()).isEqualByComparingTo("0");
         assertThat(equipe(resposta, idSemMeta).producaoDiaria().get(0).meta()).isNull();
 
@@ -128,10 +138,12 @@ class GerarDashboardOperacionalUseCaseTest {
         assertThat(noRitmo.producao()).isEqualByComparingTo("6600");
         assertThat(noRitmo.percentualMeta()).isEqualByComparingTo("94.3");
         assertThat(noRitmo.situacao()).isEqualTo(SituacaoMeta.NO_RITMO);
-        assertThat(noRitmo.notas()).isEqualTo(3);
+        assertThat(noRitmo.obrasAtendidas()).isEqualTo(2);
+        assertThat(noRitmo.valorMedioObra()).isEqualByComparingTo("3300");
+        assertThat(noRitmo.servicos()).isEqualTo(6);
         assertThat(noRitmo.diasComTurno()).isEqualTo(3);
         assertThat(noRitmo.diasComProducao()).isEqualTo(3);
-        assertThat(noRitmo.ultimoLancamento()).isEqualTo(OffsetDateTime.parse("2026-10-09T09:00:00-03:00"));
+        assertThat(noRitmo.ultimoApontamento()).isEqualTo(LocalDate.of(2026, 10, 9));
         // Período termina hoje: não há dias úteis futuros, a projeção é a própria produção.
         assertThat(noRitmo.projecao()).isEqualByComparingTo("6600");
 
@@ -146,8 +158,9 @@ class GerarDashboardOperacionalUseCaseTest {
         var resumo = useCase.executar(new DashboardOperacionalFilter(null, null, null, null)).resumo();
 
         assertThat(resumo.producao()).isEqualByComparingTo("7900");
-        assertThat(resumo.notas()).isEqualTo(5);
-        assertThat(resumo.valorMedioNota()).isEqualByComparingTo("1580");
+        assertThat(resumo.obrasAtendidas()).isEqualTo(3);
+        assertThat(resumo.valorMedioObra()).isEqualByComparingTo("2633.33");
+        assertThat(resumo.servicos()).isEqualTo(8);
         assertThat(resumo.equipesAtivas()).isEqualTo(3);
         assertThat(resumo.equipesComProducao()).isEqualTo(3);
         assertThat(resumo.equipesComMeta()).isEqualTo(2);
@@ -187,13 +200,9 @@ class GerarDashboardOperacionalUseCaseTest {
         return resposta.equipes().stream().filter(e -> e.idEquipe().equals(id)).findFirst().orElseThrow();
     }
 
-    private void lancar(UUID idEquipe, String quando, String valor, TipoServicoResponse tipo) {
-        lancamentos.add(new LancamentoResumido(UUID.randomUUID(), idEquipe, UUID.randomUUID(),
-                tipo != null ? tipo.id() : null, OffsetDateTime.parse(quando), new BigDecimal(valor)));
-    }
-
-    private static TipoServicoResponse tipo(String codigo, String descricao) {
-        return new TipoServicoResponse(UUID.randomUUID(), codigo, descricao, true, null, null);
+    private void executar(UUID idEquipe, UUID idObra, String numero, String dia, String valor, long servicos) {
+        executado.add(new ExecutadoNoDia(idObra, numero, "Obra " + numero, idEquipe, LocalDate.parse(dia),
+                new BigDecimal(valor), servicos));
     }
 
     private static TurnoResponse turno(UUID idEquipe, String inicio) {
@@ -203,8 +212,12 @@ class GerarDashboardOperacionalUseCaseTest {
     }
 
     static EquipeResponse equipe(UUID id, String codigo, BigDecimal metaMensal) {
+        return equipe(id, codigo, metaMensal, OBRAS);
+    }
+
+    static EquipeResponse equipe(UUID id, String codigo, BigDecimal metaMensal, ProcessoNegocioResponse processo) {
         var base = new BaseOperacionalResponse(UUID.randomUUID(), "Base Salvador", "BA", null, null,
                 null, null, null, true);
-        return new EquipeResponse(id, codigo, null, null, null, null, null, base, null, true, List.of(), metaMensal);
+        return new EquipeResponse(id, codigo, null, processo, null, null, null, base, null, true, List.of(), metaMensal);
     }
 }

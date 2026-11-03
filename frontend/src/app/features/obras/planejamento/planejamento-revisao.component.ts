@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal, untracked } from '@angular/core';
 import { CesButtonComponent, CesCalloutComponent } from '@ces/ui';
 import {
   AceitarProposta,
@@ -32,8 +32,18 @@ export interface VaoEmRevisao {
 }
 
 const CONFIANCA_BAIXA = 0.6;
+/** Até 1,5% da folha: o símbolo é o mesmo que já foi marcado. */
+const DISTANCIA_MESMO_PONTO = 0.015;
 
-export function paraRevisao(proposta: PropostaPlanejamento, numerosExistentes: ReadonlySet<string>): { pontos: PontoEmRevisao[]; vaos: VaoEmRevisao[] } {
+export function pontoProximo(x: number, y: number, marcados: readonly { numero: string; x: number; y: number }[]): string | null {
+  return marcados.find((m) => Math.hypot(Number(m.x) - Number(x), Number(m.y) - Number(y)) <= DISTANCIA_MESMO_PONTO)?.numero ?? null;
+}
+
+export function paraRevisao(
+  proposta: PropostaPlanejamento,
+  numerosExistentes: ReadonlySet<string>,
+  marcados: readonly { numero: string; x: number; y: number }[] = []
+): { pontos: PontoEmRevisao[]; vaos: VaoEmRevisao[] } {
   const pontos = proposta.pontos.map((p) => ({
     referencia: p.referencia,
     numero: p.numero,
@@ -43,7 +53,7 @@ export function paraRevisao(proposta: PropostaPlanejamento, numerosExistentes: R
     barramento: p.barramento ?? null,
     textosLidos: p.textosLidos ?? [],
     confianca: p.confianca,
-    aceito: !p.conflito && !numerosExistentes.has(p.numero) && p.confianca >= CONFIANCA_BAIXA,
+    aceito: !p.conflito && !numerosExistentes.has(p.numero) && p.confianca >= CONFIANCA_BAIXA && !pontoProximo(p.x, p.y, marcados),
     kits: (p.kits ?? []).map((k) => ({ ...k }))
   }));
   const vaos = proposta.vaos.map((v) => ({
@@ -130,6 +140,9 @@ export function montarAceite(pontos: readonly PontoEmRevisao[], vaos: readonly V
               @if (conflito(ponto)) {
                 <p class="cartao__erro"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> Já existe P{{ ponto.numero }} nesta obra: informe outro número.</p>
               }
+              @if (sobreposto(ponto); as numero) {
+                <p class="cartao__aviso"><i class="pi pi-info-circle" aria-hidden="true"></i> Já existe P{{ numero }} neste lugar: marque só se for outro ponto.</p>
+              }
               @if (ponto.barramento || ponto.textosLidos.length) {
                 <p class="cartao__lido">Lido na folha: {{ lido(ponto.barramento, ponto.textosLidos) }}</p>
               }
@@ -151,11 +164,11 @@ export function montarAceite(pontos: readonly PontoEmRevisao[], vaos: readonly V
             <strong>Vãos</strong> <span>{{ aceitosVaos() }} de {{ vaos().length }}</span>
           </label>
           @for (vao of vaos(); track vao.referenciaA + vao.referenciaB; let i = $index) {
-            <article class="cartao">
+            <article class="cartao" [class.cartao--estimado]="metragemEstimada(vao)">
               <div class="cartao__linha">
-                <input type="checkbox" [checked]="vao.aceito && dependenciasOk(vao)" [disabled]="!dependenciasOk(vao)" [attr.aria-label]="'Aceitar vão P' + vao.referenciaA + ' a P' + vao.referenciaB"
+                <input type="checkbox" [checked]="vao.aceito && dependenciasOk(vao)" [disabled]="!dependenciasOk(vao)" [attr.aria-label]="'Aceitar vão P' + rotulo(vao.referenciaA) + ' a P' + rotulo(vao.referenciaB)"
                   (change)="alterarVao(i, { aceito: $any($event.target).checked })" />
-                <strong>P{{ vao.referenciaA }} — P{{ vao.referenciaB }}</strong>
+                <strong>P{{ rotulo(vao.referenciaA) }} — P{{ rotulo(vao.referenciaB) }}</strong>
                 <input class="cartao__metros" type="number" min="0" step="0.01" aria-label="Metragem" placeholder="metros" [value]="vao.metragem ?? ''"
                   (change)="alterarVao(i, { metragem: $any($event.target).valueAsNumber || null })" />
                 <span class="unidade">m</span>
@@ -211,6 +224,7 @@ export function montarAceite(pontos: readonly PontoEmRevisao[], vaos: readonly V
     .cartao__metros + .unidade + .confianca { margin-left: 0; }
     .confianca--baixa { color: var(--ces-warning-text); font-weight: 600; }
     .cartao__erro { display: flex; gap: 0.25rem; margin: 0; color: var(--ces-danger-text); font-size: 0.75rem; }
+    .cartao__aviso { display: flex; gap: 0.25rem; margin: 0; color: var(--ces-warning-text); font-size: 0.75rem; }
     .cartao__lido { margin: 0; color: var(--ces-foreground-muted); font-size: 0.6875rem; }
     .kit { display: flex; gap: 0.375rem; align-items: baseline; font-size: 0.75rem; cursor: pointer; }
     .kit code { flex: none; color: var(--ces-brand); font-size: 0.6875rem; font-weight: 600; }
@@ -222,6 +236,8 @@ export class PlanejamentoRevisaoComponent {
   readonly proposta = input.required<PropostaPlanejamento>();
   readonly pagina = input.required<number>();
   readonly numerosExistentes = input.required<ReadonlySet<string>>();
+  /** Pontos já marcados nesta página, para não sugerir o mesmo poste duas vezes. */
+  readonly marcados = input<readonly { numero: string; x: number; y: number }[]>([]);
   readonly destaque = input<string | null>(null);
   readonly salvando = input(false);
   /** Posição ajustada na folha, vinda do componente pai. */
@@ -231,6 +247,7 @@ export class PlanejamentoRevisaoComponent {
   readonly descartar = output<void>();
   readonly destacar = output<string>();
   readonly pontosAlterados = output<PontoEmRevisao[]>();
+  readonly vaosAlterados = output<VaoEmRevisao[]>();
 
   protected readonly tipos = TIPOS_PONTO;
   protected readonly baixa = CONFIANCA_BAIXA;
@@ -251,16 +268,21 @@ export class PlanejamentoRevisaoComponent {
 
   constructor() {
     effect(() => {
-      const revisao = paraRevisao(this.proposta(), this.numerosExistentes());
+      const revisao = paraRevisao(this.proposta(), this.numerosExistentes(), untracked(this.marcados));
       this.pontos.set(revisao.pontos);
       this.vaos.set(revisao.vaos);
       this.pontosAlterados.emit(revisao.pontos);
+      this.vaosAlterados.emit(revisao.vaos);
     });
   }
 
   private aplicarAjustes(): PontoEmRevisao[] {
     const ajustes = this.ajustes();
     return this.pontos().map((p) => ({ ...p, ...(ajustes.get(p.referencia) ?? {}) }));
+  }
+
+  protected sobreposto(ponto: PontoEmRevisao): string | null {
+    return pontoProximo(ponto.x, ponto.y, this.marcados());
   }
 
   protected conflito(ponto: PontoEmRevisao): boolean {
@@ -282,6 +304,7 @@ export class PlanejamentoRevisaoComponent {
 
   protected alterarVao(indice: number, parcial: Partial<VaoEmRevisao>): void {
     this.vaos.update((vaos) => vaos.map((v, i) => (i === indice ? { ...v, ...parcial } : v)));
+    this.vaosAlterados.emit(this.vaos());
   }
 
   protected marcarTodosPontos(aceito: boolean): void {
@@ -292,6 +315,7 @@ export class PlanejamentoRevisaoComponent {
 
   protected marcarTodosVaos(aceito: boolean): void {
     this.vaos.update((vaos) => vaos.map((v) => ({ ...v, aceito })));
+    this.vaosAlterados.emit(this.vaos());
   }
 
   protected marcarKitPonto(ponto: number, kit: number, marcado: boolean): void {
@@ -302,8 +326,16 @@ export class PlanejamentoRevisaoComponent {
     this.vaos.update((vaos) => vaos.map((v, i) => i !== vao ? v : { ...v, kits: v.kits.map((k, j) => (j === kit ? { ...k, marcado } : k)) }));
   }
 
+  protected rotulo(referencia: string): string {
+    return this.pontos().find((p) => p.referencia === referencia)?.numero ?? referencia;
+  }
+
   protected porcento(valor: number): string {
     return `${Math.round(valor * 100)}%`;
+  }
+
+  protected metragemEstimada(vao: VaoEmRevisao): boolean {
+    return vao.textosLidos.some((t) => t.startsWith('metragem estimada'));
   }
 
   protected lido(barramento: string | null, textos: readonly string[]): string {

@@ -31,6 +31,9 @@ import java.util.UUID;
 @Service
 public class DeslocamentoObraService {
 
+    public record Deslocamento(BigDecimal distanciaKm, int tempoMinutos, boolean estimado) {
+    }
+
     private static final double RAIO_TERRA_KM = 6371.0088;
     private static final int LOTE = 100;
 
@@ -70,16 +73,31 @@ public class DeslocamentoObraService {
             obra.limparDeslocamento();
             return;
         }
-        Coordenada origem = new Coordenada(base.get().latitude(), base.get().longitude());
-        Coordenada destino = new Coordenada(obra.getLatitude(), obra.getLongitude());
+        Deslocamento deslocamento = calcular(new Coordenada(base.get().latitude(), base.get().longitude()),
+                new Coordenada(obra.getLatitude(), obra.getLongitude()));
+        obra.registrarDeslocamento(deslocamento.distanciaKm(), deslocamento.tempoMinutos(), deslocamento.estimado());
+    }
+
+    /**
+     * Deslocamento até a obra a partir de outra base, como a da equipe que será programada. Não grava nada.
+     * Vazio quando falta coordenada da base ou da obra.
+     */
+    public Optional<Deslocamento> estimarDe(BaseOperacionalResponse base, Obra obra) {
+        if (base == null || base.latitude() == null || base.longitude() == null || !obra.possuiCoordenadas()) {
+            return Optional.empty();
+        }
+        return Optional.of(calcular(new Coordenada(base.latitude(), base.longitude()),
+                new Coordenada(obra.getLatitude(), obra.getLongitude())));
+    }
+
+    private Deslocamento calcular(Coordenada origem, Coordenada destino) {
         Optional<RotaRodoviariaPort.Rota> rota = rotas.calcular(origem, destino);
         if (rota.isPresent()) {
-            obra.registrarDeslocamento(rota.get().distanciaKm(), rota.get().tempoMinutos(), false);
-            return;
+            return new Deslocamento(rota.get().distanciaKm(), rota.get().tempoMinutos(), false);
         }
         double km = distanciaKm(origem, destino) * fatorSinuosidade;
         int minutos = (int) Math.ceil(km / velocidadeMediaKmh * 60d);
-        obra.registrarDeslocamento(BigDecimal.valueOf(km).setScale(2, RoundingMode.HALF_UP), minutos, true);
+        return new Deslocamento(BigDecimal.valueOf(km).setScale(2, RoundingMode.HALF_UP), minutos, true);
     }
 
     @Scheduled(fixedDelayString = "${ces.obras.rotas.recalculo-intervalo:PT10M}",

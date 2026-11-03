@@ -7,6 +7,8 @@ public record TipoEquipeResponse(
     UUID id,
     String nome,
     boolean ativo,
+    Integer jornadaMinutos,
+    Integer plataformaMinutos,
     OffsetDateTime dataCriacao,
     OffsetDateTime dataDesativacao
 ) {}

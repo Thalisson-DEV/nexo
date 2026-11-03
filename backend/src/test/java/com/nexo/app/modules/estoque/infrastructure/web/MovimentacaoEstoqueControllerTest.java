@@ -42,7 +42,7 @@ class MovimentacaoEstoqueControllerTest {
         importUseCase = mock(ImportarMovimentacaoEstoqueUseCase.class);
 
         MovimentacaoEstoqueController controller = new MovimentacaoEstoqueController(
-                useCases, assinaturaService, importUseCase
+                useCases, null, assinaturaService, importUseCase
         );
 
         mockMvc = MockMvcBuilders.standaloneSetup(controller)

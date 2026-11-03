@@ -11,7 +11,7 @@ import { AuthService } from '../../../core/services/auth.service';
   template: `
     @if (permitido()) {
       <ces-button [label]="label()" icon="pi pi-sparkles" [variant]="variant()"
-        [size]="size()" (pressed)="abrir()" />
+        [size]="size()" [className]="className()" (pressed)="abrir()" />
     }
   `,
 })
@@ -19,6 +19,7 @@ export class AnalisarComCopilotoComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
+  readonly className = input('');
   readonly origem = input.required<string>();
   readonly tipo = input<string>();
   readonly entidade = input<string | number>();

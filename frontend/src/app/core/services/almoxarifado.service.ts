@@ -73,6 +73,7 @@ import {
   ImportacaoSolicitacaoComercialResponse,
   ConfirmarImportacaoSolicitacaoComercialRequest,
   DevolucaoComercialRequest,
+  DevolucaoTecnicaRequest,
   ImportacaoMovimentacaoResponse,
   ConfirmarImportacaoMovimentacaoRequest,
 } from '../models/almoxarifado.models';
@@ -674,6 +675,10 @@ export class AlmoxarifadoService {
 
   registrarDevolucaoComercial(request: DevolucaoComercialRequest): Observable<string> {
     return this.http.post<string>(`${this.apiUrl}/movimentacoes-estoque/devolucao-comercial`, request);
+  }
+
+  registrarDevolucaoTecnica(request: DevolucaoTecnicaRequest): Observable<string> {
+    return this.http.post<string>(`${this.apiUrl}/movimentacoes-estoque/devolucao-tecnica`, request);
   }
 
   // --- Lookups ---

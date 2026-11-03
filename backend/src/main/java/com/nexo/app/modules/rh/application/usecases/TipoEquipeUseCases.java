@@ -37,6 +37,7 @@ public class TipoEquipeUseCases {
         }
 
         TipoEquipe tipoEquipe = new TipoEquipe(request.nome());
+        tipoEquipe.definirJornada(request.jornadaMinutos(), request.plataformaMinutos());
         return mapper.toResponse(repository.save(tipoEquipe));
     }
 
@@ -54,6 +55,7 @@ public class TipoEquipeUseCases {
                 });
 
         tipoEquipe.atualizarNome(request.nome());
+        tipoEquipe.definirJornada(request.jornadaMinutos(), request.plataformaMinutos());
         return mapper.toResponse(repository.save(tipoEquipe));
     }
 

@@ -1,7 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
 import {
   CesButtonComponent,
   CesCalloutComponent,
@@ -37,7 +38,10 @@ import {
   TipoSolicitacaoTecnica
 } from '../../../core/models/solicitacao-material-tecnica.models';
 import { AlmoxarifadoService } from '../../../core/services/almoxarifado.service';
+import { bindDrawerToUrl } from '../../../core/navigation';
 import { AuthService } from '../../../core/services/auth.service';
+import { DevolucaoTecnicaFormComponent } from './devolucao-tecnica-form/devolucao-tecnica-form.component';
+import { SolicitacaoTecnicaFormComponent } from './solicitacao-tecnica-form/solicitacao-tecnica-form.component';
 import { ConnectivityService } from '../../../core/services/connectivity.service';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
@@ -47,6 +51,7 @@ import { dataIso, dataLocal } from '../../../shared/listagem/listagem';
 import { ExportarSolicitacoesDialogComponent } from './exportar-solicitacoes-dialog.component';
 import { separacaoLabel, separacaoTone, statusLabel, statusTone, tipoTecnicoEhAdicao, tipoTecnicoIcon, tipoTecnicoLabel } from './solicitacao-tecnica-presentation';
 import { SolicitacoesTecnicasImportacaoComponent } from './solicitacoes-tecnicas-importacao/solicitacoes-tecnicas-importacao.component';
+import { SolicitacoesTecnicasCalendarioComponent } from './solicitacoes-tecnicas-calendario/solicitacoes-tecnicas-calendario.component';
 import { SolicitacoesTecnicasKanbanComponent } from './solicitacoes-tecnicas-kanban/solicitacoes-tecnicas-kanban.component';
 
 const comTodos = <T,>(opcoes: CesSelectOption<T>[], todos = 'Todos'): CesSelectOption<T | null>[] => [{ label: todos, value: null }, ...opcoes];
@@ -60,6 +65,34 @@ const TIPOS_OBRA = comTodos<TipoObraSolicitacao>([
 const TIPOS_TECNICOS = comTodos<TipoSolicitacaoTecnica>(
   (['ADICAO_COMUM', 'ADICAO_CONCRETO', 'DEVOLUCAO_COMUM', 'DEVOLUCAO_CONCRETO'] as const).map((value) => ({ label: tipoTecnicoLabel(value), value }))
 );
+type VisaoTecnica = 'tabela' | 'kanban' | 'calendario';
+
+const VISOES: { value: VisaoTecnica; label: string; icon: string; rota: string }[] = [
+  { value: 'tabela', label: 'Tabela', icon: 'pi pi-table', rota: '/almoxarifado/solicitacoes-tecnicas' },
+  { value: 'kanban', label: 'Quadro', icon: 'pi pi-objects-column', rota: '/almoxarifado/solicitacoes-tecnicas/kanban' },
+  { value: 'calendario', label: 'Calendário', icon: 'pi pi-calendar', rota: '/almoxarifado/solicitacoes-tecnicas/calendario' }
+];
+
+/** Vocabulário dos atalhos, na ordem do atendimento. Os de exceção só aparecem quando há algo neles. */
+const ATALHOS_STATUS: { value: StatusSolicitacaoMaterial; atalho: string; sempre: boolean }[] = [
+  { value: 'PENDENTE', atalho: 'Aguardando aprovação', sempre: true },
+  { value: 'APROVADO', atalho: 'Aguardando retirada', sempre: true },
+  { value: 'ENTREGUE_PARCIAL', atalho: 'Entregue parcial', sempre: true },
+  { value: 'ENTREGUE', atalho: 'Entregue', sempre: true },
+  { value: 'REJEITADO', atalho: 'Rejeitado', sempre: true },
+  { value: 'DEVOLVIDO_PARCIAL', atalho: 'Devolvido parcial', sempre: false },
+  { value: 'DEVOLVIDO', atalho: 'Devolvido', sempre: false },
+  { value: 'ESTORNADO', atalho: 'Estornado', sempre: false },
+  { value: 'CANCELADO', atalho: 'Cancelado', sempre: false }
+];
+const ORDEM_STATUS = ATALHOS_STATUS.map((s) => s.value);
+/** Status em que ainda há trabalho do almoxarifado: aprovar ou entregar. */
+const STATUS_EM_ABERTO: readonly StatusSolicitacaoMaterial[] = ['PENDENTE', 'APROVADO', 'ENTREGUE_PARCIAL'];
+
+function lerVisao(modo: unknown): VisaoTecnica {
+  return modo === 'kanban' || modo === 'calendario' ? modo : 'tabela';
+}
+
 const STATUS: CesSelectOption<StatusSolicitacaoMaterial>[] = (
   ['PENDENTE', 'APROVADO', 'REJEITADO', 'ENTREGUE_PARCIAL', 'ENTREGUE', 'DEVOLVIDO_PARCIAL', 'DEVOLVIDO', 'ESTORNADO', 'CANCELADO'] as const
 ).map((value) => ({ label: statusLabel(value), value }));
@@ -72,7 +105,42 @@ const SEPARACAO = comTodos<StatusSeparacao>(
   selector: 'app-solicitacoes-material-tecnicas',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: `
+    .sol-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap; }
+    .sol-atalhos { flex: 1 1 auto; min-width: 0; }
+    .sol-contagem {
+      display: inline-flex; align-items: center; justify-content: center; min-width: 1.375rem; height: 1.25rem; padding: 0 0.375rem;
+      border-radius: 999px; background: var(--ces-surface-muted); color: var(--ces-foreground-muted);
+      font-size: 0.7rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    }
+    .ces-quick-filter[aria-pressed='true'] .sol-contagem { background: var(--ces-surface); color: var(--ces-foreground); }
+    .sol-contagem--alerta { background: var(--ces-warning-soft); color: var(--ces-warning-text); }
+    .sol-divisor { width: 1px; align-self: stretch; margin: 0.25rem 0.125rem; background: var(--ces-border); }
+    .sol-tom { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--sol-tom); flex: none; }
+    [data-tone='warning'] { --sol-tom: var(--ces-warning); }
+    [data-tone='info'] { --sol-tom: var(--ces-info); }
+    [data-tone='success'] { --sol-tom: var(--ces-success); }
+    [data-tone='danger'] { --sol-tom: var(--ces-danger); }
+    [data-tone='neutral'] { --sol-tom: var(--ces-foreground-subtle); }
+    .sol-visoes { display: inline-flex; flex: none; padding: 2px; border: 1px solid var(--ces-border); border-radius: var(--ces-radius-md); background: var(--ces-surface-muted); }
+    .sol-visoes button {
+      display: inline-flex; align-items: center; gap: 0.375rem; min-height: calc(var(--ces-control-height-sm) - 2px); padding: 0 0.75rem;
+      border: 0; border-radius: calc(var(--ces-radius-md) - 2px); background: transparent; color: var(--ces-foreground-muted);
+      font: inherit; font-size: var(--ces-font-control); font-weight: 600; cursor: pointer;
+    }
+    .sol-visoes button:hover { color: var(--ces-foreground); }
+    .sol-visoes button[aria-current='page'] { background: var(--ces-surface); color: var(--ces-foreground); box-shadow: var(--ces-shadow-sm); }
+    .sol-visoes button:focus-visible { outline: 2px solid var(--ces-focus-ring); outline-offset: 1px; }
+    .sol-visoes .pi { font-size: 0.8rem; }
+    @media (max-width: 40rem) {
+      .sol-visoes { width: 100%; }
+      .sol-visoes button { flex: 1; justify-content: center; }
+    }
+  `,
   imports: [
+    DevolucaoTecnicaFormComponent,
+    SolicitacaoTecnicaFormComponent,
+    SolicitacoesTecnicasCalendarioComponent,
     DatePipe,
     CesButtonComponent,
     CesCalloutComponent,
@@ -96,19 +164,18 @@ const SEPARACAO = comTodos<StatusSeparacao>(
   template: `
     <div class="ces-page" cesListShortcuts #atalhos="cesListShortcuts" [newAction]="canCreate" (newRequested)="createRequest()">
       <ces-page-header
-        [title]="kanban ? 'Quadro de solicitações técnicas' : 'Solicitações técnicas de material'"
+        [title]="titulo"
         icon="pi pi-wrench"
         [breadcrumb]="[{ label: 'Almoxarifado' }, { label: 'Solicitações técnicas' }]"
         description="Pedidos e devoluções de material para obras: planejamento, separação, atendimento e reserva."
         helpLabel="Ajuda sobre solicitações técnicas"
         (help)="ajuda.show()"
       >
-        <ces-button actions variant="outline" [icon]="kanban ? 'pi pi-table' : 'pi pi-objects-column'" [label]="kanban ? 'Ver tabela' : 'Quadro kanban'" (pressed)="alternarModoExibicao()"></ces-button>
         <ces-button actions variant="outline" icon="pi pi-download" label="Exportar" (pressed)="exportacaoAberta.set(true)"></ces-button>
         @if (canImport) {
           <ces-button actions variant="outline" icon="pi pi-upload" label="Importar" (pressed)="importacaoAberta.set(true)"></ces-button>
         }
-        @if (canCreate) {
+        @if (podeDevolver) {
           <ces-button actions variant="outline" icon="pi pi-undo" label="Nova devolução" (pressed)="createDevolucao()"></ces-button>
         }
         @if (canCreate) {
@@ -140,8 +207,38 @@ const SEPARACAO = comTodos<StatusSeparacao>(
         </div>
       </ces-filter-panel>
 
-      @if (kanban) {
+      <div class="sol-toolbar">
+        @if (visao !== 'kanban') {
+          <div class="ces-quick-filters sol-atalhos" role="group" aria-label="Mostrar só os status escolhidos">
+            <button type="button" class="ces-quick-filter" [attr.aria-pressed]="!statusAplicados().length" (click)="definirStatus([])">
+              Todas <span class="sol-contagem">{{ contagemTotal() ?? '–' }}</span>
+            </button>
+            <button type="button" class="ces-quick-filter" [attr.aria-pressed]="emAbertoAtivo()" (click)="definirStatus(emAberto)"
+              title="Pendentes, aprovadas e entregues em parte: tudo o que ainda exige ação">
+              <i class="pi pi-inbox" aria-hidden="true"></i> Em aberto <span class="sol-contagem" [class.sol-contagem--alerta]="(contagemAbertas() ?? 0) > 0">{{ contagemAbertas() ?? '–' }}</span>
+            </button>
+            <span class="sol-divisor" aria-hidden="true"></span>
+            @for (s of atalhosVisiveis(); track s.value) {
+              <button type="button" class="ces-quick-filter" [attr.aria-pressed]="statusAplicados().includes(s.value)" [attr.data-tone]="tomStatus(s.value)" (click)="alternarStatus(s.value)"
+                [attr.aria-label]="s.atalho + ': ' + (contagens()[s.value] ?? 'contagem indisponível')">
+                <span class="sol-tom" aria-hidden="true"></span> {{ s.atalho }} <span class="sol-contagem">{{ contagens()[s.value] ?? '–' }}</span>
+              </button>
+            }
+          </div>
+        }
+        <nav class="sol-visoes" aria-label="Forma de visualizar">
+          @for (v of visoes; track v.value) {
+            <button type="button" [attr.aria-current]="visao === v.value ? 'page' : null" (click)="trocarVisao(v.value)">
+              <i [class]="v.icon" aria-hidden="true"></i>{{ v.label }}
+            </button>
+          }
+        </nav>
+      </div>
+
+      @if (visao === 'kanban') {
         <app-solicitacoes-tecnicas-kanban [filtros]="kanbanFiltros()" (navegarParaEtapa)="onKanbanNavegarParaEtapa()"></app-solicitacoes-tecnicas-kanban>
+      } @else if (visao === 'calendario') {
+        <app-solicitacoes-tecnicas-calendario [filtros]="calendarioFiltros()" [rotuloObra]="rotuloObra" (abrir)="abrirDetalhe($event)"></app-solicitacoes-tecnicas-calendario>
       } @else {
         <ces-data-table
           title="Solicitações técnicas"
@@ -247,6 +344,16 @@ const SEPARACAO = comTodos<StatusSeparacao>(
         <p class="help-text-desc">O quadro usa os mesmos filtros da tabela, organizados pelas etapas da operação.</p>
       </div>
     </app-ajuda-listagem>
+
+    @if (drawer.mode() === 'novo') {
+      @if (drawerModo() === 'devolucao') {
+        @if (podeDevolver) {
+          <app-devolucao-tecnica-form [idObra]="drawerObra()" (fechado)="drawer.close()"></app-devolucao-tecnica-form>
+        }
+      } @else if (canCreate) {
+        <app-solicitacao-tecnica-form [idObra]="drawerObra()" (criadas)="aoCriar()" (fechado)="drawer.close()"></app-solicitacao-tecnica-form>
+      }
+    }
   `
 })
 export class SolicitacoesMaterialTecnicasComponent {
@@ -255,14 +362,23 @@ export class SolicitacoesMaterialTecnicasComponent {
   private readonly obrasService = inject(ObrasService);
   private readonly rh = inject(RhService);
   private readonly auth = inject(AuthService);
+  private readonly parametros = toSignal(inject(ActivatedRoute).queryParamMap);
+  protected readonly drawer = bindDrawerToUrl({ extraParams: ['modo', 'idObra'] });
+  protected readonly drawerObra = computed(() => this.parametros()?.get('idObra') ?? null);
+  protected readonly drawerModo = computed(() => (this.parametros()?.get('modo') === 'devolucao' ? 'devolucao' : 'adicao'));
+  private readonly kanbanTela = viewChild(SolicitacoesTecnicasKanbanComponent);
+  private readonly calendarioTela = viewChild(SolicitacoesTecnicasCalendarioComponent);
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
 
-  protected readonly kanban = inject(ActivatedRoute).snapshot.data['modo'] === 'kanban';
-  protected readonly chave = this.kanban ? 'almox-solicitacoes-tecnicas-kanban' : 'almox-solicitacoes-tecnicas';
+  protected readonly visoes = VISOES;
+  protected readonly visao: VisaoTecnica = lerVisao(inject(ActivatedRoute).snapshot.data['modo']);
+  protected readonly titulo = this.visao === 'kanban' ? 'Quadro de solicitações técnicas' : this.visao === 'calendario' ? 'Calendário de solicitações técnicas' : 'Solicitações técnicas de material';
+  protected readonly chave = this.visao === 'tabela' ? 'almox-solicitacoes-tecnicas' : `almox-solicitacoes-tecnicas-${this.visao}`;
   protected readonly isOnline = inject(ConnectivityService).isOnline;
   protected readonly canCreate = this.hasPermission('estoque:solicitacao:create');
   protected readonly canImport = this.hasPermission('estoque:solicitacao:import');
+  protected readonly podeDevolver = this.hasPermission('estoque:movimentacao:write');
   protected readonly importacaoAberta = signal(false);
   protected readonly exportacaoAberta = signal(false);
 
@@ -328,6 +444,62 @@ export class SolicitacoesMaterialTecnicasComponent {
       } as SolicitacaoMaterialFilter),
     { errorMessage: getErrorMessage }
   );
+  protected readonly emAberto = STATUS_EM_ABERTO;
+  protected readonly tomStatus = statusTone;
+  protected readonly statusAplicados = computed(() => this.lista.applied().statuses);
+  protected readonly emAbertoAtivo = computed(() => {
+    const s = this.statusAplicados();
+    return s.length === STATUS_EM_ABERTO.length && STATUS_EM_ABERTO.every((x) => s.includes(x));
+  });
+  /** Quantas solicitações há em cada status no recorte, ignorando os atalhos, para o número não sumir ao filtrar. */
+  protected readonly contagens = signal<Partial<Record<StatusSolicitacaoMaterial, number>>>({});
+  private readonly versaoContagens = signal(0);
+  protected readonly contagemTotal = computed(() => this.somar(ORDEM_STATUS));
+  protected readonly contagemAbertas = computed(() => this.somar(STATUS_EM_ABERTO));
+  protected readonly atalhosVisiveis = computed(() =>
+    ATALHOS_STATUS.filter((s) => s.sempre || (this.contagens()[s.value] ?? 0) > 0 || this.statusAplicados().includes(s.value))
+  );
+  private readonly carregaContagens = (() => {
+    const consulta = computed(() => {
+      this.lista.applied();
+      const { statuses: _s, ...semStatus } = this.filtro();
+      return { filtro: semStatus, versao: this.versaoContagens() };
+    }, { equal: (a, b) => JSON.stringify(a) === JSON.stringify(b) });
+    return toObservable(consulta)
+      .pipe(
+        switchMap(({ filtro }) => forkJoin(ORDEM_STATUS.map((status) =>
+          this.service.listar({ ...filtro, statuses: [status], page: 0, size: 1 } as SolicitacaoMaterialFilter).pipe(
+            map((r) => [status, r.page?.totalElements ?? 0] as const),
+            catchError(() => of([status, undefined] as const))
+          )
+        ))),
+        takeUntilDestroyed()
+      )
+      .subscribe((pares) => this.contagens.set(Object.fromEntries(pares.filter(([, n]) => n !== undefined))));
+  })();
+
+  private somar(status: readonly StatusSolicitacaoMaterial[]): number | null {
+    const c = this.contagens();
+    return status.every((s) => c[s] !== undefined) ? status.reduce((soma, s) => soma + (c[s] ?? 0), 0) : null;
+  }
+
+  protected definirStatus(status: readonly StatusSolicitacaoMaterial[]): void {
+    this.lista.set('statuses', [...status]);
+  }
+
+  /** Atalho de status: liga/desliga o status, somando aos já escolhidos. */
+  protected alternarStatus(status: StatusSolicitacaoMaterial): void {
+    const atuais = this.statusAplicados();
+    const proximos = atuais.includes(status) ? atuais.filter((s) => s !== status) : [...atuais, status];
+    this.definirStatus(ORDEM_STATUS.filter((s) => proximos.includes(s)));
+  }
+
+  protected readonly calendarioFiltros = computed<Record<string, unknown>>(() => {
+    this.lista.applied();
+    const { page: _p, size: _s, ...resto } = this.filtro();
+    return resto;
+  });
+
   protected readonly kanbanFiltros = computed<Partial<SolicitacaoMaterialFilter>>(() => {
     this.lista.applied();
     const { page: _p, size: _s, statuses: _st, referencia: _r, numSerie: _n, ...resto } = this.filtro();
@@ -363,6 +535,13 @@ export class SolicitacoesMaterialTecnicasComponent {
   protected readonly rotulo = (s: SolicitacaoMaterialSummaryResponse) => `Solicitação #${s.id.slice(0, 8)}`;
 
   constructor() {
+    this.drawer.connect((modo) => {
+      // A URL antiga do cadastro redireciona para cá sem guard: sem permissão, o drawer não abre.
+      if (modo === 'novo' && !(this.drawerModo() === 'devolucao' ? this.podeDevolver : this.canCreate)) {
+        this.notifications.warning('Você não tem permissão para criar solicitações.');
+        this.drawer.close();
+      }
+    });
     forkJoin({
       obras: this.obrasService.listarObras({ ativo: true, apenasPrincipais: true, size: 500, sort: 'numero,asc' }),
       equipes: this.rh.listarEquipes({ ativo: true, size: 1000, sort: 'codigo,asc' }),
@@ -411,16 +590,26 @@ export class SolicitacoesMaterialTecnicasComponent {
   }
 
   protected createRequest(): void {
-    if (this.canCreate) void this.router.navigate(['/almoxarifado/solicitacoes-tecnicas/nova']);
+    if (this.canCreate) this.drawer.openNew();
   }
 
   protected createDevolucao(): void {
-    void this.router.navigate(['/almoxarifado/solicitacoes-tecnicas/devolucao']);
+    if (this.podeDevolver) this.drawer.openNew({ modo: 'devolucao' });
   }
 
-  protected alternarModoExibicao(): void {
-    void this.router.navigate([this.kanban ? '/almoxarifado/solicitacoes-tecnicas' : '/almoxarifado/solicitacoes-tecnicas/kanban']);
+  protected aoCriar(): void {
+    this.lista.reload();
+    this.versaoContagens.update((v) => v + 1);
+    this.kanbanTela()?.recarregar();
+    this.calendarioTela()?.recarregar();
   }
+
+  protected trocarVisao(visao: VisaoTecnica): void {
+    if (visao === this.visao) return;
+    void this.router.navigate([VISOES.find((v) => v.value === visao)!.rota], { queryParams: this.lista.queryParams() });
+  }
+
+  protected readonly rotuloObra = (idObra?: string | null): string => this.obraLabel(idObra);
 
   protected onKanbanNavegarParaEtapa(): void {
     void this.router.navigate(['/almoxarifado/solicitacoes-tecnicas']);

@@ -13,6 +13,7 @@ import {
   CesIconButtonComponent,
   CesImportDrawerComponent,
   CesListShortcutsDirective,
+  CesNumberInputComponent,
   CesPageHeaderComponent,
   CesSelectComponent,
   CesStatusComponent,
@@ -49,6 +50,7 @@ import { LIMITE_EXPORTACAO, OPCOES_STATUS, exportacaoPadrao, paginaPadrao } from
     CesIconButtonComponent,
     CesImportDrawerComponent,
     CesListShortcutsDirective,
+    CesNumberInputComponent,
     CesPageHeaderComponent,
     CesSelectComponent,
     CesStatusComponent,
@@ -126,6 +128,12 @@ import { LIMITE_EXPORTACAO, OPCOES_STATUS, exportacaoPadrao, paginaPadrao } from
         <ces-text-input label="Nome" [required]="true" [(value)]="nome" [maxlength]="50" placeholder="Ex.: EQUIPE LINHA VIVA" description="Gravado em letras maiúsculas." [error]="erro('nome')"></ces-text-input>
         <ces-boolean-control label="Tipo ativo" kind="toggle" [(value)]="ativo"></ces-boolean-control>
       </ces-form-section>
+      <ces-form-section title="Programação de obras" icon="pi pi-clock" description="Usados para projetar a capacidade diária. A equipe pode ter valores próprios.">
+        <div class="ces-form-grid">
+          <ces-number-input label="Jornada" suffix=" min" [min]="1" [max]="1440" [(value)]="jornada" description="Padrão: 480 min (8h)."></ces-number-input>
+          <ces-number-input label="Tempo de plataforma" suffix=" min" [min]="0" [(value)]="plataforma" description="Padrão: 30 min."></ces-number-input>
+        </div>
+      </ces-form-section>
       <div drawer-footer class="ces-actions-row">
         <ces-button variant="ghost" label="Cancelar" (pressed)="formularioAberto.set(false)"></ces-button>
         <ces-button icon="pi pi-check" [label]="emEdicao() ? 'Salvar alterações' : 'Cadastrar tipo'" [loading]="salvando()" (pressed)="salvar()"></ces-button>
@@ -201,12 +209,15 @@ export class TiposEquipeComponent {
   protected readonly emEdicao = signal<TipoEquipeResponse | null>(null);
   protected readonly nome = signal('');
   protected readonly ativo = signal(true);
+  protected readonly jornada = signal<number | null>(480);
+  protected readonly plataforma = signal<number | null>(30);
   protected readonly salvando = signal(false);
   private readonly tentouSalvar = signal(false);
   protected readonly alterado = computed(() => {
     const atual = this.emEdicao();
     return atual
       ? this.nome() !== atual.nome || this.ativo() !== atual.ativo
+        || this.jornada() !== (atual.jornadaMinutos ?? 480) || this.plataforma() !== (atual.plataformaMinutos ?? 30)
       : !!this.nome().trim();
   });
 
@@ -247,6 +258,8 @@ export class TiposEquipeComponent {
     this.emEdicao.set(funcao);
     this.nome.set(funcao?.nome ?? '');
     this.ativo.set(funcao?.ativo ?? true);
+    this.jornada.set(funcao?.jornadaMinutos ?? 480);
+    this.plataforma.set(funcao?.plataformaMinutos ?? 30);
     this.tentouSalvar.set(false);
   }
 
@@ -255,7 +268,7 @@ export class TiposEquipeComponent {
     if (!this.nome().trim()) return;
     const atual = this.emEdicao();
     // O cadastro de tipo de equipe já recebe o status.
-    const request = { nome: this.nome().trim().toUpperCase(), ativo: this.ativo() };
+    const request = { nome: this.nome().trim().toUpperCase(), ativo: this.ativo(), jornadaMinutos: this.jornada(), plataformaMinutos: this.plataforma() };
     this.salvando.set(true);
     const salvar$: Observable<unknown> = atual ? this.rh.atualizarTipoEquipe(atual.id, request) : this.rh.criarTipoEquipe(request);
     salvar$.subscribe({

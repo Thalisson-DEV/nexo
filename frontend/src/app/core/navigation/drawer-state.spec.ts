@@ -10,9 +10,11 @@ import { openRoute, settleNavigation } from './testing';
 @Component({ standalone: true, template: '' })
 class ListaComDrawer implements OnInit {
   readonly drawer = bindDrawerToUrl();
+  readonly drawerComExtras = bindDrawerToUrl({ extraParams: ['modo', 'idObra'] });
   readonly eventos: [DrawerUrlMode | null, string | null][] = [];
   ngOnInit() {
     this.drawer.connect((modo, id) => this.eventos.push([modo, id]));
+    this.drawerComExtras.connect(() => undefined);
   }
 }
 
@@ -51,6 +53,18 @@ describe('bindDrawerToUrl', () => {
     await settleNavigation();
     expect(TestBed.inject(Router).url).toBe('/contratos');
     expect(TestBed.inject(NavigationHistoryService).canGoBack()).toBe(false);
+  });
+
+  it('parâmetros extras vão na abertura e não ficam na URL depois de fechar', async () => {
+    const tela = await abrir('/solicitacoes?novo=1&modo=devolucao&idObra=o-1&pag=2');
+
+    tela.drawerComExtras.close();
+    await settleNavigation();
+    expect(TestBed.inject(Router).url).toBe('/solicitacoes?pag=2');
+
+    tela.drawerComExtras.openNew({ modo: 'devolucao' });
+    await settleNavigation();
+    expect(TestBed.inject(Router).url).toBe('/solicitacoes?pag=2&novo=1&modo=devolucao');
   });
 
   it('novo usa ?novo=1', async () => {

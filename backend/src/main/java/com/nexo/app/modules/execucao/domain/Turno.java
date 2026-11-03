@@ -62,11 +62,62 @@ public class Turno extends BaseEntity {
     @Column(name = "motivo_encerramento", length = 255)
     private String motivoEncerramento;
 
+    /** Líder de turma informado pelo supervisor; nulo vale o responsável da equipe. */
+    @Column(name = "id_lider")
+    private UUID idLider;
+
+    /** Colaboradores do turno que não são titulares da equipe. */
+    @ElementCollection
+    @CollectionTable(name = "turno_substitutos", joinColumns = @JoinColumn(name = "id_turno"))
+    @Column(name = "id_colaborador", nullable = false)
+    private Set<UUID> idsSubstitutos = new LinkedHashSet<>();
+
     public Turno(UUID idEquipe, UUID idUsuarioAbertura) {
+        this(idEquipe, idUsuarioAbertura, OffsetDateTime.now());
+    }
+
+    /**
+     * Abertura com o horário real, quando o supervisor lança o turno pela equipe depois de ela ter começado.
+     */
+    public Turno(UUID idEquipe, UUID idUsuarioAbertura, OffsetDateTime dataInicio) {
         this.idEquipe = Objects.requireNonNull(idEquipe, "ID da equipe é obrigatório");
         this.idUsuarioAbertura = Objects.requireNonNull(idUsuarioAbertura, "ID do usuário de abertura é obrigatório");
-        this.dataInicio = OffsetDateTime.now();
+        this.dataInicio = Objects.requireNonNull(dataInicio, "A data de início é obrigatória");
         this.status = StatusTurno.ABERTO;
+    }
+
+    /**
+     * Composição informada pelo supervisor. Vale também com o turno fechado, para corrigir quem de fato trabalhou.
+     */
+    public void informarComposicao(UUID idVeiculo, Collection<UUID> idsColaboradores, UUID idLider, Collection<UUID> idsSubstitutos) {
+        if (idLider != null && (idsColaboradores == null || !idsColaboradores.contains(idLider))) {
+            throw new InvarianteVioladaException("O líder de turma deve fazer parte da composição do turno.");
+        }
+        this.idVeiculo = idVeiculo;
+        this.idLider = idLider;
+        this.idsColaboradores.clear();
+        if (idsColaboradores != null) {
+            idsColaboradores.stream().filter(Objects::nonNull).forEach(this.idsColaboradores::add);
+        }
+        this.idsSubstitutos.clear();
+        if (idsSubstitutos != null) {
+            idsSubstitutos.stream().filter(this.idsColaboradores::contains).forEach(this.idsSubstitutos::add);
+        }
+    }
+
+    /**
+     * Fecha no horário informado pelo supervisor.
+     */
+    public void fecharEm(OffsetDateTime fim) {
+        if (!isAberto()) {
+            throw new InvarianteVioladaException("Este turno já está fechado.");
+        }
+        Objects.requireNonNull(fim, "O fim do turno é obrigatório");
+        if (fim.isBefore(this.dataInicio)) {
+            throw new InvarianteVioladaException("O fechamento não pode ser antes da abertura do turno.");
+        }
+        this.status = StatusTurno.FECHADO;
+        this.dataFim = fim;
     }
 
     /**

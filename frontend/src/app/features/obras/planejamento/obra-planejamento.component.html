@@ -94,6 +94,9 @@
                     <line class="plan-trecho-alvo" [attr.x1]="t.x1" [attr.y1]="t.y1" [attr.x2]="t.x2" [attr.y2]="t.y2"
                       (pointerdown)="$event.stopPropagation()" (click)="aoClicarVao(t.vao)"></line>
                   }
+                  @for (t of trechosSugeridos(); track t.chave) {
+                    <line class="plan-trecho-sugerido" [class.plan-trecho-sugerido--fora]="!t.aceito" [attr.x1]="t.x1" [attr.y1]="t.y1" [attr.x2]="t.x2" [attr.y2]="t.y2"></line>
+                  }
                 </svg>
 
                 @if (capturaAtiva()) {
@@ -250,7 +253,7 @@
                 }
                 <section class="plan-cartao__kits">
                   <span class="plan-rotulo">Kits construtivos</span>
-                  <app-planejamento-kits [kits]="kitsDoAtivo()" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" [podeEditar]="podeEditar"
+                  <app-planejamento-kits [kits]="kitsDoAtivo()" [usadosNaObra]="kitsUsadosNaObra()" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" [podeEditar]="podeEditar"
                     (aplicar)="aplicarKit($event)" (remover)="removerKit($event)" (alterarQuantidade)="alterarQuantidadeKit($event)"
                     (executadoAntes)="marcarExecutadoAntes($event)" (alterarItem)="alterarItem($event)" (removerItem)="removerItem($event)"></app-planejamento-kits>
                 </section>
@@ -287,7 +290,7 @@
                 }
                 <section class="plan-cartao__kits">
                   <span class="plan-rotulo">Kits construtivos</span>
-                  <app-planejamento-kits [kits]="kitsDoAtivo()" [emVao]="true" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" [podeEditar]="podeEditar"
+                  <app-planejamento-kits [kits]="kitsDoAtivo()" [usadosNaObra]="kitsUsadosNaObra()" [emVao]="true" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" [podeEditar]="podeEditar"
                     (aplicar)="aplicarKit($event)" (remover)="removerKit($event)" (alterarQuantidade)="alterarQuantidadeKit($event)"
                     (executadoAntes)="marcarExecutadoAntes($event)" (alterarItem)="alterarItem($event)" (removerItem)="removerItem($event)"></app-planejamento-kits>
                 </section>
@@ -324,9 +327,9 @@
         @if (!painelOculto()) {
           <aside class="plan-painel" aria-label="Painel do planejamento">
             @if (revisando()) {
-              <app-planejamento-revisao [proposta]="analise()!.proposta!" [pagina]="analise()!.pagina" [numerosExistentes]="numerosExistentes()"
+              <app-planejamento-revisao [proposta]="analise()!.proposta!" [pagina]="analise()!.pagina" [numerosExistentes]="numerosExistentes()" [marcados]="pontosMarcados()"
                 [destaque]="destaque()" [salvando]="aceitando()" [ajustes]="ajustes()"
-                (pontosAlterados)="sugestoes.set($event)" (destacar)="destaque.set($event)" (aceitar)="aceitarProposta($event)" (descartar)="descartarRevisao()"></app-planejamento-revisao>
+                (pontosAlterados)="sugestoes.set($event)" (vaosAlterados)="vaosSugeridos.set($event)" (destacar)="destaque.set($event)" (aceitar)="aceitarProposta($event)" (descartar)="descartarRevisao()"></app-planejamento-revisao>
             } @else if (!p.pontos.length && podeEditar) {
               <div class="plan-inicio">
                 <h2>Como quer começar?</h2>
@@ -346,7 +349,8 @@
                 </button>
               </div>
             } @else {
-              <app-planejamento-arvore [plano]="p" [recolhidos]="recolhidos()" [locaisSelecionados]="locaisSelecionados()" [itensSelecionados]="itensSelecionados()" [ativo]="ativo()?.id ?? null"
+              <app-planejamento-arvore [plano]="p" [recolhidos]="recolhidos()" [locaisSelecionados]="locaisSelecionados()" [itensSelecionados]="itensSelecionados()" [ativo]="ativo()?.id ?? null" [podeProgramar]="podeProgramar" (selecionarPendentes)="selecionarPendentes()"
+                (abrirProgramacao)="abrirProgramacao($event)" (retirar)="retirarDaProgramacao($event)"
                 (alternar)="alternarRecolhido($event)" (marcarLocal)="alternarLocal($event)" (marcarItem)="alternarItem($event)" (abrirLocal)="abrirDaArvore($event)" (irPagina)="irParaPagina($event)"></app-planejamento-arvore>
 
               <section class="plan-avanco">
@@ -379,6 +383,9 @@
                   @if (podeEditar && contagemSelecao().pontos + contagemSelecao().vaos > 0) {
                     <ces-button size="sm" icon="pi pi-briefcase" label="Aplicar kit" (pressed)="loteAberto.set(true)"></ces-button>
                   }
+                  @if (podeProgramar && contagemSelecao().itens > 0) {
+                    <ces-button size="sm" icon="pi pi-calendar-plus" label="Programar" (pressed)="programarAberto.set(true)"></ces-button>
+                  }
                   <ces-icon-button icon="pi pi-times" size="icon-sm" label="Limpar seleção" tooltip="Limpar seleção (Esc)" (pressed)="limparSelecao()"></ces-icon-button>
                 </footer>
               }
@@ -389,9 +396,12 @@
     }
   </div>
 
+  <app-programar-drawer [(aberto)]="programarAberto" [idObra]="idObra" [idsItens]="idsSelecionados()" [sugestaoDescricao]="sugestaoDescricao()" (programado)="aoProgramar()"></app-programar-drawer>
+  <app-programacao-detalhe [(aberto)]="programacaoAberta" [idProgramacao]="idProgramacao()" (alterada)="carregar()"></app-programacao-detalhe>
+
   <ces-dialog-shell [(visible)]="loteAberto" title="Aplicar kit à seleção" size="md"
-    [description]="'O kit será aplicado a ' + contagemSelecao().pontos + ' pontos e ' + contagemSelecao().vaos + ' vãos. Quem já tem o kit fica como está.'">
-    <app-planejamento-kits [mostrarAplicados]="false" [kits]="[]" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" (aplicar)="aplicarEmLote($event)"></app-planejamento-kits>
+    [description]="descricaoLote()">
+    <app-planejamento-kits [mostrarAplicados]="false" [kits]="[]" [usadosNaObra]="kitsUsadosNaObra()" [idContrato]="p.idContrato" [classeTensao]="p.classeTensao" (aplicar)="aplicarEmLote($event)"></app-planejamento-kits>
   </ces-dialog-shell>
 
   <ces-dialog-shell [(visible)]="textoAberto" title="Texto extraído do PDF" size="sm">

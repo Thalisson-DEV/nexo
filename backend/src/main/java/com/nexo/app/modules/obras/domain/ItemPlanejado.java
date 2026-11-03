@@ -102,6 +102,85 @@ public class ItemPlanejado extends BaseEntity {
         }
     }
 
+    public boolean programavel() {
+        return isAtivo() && status == StatusItemPlanejado.PENDENTE && !kitAplicado.isExecutadoAntes();
+    }
+
+    public boolean temExecucao() {
+        return quantidadeExecutada.signum() > 0;
+    }
+
+    public boolean concluido() {
+        return status == StatusItemPlanejado.CONCLUIDO || status == StatusItemPlanejado.MEDIDO;
+    }
+
+    void programar() {
+        if (!programavel()) {
+            throw new InvarianteVioladaException("O item " + descricao + " não está pendente e não pode ser programado.");
+        }
+        this.status = StatusItemPlanejado.PROGRAMADO;
+    }
+
+    void desprogramar() {
+        if (temExecucao()) {
+            throw new InvarianteVioladaException("O item " + descricao + " já tem execução e não volta a pendente.");
+        }
+        this.status = StatusItemPlanejado.PENDENTE;
+    }
+
+    /**
+     * Soma a quantidade executada e devolve a parte que passou do previsto neste apontamento.
+     */
+    BigDecimal apontar(BigDecimal quantidade) {
+        if (status == StatusItemPlanejado.MEDIDO) {
+            throw new InvarianteVioladaException("O item " + descricao + " já foi medido e não recebe apontamento.");
+        }
+        if (quantidade == null || quantidade.signum() <= 0) {
+            throw new InvarianteVioladaException("A quantidade apontada de " + descricao + " deve ser maior que zero.");
+        }
+        BigDecimal excedenteAntes = quantidadeExecutada.subtract(quantidadePrevista).max(BigDecimal.ZERO);
+        this.quantidadeExecutada = quantidadeExecutada.add(quantidade);
+        atualizarStatusPelaExecucao();
+        return quantidadeExecutada.subtract(quantidadePrevista).max(BigDecimal.ZERO).subtract(excedenteAntes);
+    }
+
+    void estornar(BigDecimal quantidade) {
+        if (status == StatusItemPlanejado.MEDIDO) {
+            throw new InvarianteVioladaException("O item " + descricao + " já foi medido e o apontamento não pode ser estornado.");
+        }
+        this.quantidadeExecutada = quantidadeExecutada.subtract(quantidade).max(BigDecimal.ZERO);
+        atualizarStatusPelaExecucao();
+    }
+
+    private void atualizarStatusPelaExecucao() {
+        if (quantidadeExecutada.signum() == 0) {
+            this.status = StatusItemPlanejado.PROGRAMADO;
+        } else {
+            this.status = quantidadeExecutada.compareTo(quantidadePrevista) >= 0
+                    ? StatusItemPlanejado.CONCLUIDO
+                    : StatusItemPlanejado.EM_ANDAMENTO;
+        }
+    }
+
+    /** Só serviço concluído pela execução apontada entra em medição; o kit executado antes do sistema fica de fora. */
+    public boolean medivel() {
+        return isAtivo() && tipo == TipoItemKit.SERVICO && status == StatusItemPlanejado.CONCLUIDO
+                && !kitAplicado.isExecutadoAntes();
+    }
+
+    void medir() {
+        if (!medivel()) {
+            throw new InvarianteVioladaException("O item " + descricao + " não é um serviço concluído pendente de medição.");
+        }
+        this.status = StatusItemPlanejado.MEDIDO;
+    }
+
+    void desfazerMedicao() {
+        if (status == StatusItemPlanejado.MEDIDO) {
+            this.status = StatusItemPlanejado.CONCLUIDO;
+        }
+    }
+
     void concluirAntesDoSistema() {
         this.status = StatusItemPlanejado.CONCLUIDO;
         this.quantidadeExecutada = quantidadePrevista;

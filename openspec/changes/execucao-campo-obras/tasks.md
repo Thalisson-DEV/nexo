@@ -17,8 +17,10 @@
 ## 3. App: turno de Obras
 
 - [ ] 3.1 Abrir/fechar turno com composição titular/substituto
-- [ ] 3.2 APR, ocorrências e relatório diário
-- [ ] 3.3 Obra não programada, visita prévia e material complementar
+- [ ] 3.2 APR, ocorrências e relatório diário, usando os comandos de `TurnoObraController`. A equipe lança a APR a qualquer hora do dia e pode lançar mais de uma: cada uma informa o serviço (`idProgramacao`), e a API exige APR concluída do serviço no dia para apontar. Registrar "sem condição de executar" (ocorrência com `impedeExecucao`) dispensa a APR; uma APR concluída depois libera. Formulário: atividade, local, responsável, riscos, medidas de controle, verificações Sim/Não/Não se aplica (resposta "Não" impede concluir), participantes e documento opcional. Opções sugeridas, a validar com o SST: riscos (choque elétrico, arco elétrico, queda de altura, queda de materiais ou ferramentas, movimentação de carga, tráfego, escavação, animais peçonhentos, clima, calor ou esforço físico); medidas (desenergização, bloqueio e aterramento, linha viva, sinalização e isolamento, inspeção de escada e cinto, plano de içamento, EPI e EPC, revezamento e hidratação); verificações (conversa sobre riscos, EPI em bom estado, ferramentas e veículo inspecionados, área sinalizada, clima permite, desligamento confirmado).
+- [ ] 3.4 Criar o perfil da equipe de campo com `obras:turno:write` e `obras:execucao:write` (hoje nenhum perfil tem) e informar líder e substitutos ao abrir o turno (`Turno.informarComposicao`)
+- [ ] 3.3 Obra não programada e material complementar
+- [ ] 3.5 Telas do supervisor no app para visita prévia, ficha As Built e book, usando `DocumentacaoTecnicaController` e os modelos de `/v1/obras/checklists`
 
 ## 4. Web: revisão de fotos
 

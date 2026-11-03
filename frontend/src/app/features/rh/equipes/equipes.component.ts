@@ -15,6 +15,7 @@ import {
   CesIconButtonComponent,
   CesImportDrawerComponent,
   CesListShortcutsDirective,
+  CesNumberInputComponent,
   CesPageHeaderComponent,
   CesRowActionsDirective,
   CesSelectComponent,
@@ -81,6 +82,7 @@ const FUNCOES_MEMBRO: CesSelectOption<FuncaoMembro>[] = [
     CesIconButtonComponent,
     CesImportDrawerComponent,
     CesListShortcutsDirective,
+    CesNumberInputComponent,
     CesPageHeaderComponent,
     CesRowActionsDirective,
     CesSelectComponent,
@@ -199,6 +201,8 @@ const FUNCOES_MEMBRO: CesSelectOption<FuncaoMembro>[] = [
             (opened)="veiculos.open()" (search)="veiculos.search($event)" placeholder="Pesquise pela placa" [error]="erro('veiculo')"></ces-select>
           <ces-select label="Contrato" [options]="contratosOpcoes()" [(value)]="idContrato" [filter]="true" [clearable]="true" [showOptional]="true"
             description="Só contratos vigentes. Limpe o campo para desvincular."></ces-select>
+          <ces-number-input label="Jornada" suffix=" min" [min]="1" [max]="1440" [showOptional]="true" [(value)]="jornada" description="Em branco, usa a do tipo de equipe."></ces-number-input>
+          <ces-number-input label="Tempo de plataforma" suffix=" min" [min]="0" [showOptional]="true" [(value)]="plataforma" description="Em branco, usa o do tipo de equipe."></ces-number-input>
         </div>
       </ces-form-section>
 
@@ -431,6 +435,8 @@ export class EquipesComponent {
   protected readonly idProcesso = signal<string | null>(null);
   protected readonly idVeiculo = signal<string | null>(null);
   protected readonly idContrato = signal<string | null>(null);
+  protected readonly jornada = signal<number | null>(null);
+  protected readonly plataforma = signal<number | null>(null);
   protected readonly idCoordenador = signal<string | null>(null);
   protected readonly idSupervisor = signal<string | null>(null);
   protected readonly ativo = signal(true);
@@ -634,6 +640,8 @@ export class EquipesComponent {
     this.idProcesso.set(e?.processo?.id ?? null);
     this.idVeiculo.set(e?.veiculo?.id ?? null);
     this.idContrato.set(e?.idContrato ?? null);
+    this.jornada.set(e?.jornadaMinutos ?? null);
+    this.plataforma.set(e?.plataformaMinutos ?? null);
     this.idCoordenador.set(e?.coordenador?.id ?? null);
     this.idSupervisor.set(e?.supervisor?.id ?? null);
     this.ativo.set(e?.ativo ?? true);
@@ -652,6 +660,8 @@ export class EquipesComponent {
       this.idProcesso(),
       this.idVeiculo(),
       this.idContrato(),
+      this.jornada(),
+      this.plataforma(),
       this.idCoordenador(),
       this.idSupervisor(),
       this.ativo(),
@@ -673,6 +683,8 @@ export class EquipesComponent {
       idSupervisor: this.idSupervisor()!,
       idProcesso: this.idProcesso()!,
       idContrato: this.idContrato(),
+      jornadaMinutos: this.jornada(),
+      plataformaMinutos: this.plataforma(),
       membros: this.membros().map((m) => ({ idColaborador: m.idColaborador, funcao: m.funcao }))
     };
     this.salvando.set(true);

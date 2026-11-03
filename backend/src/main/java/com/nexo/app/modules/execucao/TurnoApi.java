@@ -31,4 +31,7 @@ public interface TurnoApi {
 
     /** Consulta paginada de turnos ativos pelos critérios informados. */
     Page<TurnoResponse> consultar(ConsultaTurnos consulta, Pageable pageable);
+
+    /** Líder e substitutos dos turnos informados. */
+    List<PapeisTurno> buscarPapeis(Collection<UUID> idsTurnos);
 }

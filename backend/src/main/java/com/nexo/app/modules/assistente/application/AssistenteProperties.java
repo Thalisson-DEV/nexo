@@ -37,6 +37,7 @@ public class AssistenteProperties {
         private String fallbackModel = "";
         private String titleModel = "";
         private String visionModel = "";
+        private String visionReasoningEffort = "low";
         private String reasoningEffort = "";
         private String titleReasoningEffort = "none";
         private double temperature = 0.1;

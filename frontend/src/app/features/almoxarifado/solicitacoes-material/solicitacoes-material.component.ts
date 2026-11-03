@@ -1,6 +1,9 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
+import { bindDrawerToUrl } from '../../../core/navigation';
+import { AuthService } from '../../../core/services/auth.service';
+import { SolicitacaoMaterialFormComponent } from './solicitacao-material-form/solicitacao-material-form.component';
 import {
   CesButtonComponent,
   CesCalloutComponent,
@@ -82,6 +85,7 @@ const mesmoConjunto = (a: readonly string[], b: readonly string[]) => a.length =
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SolicitacaoMaterialFormComponent,
     CesButtonComponent,
     CesCalloutComponent,
     CesCellDirective,
@@ -327,6 +331,10 @@ const mesmoConjunto = (a: readonly string[], b: readonly string[]) => a.length =
         <p class="help-text-desc">Solicitações entregues (total ou parcialmente) podem ter itens estornados: os saldos voltam ao estoque de origem.</p>
       </div>
     </app-ajuda-listagem>
+
+    @if (drawer.mode() === 'novo' && podeCriar) {
+      <app-solicitacao-material-form (criada)="aoAlterar()" (fechado)="drawer.close()"></app-solicitacao-material-form>
+    }
   `
 })
 export class SolicitacoesMaterialComponent {
@@ -501,7 +509,17 @@ export class SolicitacoesMaterialComponent {
     { key: 'estorno', header: 'Estornar', type: 'custom', priority: 1, value: (i) => i.quantidadeEstorno }
   ];
 
+  protected readonly drawer = bindDrawerToUrl();
+  protected readonly podeCriar = inject(AuthService).currentUser()?.permissoes?.includes('estoque:solicitacao:create') ?? false;
+
   constructor() {
+    this.drawer.connect((modo) => {
+      // A URL antiga do cadastro redireciona para cá sem guard: sem permissão, o drawer não abre.
+      if (modo === 'novo' && !this.podeCriar) {
+        this.notificacoes.warning('Você não tem permissão para criar solicitações.');
+        this.drawer.close();
+      }
+    });
     this.almoxarifado.listarEstoquesAtivos().subscribe({ next: (r) => this.estoques.set(r.content), error: () => this.estoques.set([]) });
     this.almoxarifado.listarMateriais({ page: 0, size: 1000, ativo: true }).subscribe({ next: (r) => this.materiais.set(r?.content || []), error: () => this.materiais.set([]) });
 
@@ -625,7 +643,7 @@ export class SolicitacoesMaterialComponent {
   }
 
   protected novo(): void {
-    void this.router.navigate(['/almoxarifado/solicitacoes/nova']);
+    if (this.podeCriar) this.drawer.openNew();
   }
 
   protected irParaDevolucaoComercial(): void {

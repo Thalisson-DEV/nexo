@@ -70,6 +70,14 @@ public class Equipe extends BaseEntity {
     @OneToMany(mappedBy = "equipe", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<EquipeMembro> membros = new ArrayList<>();
 
+    /** Ajuste da jornada do tipo de equipe; nulo usa a do tipo. */
+    @Column(name = "jornada_minutos")
+    private Integer jornadaMinutos;
+
+    /** Ajuste do tempo de plataforma do tipo de equipe; nulo usa o do tipo. */
+    @Column(name = "plataforma_minutos")
+    private Integer plataformaMinutos;
+
     public Equipe(String codigo, TipoEquipe tipoEquipe, BaseOperacional baseOperacional, Veiculo veiculo, Coordenador coordenador, Supervisor supervisor, ProcessoNegocio processo) {
         validarCodigo(codigo);
         this.codigo = codigo.toUpperCase().trim();
@@ -219,6 +227,23 @@ public class Equipe extends BaseEntity {
      */
     public boolean isResponsavel(UUID idUsuario) {
         return idUsuario != null && idUsuario.equals(this.idUsuario);
+    }
+
+    /** Ajusta jornada e plataforma só desta equipe. Nulo volta a usar o valor do tipo de equipe. */
+    public void ajustarJornada(Integer jornada, Integer plataforma) {
+        validarJornada(jornada != null ? jornada : tipoEquipe.getJornadaMinutos(),
+                plataforma != null ? plataforma : tipoEquipe.getPlataformaMinutos());
+        this.jornadaMinutos = jornada;
+        this.plataformaMinutos = plataforma;
+    }
+
+    static void validarJornada(int jornada, int plataforma) {
+        if (jornada <= 0 || jornada > 1440) {
+            throw new InvarianteVioladaException("A jornada deve ficar entre 1 minuto e 24 horas.");
+        }
+        if (plataforma < 0 || plataforma >= jornada) {
+            throw new InvarianteVioladaException("O tempo de plataforma deve ser menor que a jornada.");
+        }
     }
 
     public void vincularUsuario(UUID idUsuario) {

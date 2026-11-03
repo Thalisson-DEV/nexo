@@ -383,6 +383,7 @@ export interface EstoqueResponse {
   nomeIdentificador: string;
   tipoEstoque: TipoEstoqueResponse;
   idEquipe?: string;
+  idObra?: string;
   idBaseOperacional?: string;
   ativo: boolean;
 }
@@ -554,6 +555,23 @@ export interface DevolucaoComercialRequest {
   idEstoqueDestino: string;
   itens: ItemDevolucaoComercialRequest[];
   observacao?: string;
+}
+
+export interface ItemDevolucaoTecnicaRequest {
+  idMaterial: string;
+  tipo: 'DEVOLUCAO_COMUM' | 'DEVOLUCAO_CONCRETO';
+  quantidade: number;
+  condicao: string;
+  numSerie?: string;
+  guardarNoEstoque: boolean;
+}
+
+export interface DevolucaoTecnicaRequest {
+  idObra: string;
+  ocorrencia?: string;
+  idEquipe: string;
+  idEstoqueDestino: string;
+  itens: ItemDevolucaoTecnicaRequest[];
 }
 
 export interface MetadadosSolicitacaoMovimentacao {

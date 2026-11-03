@@ -1,844 +1,106 @@
-<div class="flex flex-col gap-4 pb-28">
-  <div class="flex justify-between items-center">
-    <p-breadcrumb [model]="breadcrumb()" styleClass="!bg-transparent !border-0 !p-0" />
-    <p-button
-      icon="pi pi-arrow-left"
-      label="Voltar"
-      [text]="true"
-      severity="secondary"
-      (onClick)="close()"
-      styleClass="!text-slate-400 !text-[10px] !font-medium"
-    />
-  </div>
-
-  @if (loadingLookups()) {
-    <div
-      class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 min-h-96 flex flex-col items-center justify-center gap-3"
-    >
-      <p-progress-spinner strokeWidth="3" [style]="{ width: '36px', height: '36px' }" />
-      <span class="text-[11px] text-slate-400">Carregando dados da solicitação...</span>
-    </div>
-  } @else if (lookupError()) {
-    <div
-      class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 min-h-96 flex flex-col items-center justify-center gap-3 p-6 text-center"
-    >
-      <i class="pi pi-exclamation-triangle text-amber-500 text-2xl"></i>
-      <span class="text-sm font-medium text-slate-800 dark:text-white">Não foi possível preparar o formulário</span>
-      <span class="text-[11px] text-slate-400 max-w-md">{{ lookupError() }}</span>
-      <p-button
-        label="Tentar novamente"
-        icon="pi pi-refresh"
-        (onClick)="loadLookups()"
-        styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2 !px-4 !font-bold !text-[10px]"
-      />
-    </div>
+<ces-form-drawer #gaveta [visible]="aberto()" (visibleChange)="!$event && fechar()" title="Nova solicitação de material" [description]="obraFixa() ? obraRotulo() : undefined" size="lg" [resizable]="true"
+  [dirty]="alterado()" [loading]="loadingLookups()">
+  @if (lookupError()) {
+    <ces-async-state state="error" title="Não foi possível preparar o formulário" [description]="lookupError()" actionLabel="Tentar de novo" (action)="loadLookups()"></ces-async-state>
   } @else {
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden max-w-4xl w-full mx-auto">
-      <div class="px-5 md:px-8 py-6 border-b border-slate-100 dark:border-slate-800">
-        <div class="flex items-center gap-2 mb-3">
-          <i [class]="modo() === 'devolucao' ? 'pi pi-undo text-amber-600 dark:text-amber-400 text-xs' : 'pi pi-wrench text-primary-700 dark:text-primary-400 text-xs'"></i>
-          <span class="text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-widest">
-            {{ modo() === 'devolucao' ? 'Nova Devolução Técnica (222 / 922)' : 'Nova Solicitação Técnica (221 / 921)' }}
-          </span>
+    <div class="sol-form" [attr.inert]="formLocked() ? '' : null">
+      <ces-form-section title="Obra e atendimento" icon="pi pi-building">
+        @if (!obraFixa()) {
+          <ces-select label="Obra" [required]="true" [options]="obraOptions()" [value]="idObra()" (valueChange)="selectObra($event)" [filter]="true"
+            placeholder="Pesquisar por número ou título" [error]="fieldError('idObra')"></ces-select>
+        }
+        @if (projetosRelacionados().length) {
+          <div class="sol-opcoes" role="group" aria-label="Obras relacionadas (KIT ou medidor)">
+            @for (proj of projetosRelacionados(); track proj.idRelacionamento) {
+              <ces-button variant="outline" size="sm" icon="pi pi-link" [label]="proj.numero + ' · ' + proj.tipoVinculo" (pressed)="selectRelated(proj)"></ces-button>
+            }
+          </div>
+        }
+        <ces-autocomplete label="Almoxarifado de atendimento" [required]="true" [showSearchInstruction]="true" inputId="almoxarifadoAtendimento"
+          [options]="stockOptions()" [ngModel]="idAlmoxarifado()" (ngModelChange)="idAlmoxarifado.set($event)" [loading]="stockLoading()" [status]="stockStatus()"
+          [error]="stockError() ?? fieldError('idAlmoxarifadoAtendimento')" [minLength]="2" [forceSelection]="true" [virtualScroll]="true" [virtualScrollItemSize]="38"
+          placeholder="Pesquise pelo nome do estoque" appendTo="body" (search)="searchStocks($event)" (loadMore)="loadMoreStocks()" (retry)="retryStocks()"></ces-autocomplete>
+        <div class="ces-form-grid">
+          <ces-select label="Equipe responsável" [options]="equipeOptions()" [value]="idEquipe()" (valueChange)="onEquipeChange($event)" [filter]="true" [clearable]="true" [showOptional]="true" [error]="fieldError('idEquipe')"></ces-select>
+          @if (!saqueForaEquipe()) {
+            <ces-select label="Responsável pelo saque" [options]="colaboradorSaqueOptions()" [value]="idColaboradorSaque()" (valueChange)="onColaboradorSaqueChange($event)"
+              [clearable]="true" [disabled]="!idEquipe()" [showOptional]="true" [description]="idEquipe() ? undefined : 'Escolha a equipe primeiro.'"></ces-select>
+          } @else {
+            <ces-autocomplete label="Responsável pelo saque" [showSearchInstruction]="false" inputId="responsavelSaque" [options]="colaboradorSaqueOptions()"
+              [ngModel]="idColaboradorSaque()" (ngModelChange)="onColaboradorSaqueChange($event)" [clearable]="true" [loading]="collaboratorLoading()" [status]="collaboratorStatus()"
+              [error]="collaboratorError()" [minLength]="2" [forceSelection]="true" [virtualScroll]="true" [virtualScrollItemSize]="38" placeholder="Pesquise o colaborador" appendTo="body"
+              (search)="searchColaboradores($event)" (loadMore)="loadMoreColaboradores()" (retry)="retryColaboradores()"></ces-autocomplete>
+          }
         </div>
-        <h1 class="text-base font-medium text-slate-800 dark:text-white">
-          {{ modo() === 'devolucao' ? 'Devolução e retorno de materiais de obra' : 'Alocação de materiais e atendimento para obra' }}
-        </h1>
-        <p class="text-[11px] text-slate-400 mt-1">
-          {{ modo() === 'devolucao'
-            ? 'Informe a obra de origem, almoxarifado de retorno e equipe, componha os materiais a devolver e revise antes de confirmar.'
-            : 'Informe a obra de destino, selecione o almoxarifado e equipe, componha os materiais e revise antes de confirmar.' }}
-        </p>
-      </div>
+        <ces-boolean-control label="Saque fora da equipe" description="Permite escolher um colaborador que não pertence à equipe." kind="toggle"
+          [value]="saqueForaEquipe()" (valueChange)="onSaqueForaEquipeChange($event)"></ces-boolean-control>
+        <div class="ces-form-grid">
+          <ces-datepicker label="Data prevista" [(value)]="dataPrevista" [clearable]="true" [showOptional]="true"
+            description="Recomendado: 48 horas. Menos que isso é sinalizado no atendimento."></ces-datepicker>
+          @if (ocorrenciaObrigatoria()) {
+            <ces-text-input label="Ocorrência (OC/OS)" [required]="true" [(value)]="ocorrencia" [maxlength]="100" placeholder="Número da OC/OS" [error]="fieldError('ocorrencia')"></ces-text-input>
+          }
+        </div>
+        @if (ocorrenciaObrigatoria() && ocorrencias().length) {
+          <div class="sol-opcoes" role="group" aria-label="Ocorrências desta obra">
+            @for (oc of ocorrencias(); track oc.id) {
+              <ces-button variant="ghost" size="sm" [label]="oc.codigo" (pressed)="selecionarSugestaoOcorrencia(oc.codigo)"></ces-button>
+            }
+          </div>
+        }
+        <ces-textarea label="Observação" [(value)]="observacao" [rows]="2" [maxlength]="1000" [showOptional]="true" placeholder="Informações para o almoxarifado" [error]="fieldError('observacao')"></ces-textarea>
+      </ces-form-section>
 
-      <div class="px-5 md:px-8 py-6">
-        <p-stepper [(value)]="activeStep">
-          <p-step-list>
-            <p-step [value]="1" class="flex flex-row flex-auto gap-2">
-              <ng-template #content let-value="value">
-                <button type="button" class="step-button" (click)="goToStep(1)">
-                  <span
-                    class="step-circle"
-                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
-                  >
-                    <i class="pi pi-building text-[10px]"></i>
-                  </span>
-                  <span
-                    class="step-label"
-                    [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
-                  >
-                    Obra e Destino
-                  </span>
-                </button>
-              </ng-template>
-            </p-step>
-
-            <p-step [value]="2" class="flex flex-row flex-auto gap-2">
-              <ng-template #content let-value="value">
-                <button type="button" class="step-button" (click)="goToStep(2)">
-                  <span
-                    class="step-circle"
-                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
-                  >
-                    <i class="pi pi-box text-[10px]"></i>
-                  </span>
-                  <span
-                    class="step-label"
-                    [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
-                  >
-                    Materiais
-                  </span>
-                </button>
-              </ng-template>
-            </p-step>
-
-            <p-step [value]="3" class="flex flex-row flex-auto gap-2">
-              <ng-template #content let-value="value">
-                <button type="button" class="step-button" (click)="goToStep(3)">
-                  <span
-                    class="step-circle"
-                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
-                  >
-                    <i class="pi pi-check text-[10px]"></i>
-                  </span>
-                  <span
-                    class="step-label"
-                    [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
-                  >
-                    Revisão
-                  </span>
-                </button>
-              </ng-template>
-            </p-step>
-
-            <p-step [value]="4" class="flex flex-row flex-auto gap-2">
-              <ng-template #content let-value="value">
-                <button
-                  type="button"
-                  class="step-button"
-                  [disabled]="solicitacoesCriadas().length === 0"
-                  (click)="goToStep(4)"
-                >
-                  <span
-                    class="step-circle"
-                    [ngClass]="value <= activeStep() ? 'step-active' : 'step-inactive'"
-                  >
-                    <i class="pi pi-send text-[10px]"></i>
-                  </span>
-                  <span
-                    class="step-label"
-                    [ngClass]="value <= activeStep() ? 'text-primary-700 dark:text-primary-400' : 'text-slate-400'"
-                  >
-                    Conclusão
-                  </span>
-                </button>
-              </ng-template>
-            </p-step>
-          </p-step-list>
-
-          <p-step-panels>
-            <!-- 1. OBRA E ATENDIMENTO -->
-            <p-step-panel [value]="1">
-              <ng-template #content>
-                <div class="mt-6 flex flex-col gap-5">
-                  <div class="section-marker">
-                    <span>1. Obra e Atendimento</span>
-                  </div>
-
-                  <!-- Campos principais -->
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="field">
-                      <label for="obraDestino">Obra de Destino *</label>
-                      <p-select
-                        inputId="obraDestino"
-                        [options]="obraOptions()"
-                        [ngModel]="idObra()"
-                        (ngModelChange)="selectObra($event)"
-                        optionLabel="label"
-                        optionValue="value"
-                        [filter]="true"
-                        placeholder="Pesquisar por número ou título..."
-                        class="custom-select w-full"
-                        size="small"
-                        appendTo="body"
-                      />
-                      @if (fieldError('idObra')) {
-                        <span class="form-error">{{ fieldError('idObra') }}</span>
-                      }
-                    </div>
-
-                    <div class="field">
-                      <label for="almoxarifadoAtendimento">Almoxarifado de Atendimento *</label>
-                      <ces-autocomplete
-                        [label]="'Almoxarifado de Atendimento'"
-                        [labelVisible]="false"
-                        [showSearchInstruction]="true"
-                        inputId="almoxarifadoAtendimento"
-                        [options]="stockOptions()"
-                        [ngModel]="idAlmoxarifado()"
-                        (ngModelChange)="idAlmoxarifado.set($event)"
-                        [loading]="stockLoading()"
-                        [status]="stockStatus()"
-                        [error]="stockError()"
-                        [minLength]="2"
-                        [forceSelection]="true"
-                        [virtualScroll]="true"
-                        [virtualScrollItemSize]="38"
-                        placeholder="Pesquise por nome do estoque..."
-                        appendTo="body"
-                        class="w-full"
-                        (search)="searchStocks($event)"
-                        (loadMore)="loadMoreStocks()"
-                        (retry)="retryStocks()"
-                      ></ces-autocomplete>
-                      @if (fieldError('idAlmoxarifadoAtendimento')) {
-                        <span class="form-error">{{ fieldError('idAlmoxarifadoAtendimento') }}</span>
-                      }
-                    </div>
-
-                    <div class="field">
-                      <label for="equipeResponsavel">Equipe Responsável</label>
-                      <p-select
-                        inputId="equipeResponsavel"
-                        [options]="equipeOptions()"
-                        [ngModel]="idEquipe()"
-                        (ngModelChange)="onEquipeChange($event)"
-                        optionLabel="label"
-                        optionValue="value"
-                        [filter]="true"
-                        [showClear]="true"
-                        placeholder="Selecione a equipe (opcional)..."
-                        class="custom-select w-full"
-                        size="small"
-                        appendTo="body"
-                      />
-                    </div>
-
-                    <div class="field">
-                      <label for="responsavelSaque">Responsável pelo Saque</label>
-                      @if (!saqueForaEquipe()) {
-                      <p-select
-                        inputId="responsavelSaque"
-                        [options]="colaboradorSaqueOptions()"
-                        [ngModel]="idColaboradorSaque()"
-                        (ngModelChange)="onColaboradorSaqueChange($event)"
-                        optionLabel="label"
-                        optionValue="value"
-                        [showClear]="true"
-                        [disabled]="!idEquipe()"
-                        placeholder="Selecione um membro da equipe..."
-                        class="custom-select w-full"
-                        size="small"
-                        appendTo="body"
-                      />
-                      } @else {
-                      <ces-autocomplete
-                        [label]="'Responsável pelo Saque'"
-                        [labelVisible]="false"
-                        [showSearchInstruction]="false"
-                        inputId="responsavelSaque"
-                        [options]="colaboradorSaqueOptions()"
-                        [ngModel]="idColaboradorSaque()"
-                        (ngModelChange)="onColaboradorSaqueChange($event)"
-                        [clearable]="true"
-                        [loading]="collaboratorLoading()"
-                        [status]="collaboratorStatus()"
-                        [error]="collaboratorError()"
-                        [minLength]="2"
-                        [forceSelection]="true"
-                        [virtualScroll]="true"
-                        [virtualScrollItemSize]="38"
-                        [disabled]="!idEquipe() && !saqueForaEquipe()"
-                        placeholder="Selecione o responsável (opcional)..."
-                        appendTo="body"
-                        class="w-full"
-                        (search)="searchColaboradores($event)"
-                        (loadMore)="loadMoreColaboradores()"
-                        (retry)="retryColaboradores()"
-                      ></ces-autocomplete>
-                      }
-                      @if (!idEquipe() && !saqueForaEquipe()) {
-                        <span class="field-help"
-                          >Selecione uma equipe ou ative o saque fora da equipe para escolher um responsável.</span
-                        >
-                      }
-                    </div>
-
-                    <div
-                      class="sm:col-span-2 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 p-3.5"
-                    >
-                      <ces-boolean-control
-                        [label]="'Saque fora da equipe'"
-                        [description]="'Permite selecionar um colaborador que não pertence à equipe responsável.'"
-                        [kind]="'toggle'"
-                        [inline]="true"
-                        inputId="saqueForaEquipe"
-                        [value]="saqueForaEquipe()"
-                        (valueChange)="onSaqueForaEquipeChange($event)"
-                      />
-                    </div>
-
-                    <div class="field">
-                      <label for="dataPrevista">Data Prevista</label>
-                      <p-datepicker
-                        inputId="dataPrevista"
-                        [ngModel]="dataPrevista()"
-                        (ngModelChange)="dataPrevista.set($event)"
-                        dateFormat="dd/mm/yy"
-                        [showIcon]="true"
-                        iconDisplay="input"
-                        [showClear]="true"
-                        placeholder="DD/MM/AAAA"
-                        class="w-full"
-                        size="small"
-                        appendTo="body"
-                      />
-                      <small class="text-[var(--ces-foreground-muted)]">
-                        Prazo recomendado: 48 horas. Menor antecedência será apenas sinalizada no atendimento.
-                      </small>
-                    </div>
-                  </div>
-
-                  <!-- Projetos Relacionados como Choice Cards -->
-                  @if (projetosRelacionados().length) {
-                    <div class="flex flex-col gap-2">
-                      <div class="section-marker !mb-1">
-                        <span>Projetos Relacionados Vinculados (KIT / Medidor)</span>
-                      </div>
-                      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        @for (proj of projetosRelacionados(); track proj.idRelacionamento) {
-                          <button type="button" class="choice-card" (click)="selectRelated(proj)">
-                            <span class="choice-card__icon"><i class="pi pi-link text-xs"></i></span>
-                            <span class="min-w-0">
-                              <span class="choice-card__title">{{ proj.numero }} · {{ proj.tipoVinculo }}</span>
-                              <span class="choice-card__desc truncate">{{ proj.titulo }}</span>
-                            </span>
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  }
-
-                  <!-- Ocorrência / Observação -->
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    @if (ocorrenciaObrigatoria()) {
-                      <div class="field">
-                        <label for="ocorrencia">Ocorrência (OC/OS) *</label>
-                        <input
-                          pInputText
-                          id="ocorrencia"
-                          [ngModel]="ocorrencia()"
-                          (ngModelChange)="ocorrencia.set($event)"
-                          placeholder="Informe o número da OC/OS..."
-                          class="w-full !text-[11px]"
-                          size="small"
-                          maxlength="100"
-                        />
-                        @if (fieldError('ocorrencia')) {
-                          <span class="form-error">{{ fieldError('ocorrencia') }}</span>
-                        }
-                        @if (ocorrencias().length) {
-                          <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-                            <span class="text-[9px] text-slate-400 font-bold uppercase">Sugestões:</span>
-                            @for (oc of ocorrencias(); track oc.id) {
-                              <button
-                                type="button"
-                                (click)="selecionarSugestaoOcorrencia(oc.codigo)"
-                                class="text-[10px] font-semibold px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-primary-50 dark:hover:bg-primary-950/40 hover:text-primary-700 dark:hover:text-primary-400 hover:border-primary-300 dark:hover:border-primary-800 cursor-pointer transition-colors"
-                              >
-                                {{ oc.codigo }}
-                              </button>
-                            }
-                          </div>
-                        }
-                      </div>
-                    } @else if (idObra()) {
-                      <div
-                        class="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700/60 flex items-start gap-2.5"
-                      >
-                        <i class="pi pi-info-circle text-primary-700 dark:text-primary-400 text-sm shrink-0 mt-0.5"></i>
-                        <span class="text-[11px] text-slate-600 dark:text-slate-400">
-                          Solicitações para <strong class="text-slate-800 dark:text-slate-200">{{ tipoObra() }}</strong> são vinculadas diretamente à obra sem código de ocorrência.
-                        </span>
-                      </div>
-                    }
-
-                    <div
-                      class="field"
-                      [ngClass]="ocorrenciaObrigatoria() || idObra() ? '' : 'sm:col-span-2'"
-                    >
-                      <label for="observacao">Observação / Justificativa</label>
-                      <textarea
-                        pTextarea
-                        id="observacao"
-                        [ngModel]="observacao()"
-                        (ngModelChange)="observacao.set($event)"
-                        placeholder="Informações adicionais para o almoxarifado..."
-                        class="w-full !text-[11px] min-h-[60px]"
-                        maxlength="1000"
-                      ></textarea>
-                      @if (fieldError('observacao')) {
-                        <span class="form-error">{{ fieldError('observacao') }}</span>
-                      }
-                    </div>
-                  </div>
-
-                  <!-- Botões de Ação Etapa 1 -->
-                  <div class="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <p-button
-                      label="CONTINUAR"
-                      icon="pi pi-arrow-right"
-                      iconPos="right"
-                      (onClick)="nextStep()"
-                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]"
-                    />
-                  </div>
-                </div>
-              </ng-template>
-            </p-step-panel>
-
-            <!-- 2. MATERIAIS -->
-            <p-step-panel [value]="2">
-              <ng-template #content>
-                <div class="mt-6 flex flex-col gap-5">
-                  <div class="section-marker">
-                    <span>2. Materiais e Movimentação</span>
-                  </div>
-
-                  <!-- Choice Cards para Movimentação -->
-                  <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                      Tipo de Movimentação *
-                    </label>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      @if (modo() === 'adicao') {
-                        <button
-                          type="button"
-                          class="choice-card"
-                          [class.choice-card--active]="tipoMovimentacao() === 'ADICAO_COMUM'"
-                          (click)="tipoMovimentacao.set('ADICAO_COMUM')"
-                        >
-                          <span class="choice-card__icon"><i class="pi pi-shopping-cart text-xs"></i></span>
-                          <span class="min-w-0">
-                            <span class="choice-card__title">{{ tipoDescricao('ADICAO_COMUM') }} · Adição Comum</span>
-                            <span class="choice-card__desc">Material comum retirado do almoxarifado.</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          class="choice-card"
-                          [class.choice-card--active]="tipoMovimentacao() === 'ADICAO_CONCRETO'"
-                          (click)="tipoMovimentacao.set('ADICAO_CONCRETO')"
-                        >
-                          <span class="choice-card__icon"><i class="pi pi-shopping-cart text-xs"></i></span>
-                          <span class="min-w-0">
-                            <span class="choice-card__title">{{ tipoDescricao('ADICAO_CONCRETO') }} · Adição Concreto</span>
-                            <span class="choice-card__desc">Material de concreto retirado do almoxarifado.</span>
-                          </span>
-                        </button>
-                      } @else {
-                        <button
-                          type="button"
-                          class="choice-card"
-                          [class.choice-card--active]="tipoMovimentacao() === 'DEVOLUCAO_COMUM'"
-                          (click)="tipoMovimentacao.set('DEVOLUCAO_COMUM')"
-                        >
-                          <span class="choice-card__icon"><i class="pi pi-trash text-xs"></i></span>
-                          <span class="min-w-0">
-                            <span class="choice-card__title">{{ tipoDescricao('DEVOLUCAO_COMUM') }} · Devolução Comum</span>
-                            <span class="choice-card__desc">Retorno de material comum para o estoque.</span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          class="choice-card"
-                          [class.choice-card--active]="tipoMovimentacao() === 'DEVOLUCAO_CONCRETO'"
-                          (click)="tipoMovimentacao.set('DEVOLUCAO_CONCRETO')"
-                        >
-                          <span class="choice-card__icon"><i class="pi pi-trash text-xs"></i></span>
-                          <span class="min-w-0">
-                            <span class="choice-card__title">{{ tipoDescricao('DEVOLUCAO_CONCRETO') }} · Devolução Concreto</span>
-                            <span class="choice-card__desc">Retorno de material de concreto para o estoque.</span>
-                          </span>
-                        </button>
-                      }
-                    </div>
-                  </div>
-
-                  <!-- Inclusão de Material (Campos alinhados e nivelados) -->
-                  <div
-                    class="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col gap-3.5"
-                  >
-                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Adicionar Item</span>
-                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                      <div class="sm:col-span-8 field">
-                        <label for="materialInput">Material *</label>
-                        <ces-autocomplete
-                          inputId="materialInput"
-                          [label]="'Material'"
-                          [labelVisible]="false"
-                          [showSearchInstruction]="false"
-                          [options]="materials()"
-                          [ngModel]="idMaterial()"
-                          (ngModelChange)="onMaterialChange($event)"
-                          [loading]="materialsLoading()"
-                          [status]="materialsStatus()"
-                          [error]="materialsError()"
-                          placeholder="Pesquise por código ou descrição..."
-                          [minLength]="2"
-                          class="w-full"
-                          (search)="searchMaterials($event)"
-                          (loadMore)="loadMoreMaterials()"
-                          (retry)="retryMaterials()"
-                        />
-                      </div>
-
-                      <div class="sm:col-span-3 field">
-                        <label for="quantidadeInput">Quantidade *</label>
-                        <p-inputNumber
-                          inputId="quantidadeInput"
-                          [ngModel]="quantidade()"
-                          (ngModelChange)="quantidade.set($event)"
-                          [min]="0.001"
-                          [step]="0.001"
-                          [minFractionDigits]="3"
-                          [maxFractionDigits]="3"
-                          placeholder="0,000"
-                          class="w-full"
-                          styleClass="w-full"
-                          [fluid]="true"
-                          size="small"
-                        />
-                      </div>
-
-                      <div class="sm:col-span-1 field flex flex-col justify-end">
-                        <label class="hidden sm:block select-none invisible" aria-hidden="true">&nbsp;</label>
-                        <p-button
-                          icon="pi pi-plus"
-                          [disabled]="!idMaterial() || !tipoMovimentacao() || !quantidade()"
-                          (onClick)="addItem()"
-                          size="small"
-                          styleClass="!w-full !h-[34px] flex items-center justify-center !rounded-lg !bg-primary-700 !border-primary-700 !font-bold"
-                          severity="primary"
-                          pTooltip="Adicionar à lista"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  @if (fieldError('itens')) {
-                    <span class="form-error">{{ fieldError('itens') }}</span>
-                  }
-
-                  <!-- Tabela de Itens Adicionados -->
-                  <p-table
-                    [value]="itens()"
-                    class="p-datatable-sm"
-                    [scrollable]="true"
-                    scrollHeight="300px"
-                  >
-                    <ng-template pTemplate="header">
-                      <tr>
-                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400">Material</th>
-                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400">
-                          Tipo Técnico
-                        </th>
-                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400 text-right">
-                          Quantidade
-                        </th>
-                        <th style="width: 3.5rem"></th>
-                      </tr>
-                    </ng-template>
-                    <ng-template pTemplate="body" let-item let-ri="rowIndex">
-                      <tr>
-                        <td>
-                          <div class="flex flex-col">
-                            <span class="text-xs font-bold text-slate-800 dark:text-white">{{ item.codigo }}</span>
-                            <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ item.descricao }}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span
-                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold tracking-wide"
-                            [ngClass]="
-                              isAddition(item.tipoMovimentacao)
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                            "
-                          >
-                            <i
-                              [class]="typeIcon(item.tipoMovimentacao)"
-                              class="text-[10px]"
-                            ></i>
-                            {{ tipoDescricao(item.tipoMovimentacao) }}
-                          </span>
-                        </td>
-                        <td class="text-right font-bold text-xs text-slate-800 dark:text-white">
-                          {{ item.quantidade | number: '1.3-3' }}
-                        </td>
-                        <td class="text-center">
-                          <button
-                            type="button"
-                            (click)="removeItem(ri)"
-                            pTooltip="Remover material"
-                            class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-colors cursor-pointer"
-                          >
-                            <i class="pi pi-trash text-xs"></i>
-                          </button>
-                        </td>
-                      </tr>
-                    </ng-template>
-                    <ng-template pTemplate="emptymessage">
-                      <tr>
-                        <td colspan="4" class="text-center py-8 text-slate-400 dark:text-slate-500 text-xs">
-                          Nenhum material adicionado ainda. Preencha os campos acima para incluir.
-                        </td>
-                      </tr>
-                    </ng-template>
-                  </p-table>
-
-                  <!-- Botões de Ação Etapa 2 -->
-                  <div class="flex justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <p-button
-                      label="VOLTAR"
-                      icon="pi pi-arrow-left"
-                      [text]="true"
-                      (onClick)="previousStep()"
-                      styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]"
-                    />
-                    <p-button
-                      label="CONTINUAR"
-                      icon="pi pi-arrow-right"
-                      iconPos="right"
-                      (onClick)="nextStep()"
-                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-6 !font-bold !text-[10px]"
-                    />
-                  </div>
-                </div>
-              </ng-template>
-            </p-step-panel>
-
-            <!-- 3. REVISÃO -->
-            <p-step-panel [value]="3">
-              <ng-template #content>
-                <div class="mt-6 flex flex-col gap-5">
-                  <div class="section-marker">
-                    <span>3. Resumo da Solicitação</span>
-                  </div>
-
-                  <!-- Cards de Resumo -->
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="review-card">
-                      <span>Destino e Atendimento</span>
-                      <p class="font-bold text-sm text-slate-800 dark:text-white mt-1">
-                        {{ selectedObra()?.numero }} · {{ selectedObra()?.titulo }}
-                      </p>
-                      <div class="text-slate-500 dark:text-slate-400 text-xs flex flex-col gap-0.5 mt-2 leading-relaxed">
-                        <span>Almoxarifado: <strong class="text-slate-700 dark:text-slate-200">{{ selectedAlmoxarifado()?.label }}</strong></span>
-                        <span>Equipe: <strong class="text-slate-700 dark:text-slate-200">{{ selectedEquipe()?.codigo || 'Não definida' }}</strong></span>
-                        <span>Responsável pelo saque: <strong class="text-slate-700 dark:text-slate-200">{{ selectedColaboradorSaqueName() || 'Não definido' }}</strong></span>
-                        @if (saqueForaEquipe()) {
-                          <span>Saque fora da equipe: <strong class="text-slate-700 dark:text-slate-200">Sim</strong></span>
-                        }
-                        @if (ocorrencia()) {
-                          <span>Ocorrência: <strong class="text-slate-700 dark:text-slate-200">{{ ocorrencia() }}</strong></span>
-                        }
-                        <span>Previsão: <strong class="text-slate-700 dark:text-slate-200">{{ (dataPrevista() | date: 'dd/MM/yyyy') || 'Não informada' }}</strong></span>
-                      </div>
-                    </div>
-
-                    <div class="review-card">
-                      <span>Composição Técnica</span>
-                      <p class="font-bold text-sm text-slate-800 dark:text-white mt-1">{{ itens().length }} item(ns) na solicitação</p>
-                      <div class="text-slate-500 dark:text-slate-400 text-xs flex flex-col gap-1 mt-2">
-                        @if (contagemPorTipo()['221']) {
-                          <span>• 221 · Adição Comum: <strong class="text-slate-700 dark:text-slate-200">{{ contagemPorTipo()['221'] }} item(ns)</strong></span>
-                        }
-                        @if (contagemPorTipo()['921']) {
-                          <span>• 921 · Adição Concreto: <strong class="text-slate-700 dark:text-slate-200">{{ contagemPorTipo()['921'] }} item(ns)</strong></span>
-                        }
-                        @if (contagemPorTipo()['222']) {
-                          <span>• 222 · Devolução Comum: <strong class="text-slate-700 dark:text-slate-200">{{ contagemPorTipo()['222'] }} item(ns)</strong></span>
-                        }
-                        @if (contagemPorTipo()['922']) {
-                          <span>• 922 · Devolução Concreto: <strong class="text-slate-700 dark:text-slate-200">{{ contagemPorTipo()['922'] }} item(ns)</strong></span>
-                        }
-                      </div>
-                    </div>
-                  </div>
-
-                  @if (tiposPresentes().length > 1) {
-                    <div
-                      class="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700/60 flex items-start gap-2.5"
-                    >
-                      <i class="pi pi-info-circle text-primary-700 dark:text-primary-400 text-sm shrink-0 mt-0.5"></i>
-                      <span class="text-[11px] text-slate-600 dark:text-slate-400">
-                        Esta ação gerará
-                        <strong class="text-slate-800 dark:text-slate-200">{{ tiposPresentes().length }} solicitações independentes</strong>
-                        (uma para cada tipo de movimentação).
-                      </span>
-                    </div>
-                  }
-
-                  @if (observacao()) {
-                    <div class="review-card">
-                      <span>Observação</span>
-                      <p class="text-xs text-slate-700 dark:text-slate-200 mt-1 whitespace-pre-wrap">{{ observacao() }}</p>
-                    </div>
-                  }
-
-                  <!-- Tabela Resumo -->
-                  <p-table
-                    [value]="itens()"
-                    class="p-datatable-sm"
-                    [scrollable]="true"
-                    scrollHeight="200px"
-                  >
-                    <ng-template pTemplate="header">
-                      <tr>
-                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400">Material</th>
-                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400">
-                          Código Técnico
-                        </th>
-                        <th class="!text-[10px] !font-bold !uppercase !tracking-wider text-slate-500 dark:text-slate-400 text-right">
-                          Quantidade
-                        </th>
-                      </tr>
-                    </ng-template>
-                    <ng-template pTemplate="body" let-item>
-                      <tr>
-                        <td class="text-xs font-bold text-slate-800 dark:text-white">
-                          {{ item.codigo }} ·
-                          <span class="font-normal text-slate-500 dark:text-slate-400">{{ item.descricao }}</span>
-                        </td>
-                        <td>
-                          <span
-                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold tracking-wide"
-                            [ngClass]="
-                              isAddition(item.tipoMovimentacao)
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                            "
-                          >
-                            <i
-                              [class]="typeIcon(item.tipoMovimentacao)"
-                              class="text-[10px]"
-                            ></i>
-                            {{ tipoDescricao(item.tipoMovimentacao) }}
-                          </span>
-                        </td>
-                        <td class="text-right font-bold text-xs text-slate-800 dark:text-white">
-                          {{ item.quantidade | number: '1.3-3' }}
-                        </td>
-                      </tr>
-                    </ng-template>
-                  </p-table>
-
-                  <!-- Botões de Ação Etapa 3 -->
-                  <div class="flex justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <p-button
-                      label="VOLTAR"
-                      icon="pi pi-arrow-left"
-                      [text]="true"
-                      (onClick)="previousStep()"
-                      styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]"
-                    />
-                    <p-button
-                      [label]="retryRequest() ? 'TENTAR NOVAMENTE' : 'CONFIRMAR'"
-                      [icon]="retryRequest() ? 'pi pi-refresh' : 'pi pi-send'"
-                      [loading]="submitting()"
-                      (onClick)="submit()"
-                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]"
-                    />
-                  </div>
-                </div>
-              </ng-template>
-            </p-step-panel>
-
-            <!-- 4. CONCLUÍDO (Multi-Solicitações Criadas) -->
-            <p-step-panel [value]="4">
-              <ng-template #content>
-                <div class="mt-6 flex flex-col gap-6">
-                  <div
-                    class="bg-primary-50/40 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/50 rounded-xl px-4 py-4 flex items-start gap-3"
-                  >
-                    <i class="pi pi-check-circle text-primary-700 dark:text-primary-400 mt-0.5 text-base"></i>
-                    <div>
-                      <p class="text-[10px] font-bold text-primary-700 dark:text-primary-400 uppercase tracking-wider">
-                        Solicitações Criadas
-                      </p>
-                      <p class="font-mono text-sm font-bold text-primary-700 dark:text-primary-400 mt-0.5">
-                        {{ solicitacoesCriadas().length }} {{ solicitacoesCriadas().length === 1 ? 'Solicitação Gerada' : 'Solicitações Independentes Geradas' }}
-                      </p>
-                      <p class="text-[10px] text-primary-700 dark:text-primary-300 mt-1">
-                        Cada tipo técnico gerou um registro independente no sistema com versionamento e ciclo operacional próprio.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="section-marker"><span>Solicitações Geradas</span></div>
-                    <div class="grid grid-cols-1 gap-3 md:pl-5">
-                      @for (sol of solicitacoesCriadas(); track sol.id) {
-                        <div
-                          class="file-row justify-between"
-                        >
-                          <div class="flex items-center gap-3">
-                            <span
-                              class="inline-flex items-center justify-center w-10 h-10 rounded-xl text-base shrink-0"
-                              [ngClass]="
-                                isAddition(sol.tipo)
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                              "
-                            >
-                              <i [class]="typeIcon(sol.tipo)"></i>
-                            </span>
-                            <div>
-                              <p class="text-xs font-bold text-slate-800 dark:text-white">
-                                {{ tipoNome(sol.tipo) }}
-                              </p>
-                              <p class="text-[11px] text-slate-400 dark:text-slate-500 font-mono">
-                                {{ sol.codigo }}
-                              </p>
-                            </div>
-                          </div>
-                          <p-button
-                            label="ABRIR DETALHE"
-                            icon="pi pi-arrow-right"
-                            iconPos="right"
-                            (onClick)="navegarParaSolicitacao(sol.id)"
-                            styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2 !px-4 !font-bold !text-[10px]"
-                          />
-                        </div>
-                      }
-                    </div>
-                  </div>
-
-                  <div class="flex justify-between pt-5 border-t border-slate-100 dark:border-slate-800">
-                    <p-button
-                      label="NOVA SOLICITAÇÃO"
-                      icon="pi pi-plus"
-                      [text]="true"
-                      (onClick)="novaSolicitacao()"
-                      styleClass="!text-primary-700 dark:!text-primary-400 !font-bold !text-[10px]"
-                    />
-                    <p-button
-                      label="VOLTAR PARA A LISTA"
-                      icon="pi pi-arrow-right"
-                      iconPos="right"
-                      (onClick)="close()"
-                      styleClass="!rounded-lg !bg-primary-700 !border-primary-700 !py-2.5 !px-8 !font-bold !text-[10px]"
-                    />
-                  </div>
-                </div>
-              </ng-template>
-            </p-step-panel>
-          </p-step-panels>
-        </p-stepper>
-      </div>
+      <ces-form-section title="Materiais" icon="pi pi-box">
+        <div class="sol-novo-item">
+          <div class="sol-novo-item__material">
+            <ces-autocomplete inputId="materialInput" label="Material" [showSearchInstruction]="false" [options]="materials()" [ngModel]="idMaterial()" (ngModelChange)="onMaterialChange($event)"
+              [loading]="materialsLoading()" [status]="materialsStatus()" [error]="materialsError()" placeholder="Pesquise por código ou descrição" [minLength]="2" appendTo="body"
+              (search)="searchMaterials($event)" (loadMore)="loadMoreMaterials()" (retry)="retryMaterials()"></ces-autocomplete>
+          </div>
+          <ces-select label="Tipo" [options]="tipoOpcoes()" [(value)]="tipoMovimentacao"></ces-select>
+          <ces-number-input label="Quantidade" [(value)]="quantidade" [min]="0.001" [step]="0.001" [minFractionDigits]="3" [maxFractionDigits]="3" placeholder="0,000"></ces-number-input>
+          <div class="sol-novo-item__botao">
+            <ces-button variant="outline" icon="pi pi-plus" label="Adicionar" [disabled]="!idMaterial() || !quantidade()" (pressed)="addItem()"></ces-button>
+          </div>
+        </div>
+        @if (fieldError('itens')) {
+          <p class="sol-erro" role="alert">{{ fieldError('itens') }}</p>
+        }
+        @if (itens().length) {
+          <ul class="sol-itens" aria-label="Materiais da solicitação">
+            @for (item of itens(); track item.idMaterial + item.tipoMovimentacao; let i = $index) {
+              <li class="sol-item">
+                <span class="sol-item__nome">
+                  <span class="sol-item__codigo">{{ item.codigo }}</span>
+                  <span class="sol-item__descricao" [title]="item.descricao">{{ item.descricao }}</span>
+                </span>
+                <ces-status [tone]="isAddition(item.tipoMovimentacao) ? 'success' : 'danger'" [icon]="typeIcon(item.tipoMovimentacao)">{{ tipoDescricao(item.tipoMovimentacao) }}</ces-status>
+                <ces-number-input [label]="'Quantidade de ' + item.codigo" [labelVisible]="false" [value]="item.quantidade" (valueChange)="updateQuantidade(i, $event)"
+                  [min]="0.001" [step]="0.001" [minFractionDigits]="3" [maxFractionDigits]="3"></ces-number-input>
+                <ces-icon-button icon="pi pi-trash" [label]="'Remover ' + item.codigo" size="icon-sm" (pressed)="removeItem(i)"></ces-icon-button>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="sol-vazio">Nenhum material adicionado.</p>
+        }
+        @if (tiposPresentes().length > 1) {
+          <ces-callout tone="info" [title]="'Serão criadas ' + tiposPresentes().length + ' solicitações'">Uma para cada tipo de movimentação, com andamento próprio.</ces-callout>
+        }
+      </ces-form-section>
     </div>
+    @if (retryRequest()) {
+      <ces-callout tone="warning" title="Falha de conexão">
+        Tentar de novo reenvia a mesma solicitação, sem risco de duplicar. Para alterar algo, descarte a tentativa.
+      </ces-callout>
+    }
   }
-</div>
+  <ces-form-actions drawer-footer [submitLabel]="retryRequest() ? 'Tentar de novo' : 'Enviar solicitação'"
+    [submitIcon]="retryRequest() ? 'pi pi-refresh' : 'pi pi-send'" savingLabel="Enviando…" [saving]="submitting()" [disabled]="!!lookupError() || loadingLookups()" (save)="submit()" (cancel)="gaveta.requestClose()">
+    <span actions-start class="sol-resumo">{{ itens().length }} {{ itens().length === 1 ? 'material' : 'materiais' }}</span>
+    @if (retryRequest()) {
+      <ces-button variant="ghost" label="Descartar tentativa" (pressed)="discardRetry()"></ces-button>
+    }
+  </ces-form-actions>
+</ces-form-drawer>

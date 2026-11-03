@@ -106,6 +106,7 @@ public class EquipeUseCases implements EquipeApi {
         }
 
         aplicarVinculoContrato(equipe, request.idContrato());
+        equipe.ajustarJornada(request.jornadaMinutos(), request.plataformaMinutos());
         Equipe equipeSalva = repository.save(equipe);
         eventPublisher.publishEvent(new EquipeCriadaEvent(
                 equipeSalva.getId(),
@@ -157,6 +158,7 @@ public class EquipeUseCases implements EquipeApi {
         equipe.vincularProcesso(processo);
 
         aplicarVinculoContrato(equipe, request.idContrato());
+        equipe.ajustarJornada(request.jornadaMinutos(), request.plataformaMinutos());
 
         sincronizarMembros(equipe, request.membros());
 

@@ -462,7 +462,7 @@ function vistaDeSubconjunto(
     links: [
       c.modo === 'TECNICO' || (c.modo === 'GERAL' && o.linhas.every((l) => l.contexto === 'TECNICO'))
         ? { rotulo: 'Kanban técnico', icone: 'pi pi-th-large', rota: '/almoxarifado/solicitacoes-tecnicas/kanban' }
-        : { rotulo: 'Lista de solicitações', icone: 'pi pi-list', rota: '/almoxarifado/solicitacoes' }
+        : { rotulo: 'Lista de solicitações', icone: 'pi pi-list', rota: '/almoxarifado/solicitacoes-tecnicas' }
     ],
     copiloto: {
       foco: { tipo: 'secao', id: `analise.${chaveDoAlvo(alvo)}`, rotulo: o.titulo },

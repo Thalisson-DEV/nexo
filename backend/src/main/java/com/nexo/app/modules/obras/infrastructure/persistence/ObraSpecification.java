@@ -201,7 +201,6 @@ public class ObraSpecification {
                 yield asc ? cb.asc(nivel.otherwise(PrioridadeObra.values().length)) : cb.desc(nivel.otherwise(-1));
             }
             case "prazoregulado", "prazo_regulado" -> asc ? cb.asc(root.get("prazoRegulado")) : cb.desc(root.get("prazoRegulado"));
-            case "situacaocarteira", "situacao_carteira" -> asc ? cb.asc(cb.lower(root.get("situacaoCarteira"))) : cb.desc(cb.lower(root.get("situacaoCarteira")));
             case "valormaterialprevisto", "valor_material_previsto" -> asc ? cb.asc(root.get("valorMaterialPrevisto")) : cb.desc(root.get("valorMaterialPrevisto"));
             case "valorservicoprevisto", "valor_servico_previsto" -> asc ? cb.asc(root.get("valorServicoPrevisto")) : cb.desc(root.get("valorServicoPrevisto"));
             case "datacriacao", "data_criacao", "createdat" -> asc ? cb.asc(root.get("dataCriacao")) : cb.desc(root.get("dataCriacao"));

@@ -9,26 +9,25 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
-import { CommonModule, DecimalPipe } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { MenuItem } from 'primeng/api';
-import { ButtonModule } from 'primeng/button';
-import { SelectModule } from 'primeng/select';
-import { InputNumberModule } from 'primeng/inputnumber';
-import { TableModule } from 'primeng/table';
-import { TooltipModule } from 'primeng/tooltip';
-import { InputTextModule } from 'primeng/inputtext';
-import { TextareaModule } from 'primeng/textarea';
-import { BreadcrumbModule } from 'primeng/breadcrumb';
-import { StepperModule } from 'primeng/stepper';
-import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { DatePickerModule } from 'primeng/datepicker';
+import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
+import {
+  CES_FORM_KIT,
+  CesAsyncStateComponent,
+  CesAutocompleteComponent,
+  CesBooleanControlComponent,
+  CesButtonComponent,
+  CesDatepickerComponent,
+  CesIconButtonComponent,
+  CesNumberInputComponent,
+  CesSelectComponent,
+  CesTextInputComponent,
+  NotificationService,
+  cesFocusFirstInvalid,
+} from '@ces/ui';
 
 import { AlmoxarifadoService } from '../../../../core/services/almoxarifado.service';
 import { RhService } from '../../../../core/services/rh.service';
-import { NotificationService } from '../../../../design-system/feedback/notification/notification.service';
 import {
   EstoqueResponse,
   MaterialResponse,
@@ -38,88 +37,60 @@ import {
 import { ColaboradorResponse, EquipeResponse } from '../../../../core/models/rh.models';
 import { getErrorMessage } from '../../../../core/models/shared.models';
 import { SaldoEstoqueDialogComponent } from '../../../../shared/components/saldo-estoque-dialog/saldo-estoque-dialog.component';
-import { HelpDialogComponent } from '../../../../shared/components/help-dialog/help-dialog.component';
+import { saidaDoDrawer } from '../../../../shared/utils/drawer-navegacao.utils';
 import { LookupStore } from '../../../../core/lookup/store/lookup.store';
 import { RemoteLookup as CursorRemoteLookup } from '../../../../core/lookup/store/remote-lookup';
-import { CesAutocompleteComponent } from '../../../../design-system/forms/controls/ces-autocomplete.component';
-import { NavigationHistoryService, bindStepToUrl, createFormDraft } from '../../../../core/navigation';
-import { LookupOption } from '../../../../core/lookup/models/lookup-option';
-
-/** Rascunho do wizard (ver docs/state-restoration/GUIA.md). */
-interface RascunhoSolicitacaoComercial {
-  tipo: TipoSolicitacaoComercial;
-  idEstoqueOrigem: string | null;
-  idEquipe: string | null;
-  idColaboradorSaque: string | null;
-  colaboradorSaque: LookupOption<string>[];
-  saqueForaEquipe: boolean;
-  dataPrevista: Date | null;
-  items: AddedCommercialItem[];
-}
 
 export interface AddedCommercialItem extends ItemRequest {
   material: MaterialResponse;
 }
 
-export type TipoSolicitacaoComercial = 'DIRETA';
-
+/**
+ * Solicitação comercial de material em drawer. A tela que abre monta o componente só enquanto o
+ * drawer está aberto, então cada abertura começa limpa.
+ */
 @Component({
   selector: 'app-solicitacao-material-form',
   standalone: true,
   imports: [
-    CommonModule,
+    ...CES_FORM_KIT,
     FormsModule,
-    ReactiveFormsModule,
-    BreadcrumbModule,
-    StepperModule,
-    ButtonModule,
-    SelectModule,
-    InputNumberModule,
-    TableModule,
-    TooltipModule,
-    InputTextModule,
-    TextareaModule,
-    ProgressSpinnerModule,
-    DatePickerModule,
-    DecimalPipe,
-    SaldoEstoqueDialogComponent,
-    HelpDialogComponent,
+    CesAsyncStateComponent,
     CesAutocompleteComponent,
+    CesBooleanControlComponent,
+    CesButtonComponent,
+    CesDatepickerComponent,
+    CesIconButtonComponent,
+    CesNumberInputComponent,
+    CesSelectComponent,
+    CesTextInputComponent,
+    SaldoEstoqueDialogComponent,
   ],
   templateUrl: './solicitacao-material-form.component.html',
-  styleUrl: './solicitacao-material-form.component.css',
+  styleUrl: '../solicitacao-form-itens.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SolicitacaoMaterialFormComponent implements OnInit {
-  @ViewChild('helpDialog') helpDialog!: HelpDialogComponent;
   @ViewChild('saldoDialog') saldoDialog!: SaldoEstoqueDialogComponent;
 
-  private readonly router = inject(Router);
-  private readonly navegacao = inject(NavigationHistoryService);
   private readonly almoxarifadoService = inject(AlmoxarifadoService);
   private readonly rhService = inject(RhService);
   private readonly lookupStore = inject(LookupStore);
   private readonly notifications = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly onSuccess = output<void>();
-  readonly onCancel = output<void>();
+  readonly criada = output<void>();
+  /** Depois de fechar, por qualquer meio. */
+  readonly fechado = output<void>();
 
-  protected readonly breadcrumb: MenuItem[] = [
-    { label: 'Almoxarifado' },
-    { label: 'Solicitações Comerciais', routerLink: '/almoxarifado/solicitacoes' },
-    { label: 'Nova Solicitação' },
-  ];
-
-  // State
-  protected readonly activeStep = signal<1 | 2 | 3>(1);
+  protected readonly aberto = signal(true);
+  private readonly aoSair = saidaDoDrawer(() => this.fechado.emit());
   protected readonly loadingLookups = signal(true);
   protected readonly lookupError = signal('');
   protected readonly saving = signal(false);
   protected readonly fieldErrors = signal<Record<string, string>>({});
 
   // Form Fields (Step 1)
-  protected readonly tipo = signal<TipoSolicitacaoComercial>('DIRETA');
   protected readonly idEstoqueOrigem = signal<string | null>(null);
   protected readonly idEquipe = signal<string | null>(null);
   protected readonly idColaboradorSaque = signal<string | null>(null);
@@ -230,42 +201,25 @@ export class SolicitacaoMaterialFormComponent implements OnInit {
     return id.slice(0, 8);
   });
 
-  protected readonly totalQuantidadeItens = computed(() =>
-    this.items().reduce((acc, item) => acc + (item.quantidade || 0), 0),
-  );
-
-  private readonly passoUrl = bindStepToUrl(this.activeStep);
-  // Só em memória: o rascunho carrega o nome do colaborador do saque (dado pessoal).
-  private readonly rascunho = createFormDraft<RascunhoSolicitacaoComercial>({
-    persist: false,
-    read: () => ({
-      tipo: this.tipo(),
-      idEstoqueOrigem: this.idEstoqueOrigem(),
-      idEquipe: this.idEquipe(),
-      idColaboradorSaque: this.idColaboradorSaque(),
-      colaboradorSaque: this.collaboratorOptionsRemote().filter(
-        (opcao) => opcao.value === this.idColaboradorSaque(),
-      ),
-      saqueForaEquipe: this.saqueForaEquipe(),
-      dataPrevista: this.dataPrevista(),
-      items: this.items(),
-    }),
-    write: (valor) => {
-      this.tipo.set(valor.tipo);
-      this.idEstoqueOrigem.set(valor.idEstoqueOrigem);
-      this.idEquipe.set(valor.idEquipe);
-      if (valor.colaboradorSaque?.length) this.collaboratorLookup.seedSelected(valor.colaboradorSaque);
-      this.idColaboradorSaque.set(valor.idColaboradorSaque);
-      this.saqueForaEquipe.set(valor.saqueForaEquipe);
-      this.dataPrevista.set(valor.dataPrevista);
-      this.items.set(valor.items ?? []);
-    },
+  protected readonly destinoRotulo = computed(() => {
+    const destino = this.selectedEstoqueDestino();
+    if (destino) return `${destino.nomeIdentificador} · CAMPO`;
+    return this.idEquipe() ? 'Equipe sem estoque de campo' : 'Definido pela equipe';
   });
+
+  protected readonly alterado = computed(
+    () =>
+      this.items().length > 0 ||
+      !!(this.idEstoqueOrigem() || this.idEquipe() || this.idColaboradorSaque() || this.dataPrevista() || this.selectedMaterialId()),
+  );
 
   ngOnInit(): void {
     this.loadLookups();
-    const restaurado = this.rascunho.restore();
-    this.passoUrl.restore(() => restaurado);
+  }
+
+  protected fechar(): void {
+    this.aberto.set(false);
+    this.aoSair();
   }
 
   protected loadLookups(): void {
@@ -422,38 +376,8 @@ export class SolicitacaoMaterialFormComponent implements OnInit {
     return this.stocks().find((s) => s.id === id)?.nomeIdentificador || id;
   }
 
-  protected onHelp(): void {
-    this.helpDialog.show();
-  }
-
   protected fieldError(field: string): string | undefined {
     return this.fieldErrors()[field];
-  }
-
-  protected goToStep(step: 1 | 2 | 3): void {
-    if (this.saving() || step === this.activeStep()) return;
-    if (step < this.activeStep()) {
-      this.activeStep.set(step);
-      return;
-    }
-    if (step >= 2 && !this.validateStep1()) return;
-    if (step >= 3 && !this.validateStep2()) return;
-    this.activeStep.set(step);
-  }
-
-  protected nextStep(): void {
-    if (this.activeStep() === 1) {
-      if (this.validateStep1()) this.activeStep.set(2);
-      return;
-    }
-    if (this.activeStep() === 2) {
-      if (this.validateStep2()) this.activeStep.set(3);
-    }
-  }
-
-  protected previousStep(): void {
-    if (this.activeStep() === 3) this.activeStep.set(2);
-    else if (this.activeStep() === 2) this.activeStep.set(1);
   }
 
   private validateStep1(): boolean {
@@ -473,7 +397,8 @@ export class SolicitacaoMaterialFormComponent implements OnInit {
 
     this.fieldErrors.set(errors);
     if (Object.keys(errors).length > 0) {
-      this.notifications.warning('Preencha os campos obrigatórios para avançar.');
+      this.notifications.warning('Preencha os campos destacados para enviar.');
+      setTimeout(() => cesFocusFirstInvalid());
       return false;
     }
     return true;
@@ -508,9 +433,8 @@ export class SolicitacaoMaterialFormComponent implements OnInit {
       next: () => {
         this.saving.set(false);
         this.notifications.success('Solicitação comercial criada com sucesso.');
-        this.rascunho.clear();
-        this.onSuccess.emit();
-        void this.router.navigate(['/almoxarifado/solicitacoes']);
+        this.criada.emit();
+        this.fechar();
       },
       error: (err) => {
         this.saving.set(false);
@@ -518,12 +442,6 @@ export class SolicitacaoMaterialFormComponent implements OnInit {
         this.notifications.error(message, { title: 'Não foi possível salvar a solicitação' });
       },
     });
-  }
-
-  protected cancel(): void {
-    this.rascunho.clear();
-    this.onCancel.emit();
-    this.navegacao.back(['/almoxarifado/solicitacoes']);
   }
 
   private formatCivilDate(data: Date): string {

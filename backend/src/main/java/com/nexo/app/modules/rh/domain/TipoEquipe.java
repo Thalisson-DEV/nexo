@@ -26,6 +26,12 @@ public class TipoEquipe extends BaseEntity {
     @Column(name = "nome", nullable = false, unique = true, length = 50)
     private String nome;
 
+    @Column(name = "jornada_minutos", nullable = false)
+    private Integer jornadaMinutos = 480;
+
+    @Column(name = "plataforma_minutos", nullable = false)
+    private Integer plataformaMinutos = 30;
+
     public TipoEquipe(String nome) {
         validarNome(nome);
         this.nome = nome.toUpperCase();
@@ -35,6 +41,16 @@ public class TipoEquipe extends BaseEntity {
         validarNome(novoNome);
         validarStatus();
         this.nome = novoNome.toUpperCase();
+    }
+
+    /** Jornada e tempo de plataforma que as equipes do tipo usam na programação. Nulo mantém o valor atual. */
+    public void definirJornada(Integer jornada, Integer plataforma) {
+        validarStatus();
+        Integer novaJornada = jornada != null ? jornada : this.jornadaMinutos;
+        Integer novaPlataforma = plataforma != null ? plataforma : this.plataformaMinutos;
+        Equipe.validarJornada(novaJornada, novaPlataforma);
+        this.jornadaMinutos = novaJornada;
+        this.plataformaMinutos = novaPlataforma;
     }
 
     private void validarStatus() {

@@ -233,3 +233,33 @@
   .ces-catalog__grid { grid-template-columns: 1fr; }
   .ces-catalog__section-heading { grid-template-columns: 1fr; }
 }
+
+.ces-catalog__pdf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.ces-catalog__pdf-folha {
+  height: 16rem;
+  overflow: hidden;
+  border: 1px solid var(--ces-border);
+  border-radius: var(--ces-radius-md);
+}
+
+.ces-catalog__pdf-marcador {
+  position: absolute;
+  top: 30%;
+  left: 70%;
+  display: inline-grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border: 2px solid var(--ces-brand);
+  border-radius: 50%;
+  background: var(--ces-surface);
+  color: var(--ces-foreground);
+  font-size: 0.75rem;
+  font-weight: 700;
+}

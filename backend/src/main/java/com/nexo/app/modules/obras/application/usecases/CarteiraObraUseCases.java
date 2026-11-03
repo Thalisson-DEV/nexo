@@ -81,7 +81,7 @@ public class CarteiraObraUseCases {
             throw new InvarianteVioladaException("O contrato informado não existe ou está inativo.");
         }
         obra.informarCarteira(request.idContrato(), request.prazoRegulado(), request.prioridade(),
-                request.lotePrevisto(), request.situacaoCarteira(), request.valorProjeto(),
+                request.lotePrevisto(), request.valorProjeto(),
                 request.valorMaterialPrevisto(), request.valorServicoPrevisto());
         obra.informarClasseTensao(request.classeTensao(), usuarioAtual());
         return mapper.toCarteira(repository.save(obra));

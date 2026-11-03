@@ -2,7 +2,7 @@
 
 ### Requirement: Dados de carteira da obra
 A Obra SHALL registrar, além dos dados atuais, classe de tensão (com usuário e data de quem informou), prazo, prazo regulado,
-prioridade, lote previsto, situação na carteira, valor de projeto, valor de material previsto e valor de serviço previsto.
+prioridade, lote previsto, valor de projeto, valor de material previsto e valor de serviço previsto.
 Os dados atuais da Obra (número, título, município, base, status, subprojetos, anexos, equipes) MUST continuar funcionando.
 
 #### Scenario: Informar classe de tensão
@@ -43,14 +43,16 @@ O detalhe da obra SHALL listar obras ativas em um raio configurável (padrão 10
 
 ### Requirement: Listagem da carteira com indicadores
 A listagem de obras SHALL mostrar indicadores do recorte filtrado (quantidade, valor de projeto, material e serviço previstos,
-municípios) e, por obra, status da carteira, status do pré-fechamento, valor total planejado, % programado e % concluído.
+municípios) e, por obra, status da obra, status do pré-fechamento, valor total planejado, % programado e % concluído.
 
 #### Scenario: Obra sem kits
 - **WHEN** a obra ainda não tem kits aplicados
 - **THEN** a coluna de valor planejado mostra "Sem kits" e os percentuais ficam vazios
 
 ### Requirement: Status operacional da obra
-O usuário SHALL poder informar o status operacional e uma observação para a carteira, com histórico de quem alterou e quando.
+A carteira SHALL usar o mesmo status da obra, sem campo de situação paralelo. O usuário SHALL poder informar o status e uma
+observação, com histórico de quem alterou e quando. A coluna de status ou situação da planilha da carteira MUST atualizar esse
+status e MUST apontar um status cadastrado.
 
 #### Scenario: Informar conclusão
 - **WHEN** o usuário informa a obra como concluída com observação

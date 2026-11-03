@@ -22,8 +22,8 @@ Etapa 1 (esta change), em frentes paralelas:
   deslocamento) e meta financeira do período, condições operacionais (linha viva, desligamento, finaliza obra, turno, situação da
   intervenção), histórico de reprogramações e visão Gantt.
 - **Turnos técnicos (web)**: os turnos e o dashboard de turnos existentes passam a atender o processo de Obras: vínculo do turno às
-  programações, APR, ocorrências, relatório diário, desempenho realizado × meta do dia, titular/substituto, e apontamento web da
-  execução dos itens pelo backoffice.
+  programações, APR, ocorrências, relatório diário, desempenho realizado × meta do dia, titular/substituto, só para análise no web; o lançamento é da equipe,
+  pelo app.
 - **Documentação técnica da obra (web)**: visita prévia (checklist), As Built por ponto com plantas marcadas e versionadas, book de
   equipamentos (religador/regulador/trafo auxiliar).
 - **Medições de obras**: pré-fechamento do levantamento, medição parcial com bloqueio dos itens medidos, medição por ciclo com saldo,
@@ -39,7 +39,7 @@ Fica para a etapa 2 (change `execucao-campo-obras`):
 
 - Execução no app de campo (agenda da equipe, marcar ponto/vão/item como feito offline, GPS da execução).
 - Evidências fotográficas por ponto/vão capturadas no app, revisão/avaliação de fotos, inconformidades e ranking de qualidade.
-- Visita prévia, APR e ocorrências lançadas pelo app; obra não programada registrada em campo.
+- Visita prévia e As Built lançados pelo supervisor no app; APR e ocorrências lançadas pela equipe no app; obra não programada registrada em campo.
 - Status em tempo real da equipe derivado do app + telemetria (trabalhando, em rota, aguardando, na base).
 - Georreferenciamento automático dos pontos a partir da execução em campo.
 
@@ -52,8 +52,8 @@ Fora de escopo nas duas etapas: valoração em US (unidade de serviço) e o mód
 - `carteira-obras`: dados de carteira da obra, importações, deslocamento da base, obras próximas e indicadores.
 - `planejamento-pdf-obra`: visualizador do projeto em PDF com pontos, vãos, kits aplicados, anotações e ferramentas de leitura.
 - `programacao-obras`: agendamento de itens planejados, capacidade, meta, condições operacionais, reprogramações e Gantt.
-- `turnos-obras`: extensão dos turnos e do dashboard de turnos ao processo de Obras, com apontamento web da execução.
-- `documentacao-tecnica-obra`: visita prévia, As Built e book de equipamentos.
+- `turnos-obras`: extensão dos turnos e do dashboard de turnos ao processo de Obras, só para análise no web.
+- `documentacao-tecnica-obra`: visita prévia, book da obra (fotos por ponto), As Built e equipamentos.
 - `medicoes-obras`: pré-fechamento, medição parcial, medição por ciclo, relatório detalhado e fechamento de obra.
 - `recursos-obras`: canteiros de postes e requisição de materiais a partir da programação.
 - `central-operacoes-obras`: painel operacional, mapa de obras e telemetria das equipes.

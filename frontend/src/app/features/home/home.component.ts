@@ -26,7 +26,7 @@ export class HomeComponent {
       description: 'Materiais e estoques',
       highlight: 'Fluxos de materiais em movimento.',
       icon: 'pi pi-box',
-      route: '/almoxarifado/solicitacoes',
+      route: '/almoxarifado/solicitacoes-tecnicas',
     },
     {
       code: '02',

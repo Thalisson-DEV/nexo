@@ -117,7 +117,7 @@ class CarteiraObraUseCasesTest {
 
     @Test
     void orcamentoSomaOsServicosImportados() {
-        obra.informarCarteira(null, null, null, null, null, null, new BigDecimal("500.00"), new BigDecimal("700.00"));
+        obra.informarCarteira(null, null, null, null, null, new BigDecimal("500.00"), new BigDecimal("700.00"));
         when(orcamentoRepository.findByIdObraAndAtivoTrueOrderByCodigoAsc(obra.getId())).thenReturn(List.of(
                 new ItemOrcamentoObra(obra.getId(), null, "A1", null, "UN", new BigDecimal("2"), new BigDecimal("150"), null, null),
                 new ItemOrcamentoObra(obra.getId(), null, "B2", null, "M", BigDecimal.ONE, null, new BigDecimal("99.90"), null)));

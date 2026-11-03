@@ -141,7 +141,7 @@ export class BuscaTelasComponent {
     '/chamados/novo',
     '/financeiro/compras',
     '/sst/inspecoes/nova',
-    '/almoxarifado/solicitacoes'
+    '/almoxarifado/solicitacoes-tecnicas'
   ];
 
   private readonly telas = computed(() => this.achatar(this.menuItems()));

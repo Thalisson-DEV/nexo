@@ -4,6 +4,7 @@ import {
   EquipeTurno,
   LancamentoTurno,
   ProducaoDia,
+  ProducaoPorObra,
   ProducaoPorTipoServico,
   SituacaoMeta,
   SituacaoTurno
@@ -95,7 +96,7 @@ export function diaMes(isoData: string): string {
 export interface BarraDia {
   data: string;
   altura: number;
-  notas: number;
+  obras: number;
   valor: number;
   vazio: boolean;
   rotulo: string;
@@ -110,10 +111,10 @@ export function barrasProducao(dias: readonly ProducaoDia[]): BarraDia[] {
     return {
       data: dia.data,
       altura,
-      notas: dia.notas,
+      obras: dia.obras,
       valor,
-      vazio: dia.notas === 0,
-      rotulo: `${diaMes(dia.data)}: ${dia.notas === 0 ? 'sem lançamentos' : `${dia.notas} ${dia.notas === 1 ? 'nota' : 'notas'}, ${moeda(valor)}`}`
+      vazio: dia.obras === 0,
+      rotulo: `${diaMes(dia.data)}: ${dia.obras === 0 ? 'sem execução' : `${dia.obras} ${dia.obras === 1 ? 'obra' : 'obras'}, ${moeda(valor)}`}`
     };
   });
 }
@@ -322,6 +323,32 @@ export function tiposEmDestaque(tipos: readonly ProducaoPorTipoServico[], limite
   return [
     ...destaque,
     { rotulo: 'Outros', titulo: resto.map((t) => `${t.descricao}: ${t.notas}`).join(' · '), notas }
+  ];
+}
+
+/** Uma obra resumida para os cartões de equipe. */
+export interface ObraEmDestaque {
+  rotulo: string;
+  titulo: string;
+  producao: number;
+}
+
+/** As obras de maior produção de uma equipe (já chegam ordenadas); o que passa do limite vira "Outras". */
+export function obrasEmDestaque(obras: readonly ProducaoPorObra[], limite = 3): ObraEmDestaque[] {
+  const destaque = obras.slice(0, limite).map((o) => ({
+    rotulo: o.numero,
+    titulo: `${o.numero}${o.titulo ? ' · ' + o.titulo : ''}: ${moeda(o.producao)}`,
+    producao: o.producao
+  }));
+  const resto = obras.slice(limite);
+  if (!resto.length) return destaque;
+  return [
+    ...destaque,
+    {
+      rotulo: `Outras ${resto.length}`,
+      titulo: resto.map((o) => `${o.numero}: ${moeda(o.producao)}`).join(' · '),
+      producao: resto.reduce((total, o) => total + o.producao, 0)
+    }
   ];
 }
 

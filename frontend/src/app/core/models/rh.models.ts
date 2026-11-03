@@ -79,11 +79,15 @@ export interface TipoEquipeResponse {
   id: string;
   nome: string;
   ativo: boolean;
+  jornadaMinutos?: number | null;
+  plataformaMinutos?: number | null;
 }
 
 export interface TipoEquipeRequest {
   nome: string;
   ativo: boolean;
+  jornadaMinutos?: number | null;
+  plataformaMinutos?: number | null;
 }
 
 export interface TipoEquipeImportacaoDTO {
@@ -138,6 +142,8 @@ export interface EquipeResponse {
   metaFaturamentoMensal?: number | null;
   /** Meta diária da janela vigente: valor dividido pelos dias úteis dela (R$). */
   metaFaturamentoDiaria?: number | null;
+  jornadaMinutos?: number | null;
+  plataformaMinutos?: number | null;
 }
 
 export interface EquipeRequest {
@@ -150,6 +156,8 @@ export interface EquipeRequest {
   idProcesso: string;
   idContrato?: string | null;
   membros?: EquipeMembroRequest[];
+  jornadaMinutos?: number | null;
+  plataformaMinutos?: number | null;
 }
 
 export interface EquipeFilter {

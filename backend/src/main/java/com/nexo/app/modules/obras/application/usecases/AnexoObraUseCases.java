@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -66,6 +67,21 @@ public class AnexoObraUseCases {
                 .findFirst()
                 .orElse(anexo);
 
+        return mapper.toAnexoResponse(salvo);
+    }
+
+    /** Guarda como anexo um arquivo gerado pelo sistema. */
+    @Transactional
+    public AnexoObraResponse anexarGerado(UUID idObra, TipoAnexoObra tipoAnexo, String nomeArquivo, String contentType, byte[] conteudo, String observacoes) {
+        Obra obra = obraRepository.findById(idObra)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Obra não encontrada com o ID: " + idObra));
+        String chaveStorage = "obras/" + idObra + "/anexos/" + UUID.randomUUID() + "_" + sanitizarNomeArquivo(nomeArquivo);
+        objectStorage.enviar(chaveStorage, new ByteArrayInputStream(conteudo), conteudo.length, contentType);
+        AnexoObra anexo = obra.adicionarAnexo(tipoAnexo, nomeArquivo, contentType, conteudo.length, chaveStorage, observacoes);
+        AnexoObra salvo = obraRepository.saveAndFlush(obra).getAnexos().stream()
+                .filter(a -> chaveStorage.equals(a.getChaveStorage()))
+                .findFirst()
+                .orElse(anexo);
         return mapper.toAnexoResponse(salvo);
     }
 

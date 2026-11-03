@@ -12,5 +12,5 @@ public interface AnalisePlanejamentoRepository extends JpaRepository<AnalisePlan
 
     Optional<AnalisePlanejamento> findByIdAndIdObraAndAtivoTrue(UUID id, UUID idObra);
 
-    Optional<AnalisePlanejamento> findFirstByIdObraAndPaginaAndAtivoTrueOrderByDataCriacaoDesc(UUID idObra, Integer pagina);
+    Optional<AnalisePlanejamento> findFirstByIdObraAndPaginaOrderByDataCriacaoDesc(UUID idObra, Integer pagina);
 }

@@ -2,13 +2,13 @@
 <main class="dash-page">
   <div class="dash-shell">
     <ces-page-header title="Dashboard operacional" icon="pi pi-chart-line"
-      [breadcrumb]="[{ label: 'Execução' }, { label: 'Dashboard operacional' }]"
-      description="Quanto cada equipe lançou no período, como isso se compara à meta e se o ritmo atual fecha o mês.">
+      [breadcrumb]="[{ label: 'Relatórios' }, { label: 'Dashboard operacional' }]"
+      description="Quanto cada equipe de obras executou no período, como isso se compara à meta e se o ritmo atual fecha o mês.">
       <app-copiloto-gatilho actions></app-copiloto-gatilho>
       @if (data(); as d) {
         <span actions class="dash-updated">Atualizado às {{ d.geradoEm | date: 'HH:mm' }}</span>
       }
-      <ces-button actions label="Turnos de hoje" icon="pi pi-clock" variant="secondary" (pressed)="abrirTurnos()"></ces-button>
+      <ces-button actions label="Boletim de hoje" icon="pi pi-th-large" variant="secondary" (pressed)="abrirBoletim()"></ces-button>
       <ces-button actions label="Atualizar" icon="pi pi-refresh" [loading]="loading()" (pressed)="aplicar()"></ces-button>
     </ces-page-header>
 
@@ -34,7 +34,7 @@
     </div>
 
     @if (loading() && !data()) {
-      <ces-async-state state="loading" title="Consolidando a produção das equipes" description="Somando os lançamentos do período."></ces-async-state>
+      <ces-async-state state="loading" title="Consolidando a produção das equipes" description="Somando o executado nas obras no período."></ces-async-state>
     } @else if (erro() && !data()) {
       <ces-async-state state="error" title="Não foi possível carregar o dashboard" [description]="erro()!"
         actionLabel="Tentar novamente" actionIcon="pi pi-refresh" (action)="aplicar()"></ces-async-state>
@@ -58,17 +58,17 @@
           <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'percentualMeta', rotulo: 'Meta das equipes' }" />
         </app-dashboard-metric-card>
 
-        <app-dashboard-metric-card label="Notas lançadas" icon="pi-file-check" tone="slate"
-          [value]="d.resumo.notas.toLocaleString('pt-BR')"
-          [detail]="'Valor médio por nota: ' + moedaCompacta(d.resumo.valorMedioNota)"
-          actionLabel="Analisar notas" (activate)="analisar('kpi', 'notas')">
-          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'notas', rotulo: 'Notas lançadas' }" />
+        <app-dashboard-metric-card label="Obras atendidas" icon="pi-building" tone="slate"
+          [value]="d.resumo.obrasAtendidas.toLocaleString('pt-BR')"
+          [detail]="'Média por obra: ' + moedaCompacta(d.resumo.valorMedioObra) + ' · ' + d.resumo.servicos.toLocaleString('pt-BR') + ' serviços apontados'"
+          actionLabel="Analisar obras" (activate)="analisar('kpi', 'obras')">
+          <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'obrasAtendidas', rotulo: 'Obras atendidas' }" />
         </app-dashboard-metric-card>
 
         <app-dashboard-metric-card label="Abaixo do ritmo" icon="pi-exclamation-triangle"
           [tone]="d.resumo.equipesAbaixoDoRitmo > 0 ? 'amber' : 'green'"
           [value]="d.resumo.equipesComMeta ? d.resumo.equipesAbaixoDoRitmo + ' de ' + d.resumo.equipesComMeta : '—'"
-          [detail]="d.resumo.equipesComProducao + ' de ' + d.resumo.equipesAtivas + ' equipes lançaram notas no período'"
+          [detail]="d.resumo.equipesComProducao + ' de ' + d.resumo.equipesAtivas + ' equipes executaram no período'"
           actionLabel="Ver equipes de atenção" (activate)="analisar('kpi', 'ritmo')">
           <app-copiloto-perguntar metric-action [foco]="{ tipo: 'metrica', id: 'equipesAbaixoDoRitmo', rotulo: 'Equipes abaixo do ritmo' }" />
         </app-dashboard-metric-card>
@@ -114,55 +114,63 @@
         </article>
       </section>
 
-      <section class="dash-grid" aria-label="Tipos de serviço">
+      <section class="dash-grid" aria-label="Obras do período">
         <article class="dash-panel dash-col-12">
           <header class="dash-panel__header">
             <div>
-              <h2><i class="pi pi-tags ed-panel-icon" aria-hidden="true"></i> Tipos de serviço</h2>
-              <p>Notas do período pelo tipo de serviço informado no lançamento. "Não informado" reúne as notas lançadas antes do cadastro de tipos. Clique num tipo para analisá-lo.</p>
+              <h2><i class="pi pi-building ed-panel-icon" aria-hidden="true"></i> Obras do período</h2>
+              <p>Executado apontado em cada obra no período, da maior produção para a menor. Clique numa obra para analisá-la.</p>
             </div>
-            <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'tiposServico', rotulo: 'Tipos de serviço' }" />
+            <app-copiloto-perguntar [foco]="{ tipo: 'tabela', id: 'obras', rotulo: 'Obras do período' }" />
           </header>
-          @if (d.tiposServico.length) {
+          @if (d.obras.length) {
             <div class="dash-table-wrap">
               <table class="ed-tipos">
-                <caption class="ed-sr-only">Notas e produção do período por tipo de serviço</caption>
+                <caption class="ed-sr-only">Produção do período por obra</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Tipo</th>
-                    <th scope="col" class="ed-num">Notas</th>
-                    <th scope="col" class="ed-tipos__fatia">Fatia das notas</th>
+                    <th scope="col">Obra</th>
+                    <th scope="col" class="ed-num">Equipes</th>
+                    <th scope="col" class="ed-num">Serviços</th>
+                    <th scope="col" class="ed-tipos__fatia">Fatia da produção</th>
                     <th scope="col" class="ed-num">Produção</th>
-                    <th scope="col" class="ed-num">Por nota</th>
+                    <th scope="col" class="ed-num">Último apontamento</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (tipo of d.tiposServico; track tipo.idTipoServico) {
-                    <tr [class.ed-tipos__sem-tipo]="!tipo.idTipoServico">
+                  @for (obra of obrasVisiveis(); track obra.idObra) {
+                    <tr>
                       <th scope="row">
-                        <button type="button" class="ed-tipos__abrir" (click)="analisar('tipo', chaveTipo(tipo))"
-                          [attr.aria-label]="'Analisar o tipo de serviço ' + tipo.descricao">
-                          @if (tipo.codigo) { <span class="ed-tipos__codigo">{{ tipo.codigo }}</span> }
-                          {{ tipo.descricao }}
+                        <button type="button" class="ed-tipos__abrir" (click)="analisar('obra', obra.idObra)"
+                          [attr.aria-label]="'Analisar a obra ' + obra.numero">
+                          <span class="ed-tipos__codigo">{{ obra.numero }}</span>
+                          {{ obra.titulo ?? '' }}
                           <i class="pi pi-angle-right" aria-hidden="true"></i>
                         </button>
                       </th>
-                      <td class="ed-num">{{ tipo.notas }}</td>
+                      <td class="ed-num">{{ obra.equipes }}</td>
+                      <td class="ed-num">{{ obra.servicos }}</td>
                       <td class="ed-tipos__fatia">
                         <div class="dash-progress">
-                          <div class="dash-progress__track" aria-hidden="true"><span [style.width.%]="tipo.percentualNotas"></span></div>
-                          <strong>{{ percentual(tipo.percentualNotas) }}</strong>
+                          <div class="dash-progress__track" aria-hidden="true"><span [style.width.%]="obra.percentualProducao"></span></div>
+                          <strong>{{ percentual(obra.percentualProducao) }}</strong>
                         </div>
                       </td>
-                      <td class="ed-num">{{ moedaCompacta(tipo.producao) }}</td>
-                      <td class="ed-num">{{ moedaCompacta(tipo.valorMedioNota) }}</td>
+                      <td class="ed-num">{{ moedaCompacta(obra.producao) }}</td>
+                      <td class="ed-num">{{ obra.ultimoApontamento ? diaMes(obra.ultimoApontamento) : '—' }}</td>
                     </tr>
                   }
                 </tbody>
               </table>
             </div>
+            @if (d.obras.length > limiteObras) {
+              <button type="button" class="ed-analisar" (click)="todasObras.set(!todasObras())" [attr.aria-expanded]="todasObras()">
+                <i [class]="todasObras() ? 'pi pi-angle-up' : 'pi pi-angle-down'" aria-hidden="true"></i>
+                {{ todasObras() ? 'Mostrar só as ' + limiteObras + ' maiores' : 'Mostrar todas as ' + d.obras.length + ' obras' }}
+              </button>
+            }
           } @else {
-            <p class="ed-empty"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhuma nota lançada no período.</p>
+            <p class="ed-empty"><i class="pi pi-inbox" aria-hidden="true"></i> Nenhuma execução apontada nas obras no período.</p>
           }
         </article>
       </section>
@@ -183,7 +191,7 @@
               <button type="button" class="dash-tab" [class.is-active]="filtroEquipes() === 'abaixo'" [attr.aria-pressed]="filtroEquipes() === 'abaixo'"
                 (click)="filtroEquipes.set('abaixo')">Abaixo do ritmo ({{ contagemFiltros().abaixo }})</button>
               <button type="button" class="dash-tab" [class.is-active]="filtroEquipes() === 'sem-producao'" [attr.aria-pressed]="filtroEquipes() === 'sem-producao'"
-                (click)="filtroEquipes.set('sem-producao')">Sem lançamento ({{ contagemFiltros()['sem-producao'] }})</button>
+                (click)="filtroEquipes.set('sem-producao')">Sem execução ({{ contagemFiltros()['sem-producao'] }})</button>
             </div>
             <div class="dash-tabs" role="group" aria-label="Ordenar equipes">
               @for (o of ordens; track o.valor) {
@@ -198,7 +206,7 @@
           <div class="ed-grid">
             @for (equipe of equipesVisiveis(); track equipe.idEquipe) {
               <article class="ed-team" [attr.aria-labelledby]="'op-equipe-' + equipe.idEquipe"
-                [attr.data-atencao]="equipe.situacao === 'ABAIXO_DO_RITMO'" [attr.data-apagada]="equipe.notas === 0">
+                [attr.data-atencao]="equipe.situacao === 'ABAIXO_DO_RITMO'" [attr.data-apagada]="semExecucao(equipe)">
                 <header class="ed-team__head">
                   <span class="ed-team__avatar" aria-hidden="true"><i class="pi pi-users"></i></span>
                   <div class="ed-team__title">
@@ -253,21 +261,21 @@
                     <strong>{{ moedaCompacta(equipe.producao) }}</strong>
                   </div>
                   <div class="ed-figure">
-                    <span class="ed-figure__label"><i class="pi pi-file" aria-hidden="true"></i> Notas</span>
-                    <strong>{{ equipe.notas }}</strong>
+                    <span class="ed-figure__label"><i class="pi pi-building" aria-hidden="true"></i> Obras</span>
+                    <strong>{{ equipe.obrasAtendidas }}</strong>
                   </div>
                   <div class="ed-figure">
-                    <span class="ed-figure__label"><i class="pi pi-tag" aria-hidden="true"></i> Por nota</span>
-                    <strong>{{ equipe.notas ? moedaCompacta(equipe.valorMedioNota) : '—' }}</strong>
+                    <span class="ed-figure__label"><i class="pi pi-wrench" aria-hidden="true"></i> Serviços</span>
+                    <strong>{{ equipe.servicos }}</strong>
                   </div>
                 </div>
 
-                @if (equipe.tiposServico.length) {
+                @if (equipe.obras.length) {
                   <div>
-                    <span class="ed-subtitle"><i class="pi pi-tags" aria-hidden="true"></i> Tipos de serviço</span>
-                    <ul class="ed-team__tags" [attr.aria-label]="'Notas por tipo de serviço da equipe ' + equipe.codigo">
-                      @for (tipo of tiposEmDestaque(equipe.tiposServico); track tipo.rotulo) {
-                        <li [title]="tipo.titulo">{{ tipo.rotulo }} · {{ tipo.notas }}</li>
+                    <span class="ed-subtitle"><i class="pi pi-building" aria-hidden="true"></i> Obras</span>
+                    <ul class="ed-team__tags" [attr.aria-label]="'Produção por obra da equipe ' + equipe.codigo">
+                      @for (obra of obrasEmDestaque(equipe.obras); track obra.rotulo) {
+                        <li [title]="obra.titulo">{{ obra.rotulo }} · {{ moedaCompacta(obra.producao) }}</li>
                       }
                     </ul>
                   </div>
@@ -291,16 +299,16 @@
                 <dl class="ed-team__facts">
                   <div><dt><i class="pi pi-calendar" aria-hidden="true"></i> Dias com turno</dt><dd>{{ equipe.diasComTurno }}</dd></div>
                   <div><dt><i class="pi pi-chart-bar" aria-hidden="true"></i> Média por dia</dt><dd>{{ equipe.diasComProducao ? moedaCompacta(equipe.producaoMediaPorDia) : '—' }}</dd></div>
-                  <div><dt><i class="pi pi-clock" aria-hidden="true"></i> Último lançamento</dt><dd>{{ equipe.ultimoLancamento ? (equipe.ultimoLancamento | date: 'dd/MM HH:mm') : '—' }}</dd></div>
+                  <div><dt><i class="pi pi-clock" aria-hidden="true"></i> Último apontamento</dt><dd>{{ equipe.ultimoApontamento ? diaMes(equipe.ultimoApontamento) : '—' }}</dd></div>
                 </dl>
 
                 <div class="ed-team__actions">
                   <button type="button" class="ed-analisar" (click)="analisar('equipe', equipe.idEquipe)">
                     <i class="pi pi-chart-bar" aria-hidden="true"></i> Analisar equipe
                   </button>
-                  @if (equipe.notas > 0) {
-                    <a class="ed-link" routerLink="/execucao/comercial" [queryParams]="linkNotas(equipe)">
-                      <i class="pi pi-list" aria-hidden="true"></i> Ver notas <i class="pi pi-arrow-right" aria-hidden="true"></i>
+                  @if (equipe.diasComTurno > 0) {
+                    <a class="ed-link" routerLink="/obras/turnos" [queryParams]="linkTurnos(equipe)">
+                      <i class="pi pi-list" aria-hidden="true"></i> Ver turnos <i class="pi pi-arrow-right" aria-hidden="true"></i>
                     </a>
                   }
                 </div>

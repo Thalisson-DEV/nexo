@@ -23,7 +23,6 @@ public record CarteiraObraResponse(
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate prazoRegulado,
         PrioridadeObra prioridade,
         String lotePrevisto,
-        String situacaoCarteira,
         BigDecimal valorMaterialPrevisto,
         BigDecimal valorServicoPrevisto,
         String observacaoStatus,

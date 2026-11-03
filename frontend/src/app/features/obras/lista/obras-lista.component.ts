@@ -1,6 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
+import { bindDrawerToUrl } from '../../../core/navigation';
+import { DevolucaoTecnicaFormComponent } from '../../almoxarifado/solicitacoes-material/devolucao-tecnica-form/devolucao-tecnica-form.component';
+import { SolicitacaoTecnicaFormComponent } from '../../almoxarifado/solicitacoes-material/solicitacao-tecnica-form/solicitacao-tecnica-form.component';
+import { ObraFormComponent } from '../form/obra-form.component';
 import { catchError, debounceTime, distinctUntilChanged, map, of, startWith, switchMap } from 'rxjs';
 import {
   CesButtonComponent,
@@ -39,7 +43,10 @@ import {
   StatusObraResponse
 } from '../../../core/models/obras.models';
 import { getErrorMessage } from '../../../core/models/shared.models';
+import { ResumoPlanejamentoObra } from '../../../core/models/obras-programacao.models';
 import { AuthService } from '../../../core/services/auth.service';
+import { ObrasProgramacaoService } from '../../../core/services/obras-programacao.service';
+import { formatarNumero } from '../programacao/programacao.logic';
 import { ContratoService } from '../../../core/services/contrato.service';
 import { ObrasService } from '../../../core/services/obras.service';
 import { RhService } from '../../../core/services/rh.service';
@@ -88,6 +95,10 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
     }
 
     /* O título é a coluna de leitura da carteira: não deixa a tabela larga espremer em várias linhas. */
+    .obra-planejado {
+      white-space: nowrap;
+    }
+
     .obra-titulo {
       display: block;
       min-width: 16rem;
@@ -105,6 +116,9 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
     CesDatepickerComponent,
     CesFilterPanelComponent,
     CesFormDrawerComponent,
+    ObraFormComponent,
+    DevolucaoTecnicaFormComponent,
+    SolicitacaoTecnicaFormComponent,
     CesIconButtonComponent,
     CesImportDrawerComponent,
     CesListShortcutsDirective,
@@ -222,6 +236,18 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
         <ng-template cesCell="status" let-row>
           <ces-status [tone]="statusTone(row.statusNome, row.statusConcluida)" [icon]="statusIcon(row.statusNome)">{{ row.statusNome }}</ces-status>
         </ng-template>
+        <ng-template cesCell="planejado" let-row>
+          @if (resumoDe(row); as r) {
+            @if (r.temKits) {
+              <strong>{{ moedaResumo(r.valorTotal) }}</strong>
+              <span class="ces-cell-muted obra-planejado">{{ numeroResumo(r.percentualProgramado) }}% prog. · {{ numeroResumo(r.percentualConcluido) }}% concl.@if (r.pontosSemKit) { · {{ r.pontosSemKit }} sem kit }</span>
+            } @else {
+              <span class="ces-cell-muted">Sem kits</span>
+            }
+          } @else {
+            <span class="ces-cell-muted">—</span>
+          }
+        </ng-template>
         <ng-template cesCell="prazo" let-row>
           <span>{{ row.dataInicio }} → {{ row.dataPrevisaoFim }}</span>
           @if (row.dataFimEfetiva) {
@@ -245,6 +271,9 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
         <ng-template cesRowActions let-row>
           <span class="ces-table-actions">
             <ces-icon-button icon="pi pi-cart-plus" [label]="'Solicitar materiais para ' + row.numero" size="icon-sm" (pressed)="solicitarMateriais(row)"></ces-icon-button>
+            @if (podeDevolver) {
+              <ces-icon-button icon="pi pi-undo" [label]="'Devolver materiais de ' + row.numero" size="icon-sm" (pressed)="devolvendoObra.set(row.id)"></ces-icon-button>
+            }
             @if (podeEscrever) {
               <ces-icon-button icon="pi pi-pencil" [label]="'Editar obra ' + row.numero" size="icon-sm" (pressed)="editarObra(row)"></ces-icon-button>
               <ces-icon-button icon="pi pi-sync" [label]="'Alterar status da obra ' + row.numero" size="icon-sm" (pressed)="abrirAlteracaoStatus(row)"></ces-icon-button>
@@ -364,9 +393,19 @@ const ISO_PARA_BR = (iso: string | null) => formatarDataParaApi(dataLocal(iso));
       </div>
       <div class="help-section">
         <h4 class="help-section-title"><i class="pi pi-cart-plus"></i> Materiais</h4>
-        <p class="help-text-desc">"Solicitar materiais" abre uma solicitação técnica já vinculada à obra.</p>
+        <p class="help-text-desc">"Solicitar materiais" abre uma solicitação técnica já vinculada à obra, e "Devolver materiais" registra a devolução ao almoxarifado.</p>
       </div>
     </app-ajuda-listagem>
+
+    @if (drawerObra.open() && podeEscrever) {
+      <app-obra-form [idObra]="drawerObra.id()" (salva)="lista.reload()" (fechado)="drawerObra.close()"></app-obra-form>
+    }
+    @if (solicitandoObra(); as idObra) {
+      <app-solicitacao-tecnica-form [idObra]="idObra" (criadas)="lista.reload()" (fechado)="solicitandoObra.set(null)"></app-solicitacao-tecnica-form>
+    }
+    @if (devolvendoObra(); as idObra) {
+      <app-devolucao-tecnica-form [idObra]="idObra" (fechado)="devolvendoObra.set(null)"></app-devolucao-tecnica-form>
+    }
   `
 })
 export class ObrasListComponent {
@@ -382,6 +421,7 @@ export class ObrasListComponent {
   private readonly permissoes = this.auth.currentUser()?.permissoes ?? [];
   protected readonly podeEscrever = this.permissoes.includes('obras:obra:write');
   protected readonly podeImportar = this.permissoes.includes('obras:obra:import');
+  protected readonly podeDevolver = this.permissoes.includes('estoque:movimentacao:write');
   protected readonly podeExportar = this.permissoes.includes('obras:obra:export');
 
   protected readonly statusTone = statusTone;
@@ -429,6 +469,7 @@ export class ObrasListComponent {
     { key: 'titulo', header: 'Título', type: 'custom', priority: 1, sortField: 'titulo', value: (o) => o.titulo, display: (o) => o.titulo },
     { key: 'nota', header: 'Nota', sortField: 'notaObra', value: (o) => o.notaObra, display: (o) => o.notaObra || '—' },
     { key: 'status', header: 'Status', type: 'custom', priority: 1, sortField: 'status.nome', value: (o) => o.statusNome, display: (o) => o.statusNome },
+    { key: 'planejado', header: 'Planejamento', type: 'custom', width: '12rem', value: (o) => this.resumoDe(o)?.valorTotal },
     { key: 'processo', header: 'Processo', sortField: 'processo.nome', value: (o) => o.processoNome, display: (o) => o.processoNome || '—' },
     { key: 'base', header: 'Base', sortField: 'baseOperacional.nome', value: (o) => o.baseOperacionalNome, display: (o) => o.baseOperacionalNome || '—' },
     { key: 'municipio', header: 'Município', sortField: 'municipio.nome', value: (o) => o.municipioNome, display: (o) => o.municipioNome || '—' },
@@ -440,11 +481,25 @@ export class ObrasListComponent {
     { key: 'tensao', header: 'Tensão', type: 'custom', sortField: 'classeTensao', width: '7rem', value: (o) => o.carteira?.classeTensao, display: (o) => o.carteira?.classeTensaoRotulo || '—' },
     { key: 'prioridade', header: 'Prioridade', type: 'custom', sortField: 'prioridade', width: '7rem', value: (o) => o.carteira?.prioridade, display: (o) => this.rotuloPrioridade(o.carteira?.prioridade) },
     { key: 'prazoRegulado', header: 'Prazo regulado', sortField: 'prazoRegulado', width: '8rem', value: (o) => o.carteira?.prazoRegulado, display: (o) => o.carteira?.prazoRegulado || '—' },
-    { key: 'situacaoCarteira', header: 'Situação na carteira', sortField: 'situacaoCarteira', value: (o) => o.carteira?.situacaoCarteira, display: (o) => o.carteira?.situacaoCarteira || '—' },
     { key: 'materialPrevisto', header: 'Material previsto', type: 'currency', sortField: 'valorMaterialPrevisto', value: (o) => o.carteira?.valorMaterialPrevisto },
     { key: 'servicoPrevisto', header: 'Serviço previsto', type: 'currency', sortField: 'valorServicoPrevisto', value: (o) => o.carteira?.valorServicoPrevisto }
   ];
   protected readonly rotulo = (o: ObraResumoResponse) => `Obra ${o.numero}`;
+
+  // Situação do planejamento das obras da página, carregada à parte para não pesar a listagem.
+  private readonly programacoes = inject(ObrasProgramacaoService);
+  private readonly podeVerPlanejamento = (inject(AuthService).currentUser()?.permissoes ?? []).some((p) => p === 'obras:planejamento:read' || p === 'obras:programacao:read');
+  private readonly resumos = signal<ReadonlyMap<string, ResumoPlanejamentoObra>>(new Map());
+  private readonly carregaResumos = effect(() => {
+    const ids = this.resultado.rows().map((o) => o.id);
+    if (!this.podeVerPlanejamento || !ids.length) return;
+    untracked(() => this.programacoes.resumos(ids).pipe(catchError(() => of([]))).subscribe((lista) => this.resumos.set(new Map(lista.map((r) => [r.idObra, r])))));
+  });
+  protected resumoDe(obra: ObraResumoResponse): ResumoPlanejamentoObra | undefined {
+    return this.resumos().get(obra.id);
+  }
+  protected readonly moedaResumo = formatarMoeda;
+  protected readonly numeroResumo = formatarNumero;
 
   // Alteração rápida de status
   protected readonly obraStatus = signal<ObraResumoResponse | null>(null);
@@ -513,7 +568,18 @@ export class ObrasListComponent {
     { key: 'situacao', header: 'Situação', type: 'custom', priority: 1, value: (r) => r.status }
   ];
 
+  protected readonly drawerObra = bindDrawerToUrl();
+  protected readonly solicitandoObra = signal<string | null>(null);
+  protected readonly devolvendoObra = signal<string | null>(null);
+
   constructor() {
+    this.drawerObra.connect((modo) => {
+      // A URL antiga do cadastro redireciona para cá sem guard: sem permissão, o drawer não abre.
+      if (modo && !this.podeEscrever) {
+        this.notificacoes.warning('Você não tem permissão para cadastrar ou editar obras.');
+        this.drawerObra.close();
+      }
+    });
     const definir = (chave: Lookup, itens: { id: string; nome: string }[]) => this.cadastros.update((c) => ({ ...c, [chave]: itens }));
     const aviso = (nome: string) => () => this.notificacoes.warning(`Não foi possível carregar ${nome} para os filtros.`);
     this.service.listarStatusAtivos().subscribe({
@@ -611,7 +677,7 @@ export class ObrasListComponent {
   }
 
   protected novaObra(): void {
-    if (this.podeEscrever) void this.router.navigate(['/obras/nova']);
+    if (this.podeEscrever) this.drawerObra.openNew();
   }
 
   /** A ficha abre em outra aba para não perder o recorte da carteira. */
@@ -620,11 +686,11 @@ export class ObrasListComponent {
   }
 
   protected solicitarMateriais(obra: ObraResumoResponse): void {
-    void this.router.navigate(['/almoxarifado/solicitacoes-tecnicas/nova'], { queryParams: { idObra: obra.id } });
+    this.solicitandoObra.set(obra.id);
   }
 
   protected editarObra(obra: ObraResumoResponse): void {
-    void this.router.navigate(['/obras', obra.id, 'editar']);
+    this.drawerObra.openEdit(obra.id);
   }
 
   protected showLogs(obra: ObraResumoResponse): void {

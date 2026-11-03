@@ -32,7 +32,7 @@ public class DashboardController implements DashboardControllerDoc {
     private final DashboardUseCases useCases;
 
     @Override
-    @PreAuthorize("hasAuthority('execucao:comercial:read')")
+    @PreAuthorize("hasAuthority('obras:turno:read')")
     @GetMapping("/operacional")
     public ResponseEntity<DashboardOperacionalResponse> gerarDashboardOperacional(DashboardOperacionalFilter filter) {
         return ResponseEntity.ok(useCases.gerarDashboardOperacional(filter));

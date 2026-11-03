@@ -1,6 +1,6 @@
 import { map } from 'rxjs';
 import { CesDataTableColumn } from '@ces/ui';
-import { NotaDoRecorte, NotasDoRecorteFiltros } from '../../../../core/models/dashboard.models';
+import { NotaDoRecorte, NotasDoRecorteFiltros, ProducaoPorTipoServico } from '../../../../core/models/dashboard.models';
 import { DashboardService } from '../../../../core/services/dashboard.service';
 import {
   AcaoAnalise,
@@ -57,6 +57,11 @@ export function rotuloHora(hora: number): string {
 
 export function plural(n: number, um: string, varios: string): string {
   return `${n.toLocaleString('pt-BR')} ${n === 1 ? um : varios}`;
+}
+
+/** Chave de um tipo de serviço na análise; as notas sem tipo usam {@link SEM_TIPO}. */
+export function chaveTipo(tipo: Pick<ProducaoPorTipoServico, 'idTipoServico'>): string {
+  return tipo.idTipoServico ?? SEM_TIPO;
 }
 
 export function rotuloTipo(nota: Pick<NotaDoRecorte, 'codigoTipoServico' | 'tipoServico'>): string {

@@ -39,5 +39,15 @@ public interface SaldoRepository extends JpaRepository<Saldo, UUID>, JpaSpecific
             """)
     boolean existsSaldoPositivoByEstoqueId(@Param("estoqueId") UUID estoqueId);
 
+    @Query("""
+            select saldo from Saldo saldo
+            join fetch saldo.material material
+            where saldo.estoque.id = :estoqueId
+              and saldo.ativo = true
+              and saldo.quantidade <> 0
+            order by material.codigo, saldo.condicao
+            """)
+    java.util.List<Saldo> findDiferentesDeZeroByEstoqueId(@Param("estoqueId") UUID estoqueId);
+
     boolean existsByEstoqueIdAndMaterialIdAndCondicao(UUID estoqueId, UUID materialId, CondicaoMaterial condicao);
 }

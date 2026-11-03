@@ -9,7 +9,7 @@ import { MenuItem } from 'primeng/api';
  */
 export const MODULOS_OCULTOS = {
   /** Grupos do menu lateral, pelo rótulo. */
-  menu: ['Comunicação', 'CIPA', 'Brigada de Incêndio', 'Treinamento'],
+  menu: ['Comunicação', 'CIPA', 'Brigada de Incêndio', 'Treinamento', 'Solicitações Comerciais', 'Comercial'],
   /** Prefixos de rota que não abrem. */
   rotas: [
     '/manuais',
@@ -20,12 +20,19 @@ export const MODULOS_OCULTOS = {
     '/sst/governanca',
     '/mural',
     '/notificacoes/admin',
-    '/notificacoes/automacoes'
-  ]
+    '/notificacoes/automacoes',
+    '/almoxarifado/solicitacoes',
+    '/almoxarifado/devolucao-comercial',
+    '/almoxarifado/dashboard/solicitacoes/comercial'
+  ],
+  /** Endereços dentro de um prefixo oculto que continuam valendo. */
+  rotasLiberadas: ['/almoxarifado/solicitacoes/tecnicas']
 } as const;
 
 export function rotaOculta(url: string): boolean {
   const caminho = '/' + url.split(/[?#]/)[0].replace(/^\/+/, '');
+  const liberada = (prefixo: string) => caminho === prefixo || caminho.startsWith(prefixo + '/');
+  if (MODULOS_OCULTOS.rotasLiberadas.some(liberada)) return false;
   return MODULOS_OCULTOS.rotas.some((prefixo) => caminho === prefixo || caminho.startsWith(prefixo + '/'));
 }
 

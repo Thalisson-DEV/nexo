@@ -16,32 +16,70 @@ O turno SHALL registrar o líder de turma e, para cada componente, se atua como 
 - **THEN** ele aparece como substituto na composição e no dashboard de turnos
 
 ### Requirement: Vínculo com programações
-O turno de uma equipe de Obras SHALL listar as programações do dia da equipe e permitir registrar atividade em obra não
-programada, informando a obra.
+O turno de uma equipe de Obras SHALL listar as programações do dia da equipe e as atividades que a equipe registrar em obra
+não programada.
 
 #### Scenario: Agendamento sem turno
-- **WHEN** existe programação para a equipe hoje e nenhum turno aberto
+- **WHEN** existe programação para a equipe no dia de trabalho e ela não abriu nenhum turno nesse dia
 - **THEN** a equipe aparece no alerta "agendamento sem turno aberto"
+
+### Requirement: Web só analisa o turno
+O web SHALL exibir boletim, turnos e detalhe somente para consulta. Abrir e fechar turno, preencher APR, apontar, registrar ocorrência e relatório diário SHALL ser feitos pela equipe, em campo.
+
+#### Scenario: Supervisor no detalhe do turno
+- **WHEN** um usuário abre o boletim ou o detalhe de um turno no web
+- **THEN** a tela mostra os registros da equipe e não oferece nenhuma ação de lançamento
+
+### Requirement: APR obrigatória antes da execução
+A equipe SHALL poder lançar a APR a qualquer hora do dia de trabalho, e mais de uma no mesmo dia. O sistema SHALL exigir APR concluída do serviço (programação) no dia antes de aceitar apontamento, salvo quando for registrado que o serviço não tem condição de ser feito; nesse caso a APR não é necessária e o apontamento fica bloqueado até uma APR concluída depois do registro ou até o registro ser desfeito.
+
+#### Scenario: Apontar sem APR
+- **WHEN** alguém aponta um item de um serviço sem APR concluída dele no dia
+- **THEN** o sistema recusa e informa que a APR precisa estar concluída
+
+#### Scenario: Dois serviços no mesmo dia
+- **WHEN** a equipe conclui de manhã a APR de um serviço e, de tarde, vai executar outro
+- **THEN** o segundo só é liberado depois de concluída a APR dele
+
+#### Scenario: APR de outro dia
+- **WHEN** o turno atravessa a noite e a APR foi concluída no dia anterior
+- **THEN** ela não libera o apontamento do dia seguinte
+
+#### Scenario: Condição de executar volta no mesmo dia
+- **WHEN** de manhã foi registrado que não havia condição e, de tarde, a equipe conclui a APR
+- **THEN** o serviço fica liberado
+
+#### Scenario: Serviço sem condição de ser feito
+- **WHEN** o turno registra o motivo de não executar numa obra
+- **THEN** a APR deixa de ser cobrada dessa obra e o apontamento nela fica bloqueado
+
+#### Scenario: Verificação negativa
+- **WHEN** uma verificação da APR é respondida com "Não"
+- **THEN** a APR não pode ser concluída
 
 ### Requirement: APR, ocorrências e relatório diário
 O turno de Obras SHALL exibir as APRs (rascunho ou finalizada), ocorrências tipadas, fotos e o relatório diário com observação
-geral; turno fechado sem relatório MUST ser sinalizado.
+geral, lançados pela equipe; turno fechado sem relatório MUST ser sinalizado.
 
 #### Scenario: Turno sem relatório
 - **WHEN** um turno é fechado sem relatório diário
 - **THEN** ele aparece como "Sem relatório" nos indicadores e na listagem
 
-### Requirement: Apontamento web da execução
-Usuário com permissão `obras:execucao:write` SHALL apontar pelo web a quantidade executada de itens programados, vinculando ao
-turno e à data. A quantidade executada acumulada MUST NOT ultrapassar a prevista sem justificativa registrada.
+### Requirement: Apontamento da execução pela equipe
+A API SHALL receber da equipe, com a permissão `obras:execucao:write`, a quantidade executada de itens programados, vinculando ao
+turno e à data. O web não aponta. A quantidade executada acumulada MUST NOT ultrapassar a prevista sem justificativa registrada.
 
 #### Scenario: Concluir item
-- **WHEN** o supervisor aponta a quantidade total prevista de um item
+- **WHEN** a equipe aponta a quantidade total prevista de um item
 - **THEN** o item passa a Concluído e o valor executado do planejamento, da equipe e do turno é atualizado
 
 #### Scenario: Execução acima do previsto
 - **WHEN** o apontamento excede a quantidade prevista
 - **THEN** o sistema exige justificativa e registra o excedente
+
+#### Scenario: Estornar apontamento
+- **WHEN** a equipe estorna um apontamento de item ainda não medido
+- **THEN** a quantidade volta a ficar em aberto e o valor sai do executado
 
 ### Requirement: Desempenho do dia
 O detalhe do turno SHALL mostrar realizado em R$ × meta do dia da equipe, % atingido e os serviços executados no turno.
@@ -58,10 +96,11 @@ indicadores de turnos, em andamento, horas totais, bateu meta, sem relatório, c
 - **WHEN** o usuário filtra pela obra 939550
 - **THEN** só turnos com atividade nessa obra aparecem
 
-### Requirement: Dashboard de turnos com visão por equipe
-O dashboard de turnos existente SHALL oferecer a visão por equipe (cartões) para equipes de Obras: status atual, programado e
-executado em R$ acumulado no ciclo, no dia e no dia anterior, data do turno aberto, veículo, líder e componentes, com filtro por
-base e alternância entre visão detalhada e painel compacto.
+### Requirement: Boletim com visão por equipe
+O boletim das equipes de Obras SHALL seguir a estrutura do dashboard de turnos: visão gerencial, indicadores que abrem análise,
+gráfico por equipe, programação do dia com a situação da APR e cartões ou miniaturas por equipe, com status atual, programado e
+executado em R$ no ciclo, no dia e no dia útil anterior, horário do turno, veículo, líder e componentes, com filtro por dia, base e
+tipo de equipe.
 
 #### Scenario: Equipe sem turno
 - **WHEN** a equipe não tem turno aberto

@@ -61,7 +61,7 @@ describe('TiposEquipeComponent', () => {
     tela.nome.set('Encarregado');
     tela.ativo.set(false);
     tela.salvar();
-    expect(rh['criarTipoEquipe']).toHaveBeenCalledWith({ nome: 'ENCARREGADO', ativo: false });
+    expect(rh['criarTipoEquipe']).toHaveBeenCalledWith({ nome: 'ENCARREGADO', ativo: false, jornadaMinutos: 480, plataformaMinutos: 30 });
     expect(rh['desativarTipoEquipe']).not.toHaveBeenCalled();
   });
 

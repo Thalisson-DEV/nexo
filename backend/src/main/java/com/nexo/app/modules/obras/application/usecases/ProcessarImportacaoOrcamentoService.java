@@ -154,7 +154,7 @@ public class ProcessarImportacaoOrcamentoService {
             return;
         }
         obra.informarCarteira(obra.getIdContrato(), obra.getPrazoRegulado(), obra.getPrioridade(),
-                obra.getLotePrevisto(), obra.getSituacaoCarteira(), null,
+                obra.getLotePrevisto(), null,
                 material != null ? material : obra.getValorMaterialPrevisto(),
                 servico != null ? servico : obra.getValorServicoPrevisto());
         obraRepository.save(obra);

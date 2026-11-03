@@ -170,16 +170,21 @@ describe('Dashboard de turnos', () => {
 });
 
 describe('Dashboard operacional', () => {
+  const obra = (numero: string, producao: number, percentualProducao: number) => ({
+    idObra: 'o-' + numero, numero, titulo: 'Rede ' + numero, equipes: 1, servicos: 2, diasComExecucao: 2,
+    producao, percentualProducao, ultimoApontamento: '2026-10-08'
+  });
   const equipe = (parcial: Partial<EquipeOperacional>): EquipeOperacional => ({
     idEquipe: parcial.codigo!,
     codigo: 'EQ',
     baseOperacional: 'Base Salvador',
-    processo: 'Corte',
+    processo: 'Obras',
     tipoEquipe: 'Leve',
     placa: 'ABC1D23',
     producao: 0,
-    notas: 0,
-    valorMedioNota: 0,
+    obrasAtendidas: 0,
+    valorMedioObra: 0,
+    servicos: 0,
     diasComTurno: 0,
     diasComProducao: 0,
     producaoMediaPorDia: 0,
@@ -189,12 +194,12 @@ describe('Dashboard operacional', () => {
     percentualMeta: null,
     projecao: null,
     situacao: 'SEM_META',
-    ultimoLancamento: null,
+    ultimoApontamento: null,
     producaoDiaria: [
-      { data: '2026-10-01', notas: 0, valor: 0, meta: null },
-      { data: '2026-10-02', notas: 0, valor: 0, meta: null }
+      { data: '2026-10-01', obras: 0, servicos: 0, valor: 0, meta: null },
+      { data: '2026-10-02', obras: 0, servicos: 0, valor: 0, meta: null }
     ],
-    tiposServico: [],
+    obras: [],
     ...parcial
   });
 
@@ -205,23 +210,21 @@ describe('Dashboard operacional', () => {
     diasUteisPeriodo: 7,
     diasUteisEncerrados: 6,
     resumo: {
-      producao: 7600, producaoPeriodoAnterior: 8000, variacaoPercentual: -5, notas: 4, valorMedioNota: 1900,
+      producao: 7600, producaoPeriodoAnterior: 8000, variacaoPercentual: -5, obrasAtendidas: 2, valorMedioObra: 3800, servicos: 4,
       equipesAtivas: 2, equipesComProducao: 2, equipesComMeta: 2, metaPeriodo: 14000, producaoEquipesComMeta: 7600,
       percentualMeta: 54.3, projecaoEquipesComMeta: 7600, equipesAbaixoDoRitmo: 1
     },
     producaoDiaria: [],
-    tiposServico: [
-      { idTipoServico: 'ts-cl', codigo: 'CL', descricao: 'LIGAÇÃO NOVA', notas: 3, producao: 6600, valorMedioNota: 2200, percentualNotas: 75 },
-      { idTipoServico: null, codigo: null, descricao: 'Não informado', notas: 1, producao: 1000, valorMedioNota: 1000, percentualNotas: 25 }
-    ],
+    obras: [obra('OB-100', 6600, 86.8), obra('OB-200', 1000, 13.2)],
     equipes: [
       equipe({
-        codigo: 'EQ-01', situacao: 'NO_RITMO', producao: 6600, notas: 3, metaPeriodo: 7000, percentualMeta: 94.3, metaMensal: 22000,
-        tiposServico: [
-          { idTipoServico: 'ts-cl', codigo: 'CL', descricao: 'LIGAÇÃO NOVA', notas: 3, producao: 6600, valorMedioNota: 2200, percentualNotas: 100 }
-        ]
+        codigo: 'EQ-01', situacao: 'NO_RITMO', producao: 6600, obrasAtendidas: 1, servicos: 3, metaPeriodo: 7000, percentualMeta: 94.3,
+        metaMensal: 22000, diasComTurno: 3, obras: [obra('OB-100', 6600, 100)]
       }),
-      equipe({ codigo: 'EQ-02', situacao: 'ABAIXO_DO_RITMO', producao: 1000, notas: 1, metaPeriodo: 7000, percentualMeta: 14.3, metaMensal: 22000 })
+      equipe({
+        codigo: 'EQ-02', situacao: 'ABAIXO_DO_RITMO', producao: 1000, obrasAtendidas: 1, servicos: 1, metaPeriodo: 7000,
+        percentualMeta: 14.3, metaMensal: 22000, diasComTurno: 2, obras: [obra('OB-200', 1000, 100)]
+      })
     ]
   };
 
@@ -239,26 +242,27 @@ describe('Dashboard operacional', () => {
     const filtros = gerarDashboardOperacional.mock.calls[0][0];
     expect(filtros.inicio!).toMatch(/^\d{4}-\d{2}-01$/);
     expect(el.querySelectorAll('app-dashboard-metric-card')).toHaveLength(4);
-    expect(texto(el.querySelector('.dash-metrics') as HTMLElement)).toContain('−5% vs. período anterior');
+    const metricas = texto(el.querySelector('.dash-metrics') as HTMLElement);
+    expect(metricas).toContain('−5% vs. período anterior');
+    expect(metricas).toContain('Obras atendidas');
   });
 
-  it('põe primeiro quem está abaixo do ritmo e mostra a situação em texto', () => {
+  it('põe primeiro quem está abaixo do ritmo, mostra a situação em texto e leva aos turnos de obra', () => {
     const { el } = montar();
     const cartoes = [...el.querySelectorAll('article.ed-team')] as HTMLElement[];
 
     expect(cartoes.map((c) => c.querySelector('h3')?.textContent)).toEqual(['EQ-02', 'EQ-01']);
     expect(texto(cartoes[0].querySelector('ces-status') as HTMLElement)).toBe('Abaixo do ritmo');
     expect(cartoes[0].querySelectorAll('.ed-bars li')).toHaveLength(2);
-    expect(cartoes[0].querySelector('a.ed-link')?.getAttribute('href')).toContain('/execucao/comercial?equipe=EQ-02');
+    expect(cartoes[0].querySelector('a.ed-link')?.getAttribute('href')).toContain('/obras/turnos?equipe=EQ-02');
   });
 
-  it('mostra as notas por tipo de serviço no período e no cartão da equipe', () => {
+  it('mostra a produção por obra no período e no cartão da equipe', () => {
     const { el } = montar();
     const linhas = [...el.querySelectorAll('table.ed-tipos tbody tr')] as HTMLElement[];
 
-    expect(linhas.map((l) => texto(l.querySelector('th') as HTMLElement))).toEqual(['CL LIGAÇÃO NOVA', 'Não informado']);
-    expect(linhas[1].classList).toContain('ed-tipos__sem-tipo');
+    expect(linhas.map((l) => texto(l.querySelector('th') as HTMLElement))).toEqual(['OB-100 Rede OB-100', 'OB-200 Rede OB-200']);
     const eq01 = [...el.querySelectorAll('article.ed-team')].find((c) => c.querySelector('h3')?.textContent === 'EQ-01')!;
-    expect(texto(eq01.querySelector('.ed-team__tags[aria-label^="Notas por tipo"]') as HTMLElement)).toBe('LIGAÇÃO NOVA · 3');
+    expect(texto(eq01.querySelector('.ed-team__tags[aria-label^="Produção por obra"]') as HTMLElement)).toContain('OB-100');
   });
 });
